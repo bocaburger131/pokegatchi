@@ -1,0 +1,15 @@
+{
+  "name": "pokegatchi",
+  "version": "1.0.0",
+  "description": "A Pokemon Go companion Tamagotchi for Wear OS and custom hardware.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

@@ -1,0 +1,2103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pokégatchi</title>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --accent: #6C63FF;
+    --accent-dim: rgba(108,99,255,0.15);
+    --accent-glow: rgba(108,99,255,0.3);
+    --team-bg: #0f0e1a;
+    --card-bg: rgba(26,24,51,0.55);
+    --card-border: rgba(255,255,255,0.06);
+    --text: #e8e6f0;
+    --text-dim: #8884a0;
+    --text-dimmer: #555170;
+    --radius: 20px;
+    --radius-sm: 14px;
+    --radius-xs: 10px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+  [data-team="valor"]    { --accent: #FF4444; --accent-dim: rgba(255,68,68,0.15); --accent-glow: rgba(255,68,68,0.3); --team-bg: #1a0e0e; }
+  [data-team="mystic"]   { --accent: #4488FF; --accent-dim: rgba(68,136,255,0.15); --accent-glow: rgba(68,136,255,0.3); --team-bg: #0e0e1a; }
+  [data-team="instinct"] { --accent: #FFD700; --accent-dim: rgba(255,215,0,0.15); --accent-glow: rgba(255,215,0,0.3); --team-bg: #1a1a0e; }
+
+  html { font-size: 16px; }
+  @media (max-width:420px) { html { font-size: 14px; } }
+
+  body {
+    font-family: 'Nunito',system-ui,sans-serif;
+    background: var(--team-bg); color: var(--text);
+    min-height: 100vh; min-height: 100dvh;
+    overflow-x: hidden; overflow-y: auto;
+  }
+
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--accent-dim); border-radius: 4px; }
+
+  /* ─── TEAM SELECT ─── */
+  #teamOverlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: radial-gradient(ellipse at center, #1a1a2e, #0a0a1a);
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 24px; padding: 20px;
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  #teamOverlay.hidden { opacity: 0; transform: scale(1.05); pointer-events: none; }
+  #teamOverlay h1 {
+    font-size: 2.5rem; font-weight: 900; letter-spacing: 3px;
+    background: linear-gradient(135deg, #C4B5FD, #6C63FF, #FF6584);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  #teamOverlay > p { color: var(--text-dim); font-size: 0.9rem; }
+  .team-pick { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .team-card {
+    width: 160px; padding: 24px 16px 20px; border-radius: var(--radius);
+    background: rgba(255,255,255,0.03); border: 2px solid transparent;
+    text-align: center; cursor: pointer; transition: all 0.3s;
+  }
+  .team-card:hover { transform: translateY(-6px); }
+  .team-card:active { transform: translateY(-2px); }
+  .team-card[data-team="valor"]:hover { border-color: #FF4444; background: rgba(255,68,68,0.08); }
+  .team-card[data-team="mystic"]:hover { border-color: #4488FF; background: rgba(68,136,255,0.08); }
+  .team-card[data-team="instinct"]:hover { border-color: #FFD700; background: rgba(255,215,0,0.08); }
+  .team-card .badge { font-size: 3rem; display: block; margin-bottom: 6px; }
+  .team-card .tname { font-size: 1.1rem; font-weight: 800; }
+  .team-card .tdesc { font-size: 0.7rem; color: var(--text-dim); margin-top: 2px; }
+
+  /* ─── SCENE ─── */
+  .scene-wrap {
+    position: fixed; inset: 0; z-index: 0; overflow: hidden;
+    transition: background 0.8s ease;
+  }
+  .sky-layer {
+    position: absolute; inset: 0; transition: background 1.5s ease;
+    background-size: cover; background-position: center;
+  }
+  .sky-layer img {
+    display: none;
+  }
+  /* Time-of-day tint overlay */
+  .time-tint {
+    position: absolute; inset: 0;
+    transition: background 1.5s ease;
+    pointer-events: none;
+  }
+  [data-time="dawn"] .time-tint {
+    background: linear-gradient(180deg, rgba(42,26,74,0.3) 0%, rgba(106,58,90,0.15) 20%, rgba(212,106,74,0.1) 35%, rgba(240,160,80,0.08) 50%, transparent 70%, rgba(26,26,58,0.2) 100%);
+  }
+  [data-time="morning"] .time-tint {
+    background: linear-gradient(180deg, rgba(74,138,212,0.15) 0%, rgba(106,170,240,0.08) 30%, transparent 60%, rgba(138,184,224,0.05) 100%);
+  }
+  [data-time="afternoon"] .time-tint {
+    background: linear-gradient(180deg, rgba(58,122,212,0.1) 0%, rgba(90,154,240,0.05) 30%, transparent 60%);
+  }
+  [data-time="evening"] .time-tint {
+    background: linear-gradient(180deg, rgba(42,42,90,0.25) 0%, rgba(90,58,122,0.15) 15%, rgba(176,90,90,0.1) 30%, rgba(240,144,64,0.08) 45%, transparent 65%, rgba(42,58,90,0.2) 100%);
+  }
+  [data-time="night"] .time-tint {
+    background: linear-gradient(180deg, rgba(10,10,26,0.45) 0%, rgba(15,14,42,0.3) 25%, rgba(26,22,64,0.2) 50%, rgba(15,14,42,0.3) 75%, rgba(10,10,26,0.45) 100%);
+  }
+  .ground-layer {
+    position: absolute; bottom: 0; left: -5%; right: -5%; height: 38%;
+    background: linear-gradient(0deg, #2a4a2a, #3a6a3a 40%, #4a8a4a 70%, #5a9a5a);
+    border-radius: 60% 40% 0 0 / 30% 20% 0 0;
+    transition: all 1.5s ease;
+  }
+  .scene-sun, .scene-moon {
+    position: absolute; border-radius: 50%; transition: all 2s ease;
+  }
+  .scene-sun {
+    background: radial-gradient(circle at 40% 40%, #FFD700, #FF8C42);
+    box-shadow: 0 0 60px rgba(255,139,66,0.4), 0 0 120px rgba(255,179,71,0.15);
+  }
+  .scene-moon {
+    background: radial-gradient(circle at 35% 35%, #f0e8d0, #c8c0b0);
+    box-shadow: 0 0 40px rgba(240,232,208,0.1);
+  }
+  .scene-tree-group { position: absolute; bottom: 30%; }
+  .scene-tree { display: inline-block; margin: 0 4px; }
+  .scene-tree .trunk { width: 8px; height: 30px; background: linear-gradient(90deg,#5C4A32,#7A5A3A,#5C4A32); margin: 0 auto; border-radius: 2px; }
+  .scene-tree .foliage {
+    width: 0; height: 0;
+    border-left: 18px solid transparent; border-right: 18px solid transparent;
+    border-bottom: 28px solid #2a6a3a; margin: 0 auto -4px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  }
+  .scene-cloud {
+    position: absolute; background: rgba(200,200,220,0.15); border-radius: 50%;
+    animation: cloudDrift var(--dur,60s) linear infinite;
+  }
+  .scene-mountain {
+    position: absolute; bottom: 33%;
+    width: 0; height: 0;
+    border-left: 80px solid transparent; border-right: 80px solid transparent;
+    border-bottom: 60px solid rgba(60,50,80,0.3);
+    filter: blur(2px);
+  }
+  .scene-path {
+    position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 200px; height: 38%;
+    background: linear-gradient(0deg, rgba(139,115,85,0.15), transparent);
+    clip-path: polygon(45% 0, 55% 0, 60% 100%, 40% 100%);
+  }
+
+  [data-time="dawn"] .scene-sun { width:50px;height:50px;bottom:45%;left:50%;transform:translateX(-50%);opacity:0.7; }
+  [data-time="dawn"] .scene-moon { display: none; }
+  [data-time="dawn"] .ground-layer { background: linear-gradient(0deg, #2a3a2a, #3a5a3a 40%, #4a7a4a 70%, #5a8a5a); }
+  [data-time="morning"] .scene-sun { width:45px;height:45px;bottom:52%;left:20%;transform:translateX(-50%);opacity:0.9; }
+  [data-time="morning"] .scene-moon { display: none; }
+  [data-time="morning"] .ground-layer { background: linear-gradient(0deg, #3a5a3a, #4a7a4a 40%, #6a9a6a 70%, #7aaa7a); }
+  [data-time="afternoon"] .scene-sun { width:50px;height:50px;bottom:48%;left:50%;transform:translateX(-50%);opacity:1; }
+  [data-time="afternoon"] .scene-moon { display: none; }
+  [data-time="afternoon"] .ground-layer { background: linear-gradient(0deg, #4a7a4a, #5a9a5a 40%, #7aba7a 70%, #8aca8a); }
+  [data-time="evening"] .scene-sun { width:55px;height:55px;bottom:40%;left:50%;transform:translateX(-50%);opacity:0.6; }
+  [data-time="evening"] .scene-moon { display: none; }
+  [data-time="evening"] .ground-layer { background: linear-gradient(0deg, #1a3a2a, #2a4a3a 40%, #3a5a3a 70%, #2a4a2a); }
+  [data-time="night"] .scene-sun { display: none; }
+  [data-time="night"] .scene-moon { width:40px;height:40px;top:12%;right:18%;opacity:0.8; }
+  [data-time="night"] .ground-layer { background: linear-gradient(0deg, #0a1a0a, #0f2a0f 40%, #1a3a1a 70%, #0f2a0f); }
+
+  [data-weather="cloudy"] .sky-layer { filter: brightness(0.7) saturate(0.6); }
+  [data-weather="cloudy"] .ground-layer { filter: brightness(0.7) saturate(0.6); }
+  [data-weather="rain"] .sky-layer { filter: brightness(0.5) saturate(0.5); }
+  [data-weather="rain"] .ground-layer { filter: brightness(0.5) saturate(0.5); }
+  [data-weather="snow"] .sky-layer { filter: brightness(0.6) saturate(0.4) hue-rotate(20deg); }
+  [data-weather="snow"] .ground-layer { filter: brightness(0.6) saturate(0.4) hue-rotate(20deg); }
+  [data-weather="snow"] .ground-layer { background: linear-gradient(0deg, #4a5a5a, #5a6a6a 40%, #6a7a7a 70%, #7a8a8a) !important; }
+  [data-weather="fog"] .sky-layer { filter: brightness(0.6) saturate(0.3); }
+  .weather-fog-layer { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(200,200,220,0.15), rgba(200,200,220,0.08), transparent); opacity: 0; transition: opacity 2s; }
+  [data-weather="fog"] .weather-fog-layer { opacity: 0.8; }
+  .weather-overlay-rain, .weather-overlay-snow { position: absolute; inset: 0; opacity: 0; transition: opacity 1.5s; }
+  [data-weather="rain"] .weather-overlay-rain { opacity: 1; }
+  [data-weather="snow"] .weather-overlay-snow { opacity: 1; }
+  .night-stars-container { position: absolute; inset: 0; opacity: 0; transition: opacity 2s; }
+  [data-time="night"] .night-stars-container { opacity: 1; }
+  .weather-cloudy-particles { position: absolute; inset: 0; opacity: 0; transition: opacity 1.5s; }
+  [data-weather="cloudy"] .weather-cloudy-particles { opacity: 0.6; }
+  .wc { position: absolute; background: rgba(160,160,180,0.2); border-radius: 50%; }
+
+  @keyframes cloudDrift { 0% { transform: translateX(-100px); } 100% { transform: translateX(calc(100vw + 100px)); } }
+  @keyframes rainFall { 0% { transform: translateY(-20px); opacity: 0; } 10% { opacity: 0.4; } 100% { transform: translateY(100vh); opacity: 0; } }
+  @keyframes snowFall { 0% { transform: translateY(-10px) rotate(0deg); opacity: 0; } 20% { opacity: 0.7; } 100% { transform: translateY(100vh) rotate(360deg); opacity: 0; } }
+  .star-dot { position: absolute; background: #fff; border-radius: 50%; animation: twinkle var(--d,3s) ease-in-out infinite; }
+  @keyframes twinkle { 0%,100% { opacity: 0.2; transform: scale(1); } 50% { opacity: 1; transform: scale(1.3); } }
+
+  /* ─── UI LAYER ─── */
+  .ui-layer {
+    position: relative; z-index: 1;
+    max-width: 680px; margin: 0 auto; padding: 10px 10px 20px;
+  }
+
+  /* ─── TOP BAR ─── */
+  .top-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    background: var(--card-bg); backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: var(--radius);
+    border: 1px solid var(--card-border);
+    margin-bottom: 8px;
+    box-shadow: var(--shadow);
+  }
+  .top-bar .logo {
+    font-size: 1.2rem; font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--text));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-right: 4px;
+  }
+  .top-bar .spacer { flex: 1; }
+  .hud-group {
+    display: flex; align-items: center; gap: 3px;
+    background: rgba(255,255,255,0.03);
+    padding: 3px 8px; border-radius: var(--radius-xs);
+  }
+  .hud-group .hud-icon { font-size: 0.9rem; }
+  .hud-group .hud-val {
+    font-weight: 800; font-size: 0.8rem;
+    color: var(--accent); min-width: 22px;
+    transition: color 0.3s;
+  }
+  .hud-group.milestone .hud-val { color: #FCD34D; }
+  .top-bar .team-badge { font-size: 1.2rem; cursor: pointer; transition: transform 0.2s; }
+  .top-bar .team-badge:hover { transform: scale(1.15); }
+  .auto-status {
+    text-align: center; font-size: 0.65rem; font-weight: 700;
+    color: var(--accent); padding: 2px 0; letter-spacing: 0.5px;
+    background: rgba(108,99,255,0.08); border-radius: var(--radius-xs);
+    margin: 2px 0 4px; animation: autoPulse 2s ease-in-out infinite;
+  }
+  @keyframes autoPulse { 0%,100% { opacity: 0.7; } 50% { opacity: 1; } }
+  .top-bar .pet-level {
+    font-size: 0.65rem; font-weight: 700;
+    background: var(--accent-dim);
+    color: var(--accent);
+    padding: 2px 8px; border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  /* ─── TW INDICATOR ─── */
+  .tw-indicator {
+    text-align: center; font-size: 0.75rem;
+    color: var(--text-dim); margin-bottom: 6px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ─── MODE TOGGLE ─── */
+  .mode-toggle {
+    display: flex; gap: 4px; justify-content: center; margin-bottom: 8px;
+  }
+  .mode-btn {
+    padding: 5px 14px; border-radius: var(--radius-xs);
+    font-size: 0.7rem; font-weight: 700;
+    font-family: 'Nunito',sans-serif;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid transparent;
+    color: var(--text-dim); cursor: pointer;
+    transition: all 0.2s;
+  }
+  .mode-btn.active { border-color: var(--accent); background: var(--accent-dim); color: var(--text); }
+  .mode-btn:hover { color: var(--text); }
+
+  /* ─── SCENE CONTROLS ─── */
+  #sceneControls {
+    display: none; margin-bottom: 8px;
+    background: var(--card-bg); backdrop-filter: blur(12px);
+    border-radius: var(--radius); padding: 10px;
+    border: 1px solid var(--card-border);
+  }
+  #sceneControls .sc-row { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+  #sceneControls .sc-row + .sc-row { margin-top: 4px; }
+  #sceneControls button {
+    font-family: 'Nunito',sans-serif;
+    font-size: 0.65rem; font-weight: 700;
+    padding: 5px 10px; border-radius: var(--radius-xs);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--text-dim); cursor: pointer; transition: all 0.2s;
+  }
+  #sceneControls button:hover { background: var(--accent-dim); color: var(--text); }
+
+  /* ─── PET CARD ─── */
+  .pet-card {
+    background: var(--card-bg); backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: var(--radius);
+    border: 1px solid var(--card-border);
+    padding: 16px; margin-bottom: 8px;
+    text-align: center; position: relative; overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .pet-card::before {
+    content: ''; position: absolute;
+    top: -50%; left: -50%; right: -50%; bottom: -50%;
+    background: radial-gradient(ellipse at 50% 30%, var(--accent-glow), transparent 70%);
+    pointer-events: none; opacity: 0.25;
+  }
+  .pet-card .name { font-size: 1.5rem; font-weight: 900; position: relative; }
+  .pet-card .species { font-size: 0.7rem; color: var(--text-dim); position: relative; }
+  .pet-canvas-wrap {
+    width: 160px; height: 160px; margin: 4px auto; position: relative;
+    background: radial-gradient(ellipse at center, var(--accent-dim), transparent 70%);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.3s;
+  }
+  .pet-canvas-wrap.bounce { animation: petBounce 0.4s ease; }
+  .pet-canvas-wrap.wiggle { animation: petWiggle 0.3s ease; }
+  .pet-canvas-wrap.sparkle { animation: petSparkle 0.6s ease; }
+  @keyframes petBounce { 0%,100% { transform: scale(1); } 40% { transform: scale(1.1); } 60% { transform: scale(0.95); } }
+  @keyframes petWiggle { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-5deg); } 75% { transform: rotate(5deg); } }
+  @keyframes petSparkle { 0%,100% { transform: scale(1) rotate(0); } 30% { transform: scale(1.08) rotate(-3deg); } 60% { transform: scale(1.12) rotate(3deg); } }
+  .pet-canvas-wrap {
+    position: relative;
+    overflow: hidden;
+  }
+  #pet3dContainer {
+    width: 100%; height: 100%;
+    position: relative; z-index: 2;
+  }
+  #pet3dContainer canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+  }
+  .pet-canvas-wrap.egg-wobble {
+    animation: eggWobble 1.2s ease-in-out infinite;
+  }
+  .pet-canvas-wrap.idle-bob {
+    animation: petIdleBob 2s ease-in-out infinite;
+  }
+  @keyframes eggWobble {
+    0%,100% { transform: rotate(0deg); }
+    25% { transform: rotate(-4deg); }
+    75% { transform: rotate(4deg); }
+  }
+  @keyframes petIdleBob {
+    0%,100% { transform: translateY(0px); }
+    50% { transform: translateY(-2px); }
+  }
+  /* Expression overlay canvas */
+  #expressionCanvas {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 3;
+    pointer-events: none;
+  }
+.pet-canvas-wrap .sprite-glow {
+  position: absolute; inset: -5%; border-radius: 50%;
+  background: radial-gradient(ellipse at center, var(--accent-glow), transparent 70%);
+  opacity: 0; transition: opacity 0.5s; pointer-events: none; z-index: 1;
+}
+.pet-canvas-wrap.has-glow .sprite-glow { opacity: 0.5; animation: glowPulse 2.5s ease-in-out infinite; }
+@keyframes glowPulse {
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.15); opacity: 0.6; }
+}
+.pet-canvas-wrap .pet-sprite.idle-bob { animation: spriteIdleBob 2s ease-in-out infinite; }
+.pet-canvas-wrap .pet-sprite.idle-wobble { animation: spriteIdleWobble 3s ease-in-out infinite; }
+@keyframes spriteIdleBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes spriteIdleWobble {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+  .pet-card .mood-label { font-size: 0.85rem; color: var(--text-dim); position: relative; font-weight: 600; }
+  .pet-card .catch-streak {
+    position: relative; font-size: 0.7rem; color: #FCD34D;
+    display: none; margin-top: 2px;
+  }
+  .pet-card .catch-streak.show { display: block; }
+
+  /* ─── STAT GRID ─── */
+  .stats-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+    margin-bottom: 6px;
+  }
+  .stat-panel {
+    background: var(--card-bg); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    border: 1px solid var(--card-border);
+  }
+  .stat-panel h3 {
+    font-size: 0.6rem; font-weight: 800;
+    color: var(--text-dimmer);
+    text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 8px;
+  }
+  .stat-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 0; position: relative;
+  }
+  .stat-row .si { font-size: 0.75rem; width: 16px; text-align: center; flex-shrink: 0; }
+  .stat-row .sn { font-size: 0.6rem; color: var(--text-dim); width: 44px; flex-shrink: 0; font-weight: 600; }
+  .stat-bar-bg {
+    flex: 1; height: 6px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px; overflow: hidden;
+    position: relative;
+  }
+  .stat-fill {
+    height: 100%; border-radius: 4px;
+    transition: width 0.5s ease;
+    position: relative;
+  }
+  .stat-fill::after {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 50%;
+    background: rgba(255,255,255,0.15); border-radius: 4px 4px 0 0;
+  }
+  .stat-row .sv {
+    font-size: 0.6rem; font-weight: 800;
+    min-width: 20px; text-align: right;
+  }
+  .stat-row.low .sv { animation: statPulse 1s ease-in-out infinite; }
+  @keyframes statPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* ─── MOOD GRID ─── */
+  .mood-grid {
+    display: flex; gap: 3px; flex-wrap: wrap; justify-content: center;
+  }
+  .mood-pill {
+    padding: 4px 10px; border-radius: 20px;
+    font-size: 0.7rem; font-weight: 600;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid transparent;
+    cursor: pointer; transition: all 0.2s;
+    font-family: 'Nunito',sans-serif;
+  }
+  .mood-pill:hover { border-color: rgba(255,255,255,0.08); }
+  .mood-pill.active { border-color: var(--accent); background: var(--accent-dim); color: var(--text); }
+
+  /* ─── ACTION BUTTONS ─── */
+  .action-sections {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-bottom: 6px;
+  }
+  .action-group-label {
+    font-size: 0.6rem; font-weight: 800;
+    color: var(--text-dimmer); text-transform: uppercase;
+    letter-spacing: 1.5px; padding: 0 2px 2px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .action-group-label::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.06), transparent);
+  }
+  .action-row {
+    display: flex; gap: 4px; flex-wrap: wrap;
+  }
+  .action-row button {
+    flex: 1; min-width: 60px;
+    font-family: 'Nunito',sans-serif;
+    background: rgba(255,255,255,0.03);
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 8px 6px; border-radius: var(--radius-xs);
+    font-size: 0.7rem; font-weight: 700;
+    cursor: pointer; transition: all 0.15s;
+    position: relative; overflow: hidden;
+    white-space: nowrap;
+  }
+  .action-row button .btn-icon { display: block; font-size: 1.1rem; margin-bottom: 1px; }
+  .action-row button .btn-label { font-size: 0.6rem; opacity: 0.7; font-weight: 600; }
+  .action-row button:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); transform: translateY(-1px); }
+  .action-row button:active { transform: translateY(0); }
+  .action-row button:disabled { opacity: 0.25; cursor: not-allowed; transform: none !important; }
+  .action-row button.primary {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+  }
+  .action-row button.primary:hover { background: var(--accent-glow); }
+  .action-row button.danger {
+    border-color: rgba(255,68,68,0.2);
+    color: #FF6B6B;
+  }
+  .action-row button.danger:hover { background: rgba(255,68,68,0.08); border-color: #FF4444; }
+  .action-row button.complete {
+    background: rgba(252,211,77,0.1);
+    border-color: #FCD34D;
+    color: #FCD34D;
+  }
+  .action-row button.complete:hover { background: rgba(252,211,77,0.18); }
+
+  /* Button click ripple */
+  .action-row button .ripple {
+    position: absolute; border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    transform: scale(0);
+    animation: rippleAnim 0.5s ease-out;
+    pointer-events: none;
+  }
+  @keyframes rippleAnim { to { transform: scale(4); opacity: 0; } }
+
+  /* Cooldown overlay */
+  .action-row button .cooldown-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.4);
+    border-radius: inherit;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem; font-weight: 800; color: var(--text-dim);
+  }
+
+  /* ─── EVO SECTION ─── */
+  .evo-section {
+    background: var(--card-bg); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    border: 1px solid var(--card-border);
+    margin-bottom: 6px;
+  }
+  .evo-section h3 {
+    font-size: 0.6rem; font-weight: 800;
+    color: var(--text-dimmer);
+    text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .evo-track { display: flex; align-items: center; justify-content: center; gap: 2px; flex-wrap: wrap; }
+  .evo-node {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 1px;
+  }
+  .evo-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 2px solid var(--accent);
+    transition: all 0.3s;
+  }
+  .evo-dot.active { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
+  .evo-dot.current {
+    background: var(--accent); border-color: var(--accent);
+    box-shadow: 0 0 12px var(--accent-glow);
+    animation: evoPulse 1.5s ease-in-out infinite;
+  }
+  @keyframes evoPulse { 0%,100% { box-shadow: 0 0 6px var(--accent-glow); } 50% { box-shadow: 0 0 16px var(--accent-glow); } }
+  .evo-arr { color: var(--text-dimmer); font-size: 0.7rem; }
+  .evo-lbl { font-size: 0.55rem; font-weight: 700; color: var(--text-dim); }
+  .evo-req { font-size: 0.5rem; color: var(--text-dimmer); max-width: 80px; text-align: center; line-height: 1.2; }
+
+  /* ─── GOALS ─── */
+  .goal-tracker {
+    background: var(--card-bg); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    border: 1px solid var(--card-border);
+    margin-bottom: 6px;
+  }
+  .goal-tracker h3 {
+    font-size: 0.6rem; font-weight: 800;
+    color: var(--text-dimmer);
+    text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 8px;
+  }
+  .goal-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 0;
+  }
+  .goal-row .gi { font-size: 0.85rem; width: 20px; text-align: center; flex-shrink: 0; }
+  .goal-row .gl { font-size: 0.65rem; color: var(--text-dim); width: 65px; flex-shrink: 0; font-weight: 600; }
+  .goal-bar-bg { flex: 1; height: 5px; background: rgba(255,255,255,0.04); border-radius: 4px; overflow: hidden; }
+  .goal-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+  .goal-fill.complete { background: linear-gradient(90deg, var(--accent), #FCD34D); }
+  .goal-row .gv { font-size: 0.6rem; font-weight: 700; color: var(--text-dim); min-width: 48px; text-align: right; }
+  .goal-row.done .gv { color: #FCD34D; }
+
+  /* ─── MINIGAMES ─── */
+  .minigames { display: grid; grid-template-columns: repeat(3,1fr); gap: 4px; }
+  .mg-card {
+    background: rgba(255,255,255,0.03); border-radius: var(--radius-xs);
+    padding: 8px 4px; text-align: center;
+    border: 1px solid transparent;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .mg-card:hover { border-color: rgba(255,255,255,0.06); background: rgba(255,255,255,0.05); }
+  .mg-card .mg-icon { font-size: 1.4rem; display: block; }
+  .mg-card .mg-name { font-size: 0.6rem; font-weight: 700; }
+  .mg-card .mg-stat { font-size: 0.5rem; color: var(--accent); font-weight: 600; }
+
+  /* ─── MILESTONE POPUP ─── */
+  .milestone-popup {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.5);
+    background: var(--card-bg); backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 2px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 30px 40px;
+    text-align: center;
+    opacity: 0; pointer-events: none;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 200;
+    box-shadow: 0 0 60px var(--accent-glow);
+  }
+  .milestone-popup.show { opacity: 1; pointer-events: auto; transform: translate(-50%,-50%) scale(1); }
+  .milestone-popup .mp-icon { font-size: 3rem; display: block; margin-bottom: 8px; }
+  .milestone-popup .mp-title { font-size: 1.2rem; font-weight: 900; color: var(--accent); }
+  .milestone-popup .mp-desc { font-size: 0.8rem; color: var(--text-dim); margin-top: 4px; }
+  .milestone-popup .mp-btn {
+    margin-top: 16px; padding: 8px 24px;
+    border-radius: var(--radius-xs);
+    background: var(--accent); border: none;
+    color: #fff; font-size: 0.8rem; font-weight: 700;
+    cursor: pointer; font-family: 'Nunito',sans-serif;
+  }
+
+  /* ─── TOAST ─── */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--card-bg); backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--accent);
+    padding: 10px 20px; border-radius: var(--radius-sm);
+    font-size: 0.8rem; font-weight: 700;
+    opacity: 0; transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 150; pointer-events: none;
+    white-space: nowrap;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer {
+    text-align: center; font-size: 0.55rem;
+    color: var(--text-dimmer); padding: 8px 0;
+  }
+
+  @media (max-width:500px) {
+    .stats-grid { grid-template-columns: 1fr; }
+    .pet-canvas-wrap { width: 140px; height: 140px; }
+    .team-card { width: 130px; padding: 18px 12px; }
+    #teamOverlay h1 { font-size: 2rem; }
+    .action-row button { min-width: 50px; padding: 6px 4px; }
+    .action-row button .btn-icon { font-size: 1rem; }
+    .milestone-popup { padding: 20px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── TEAM SELECT ─── -->
+<div id="teamOverlay">
+  <h1>✦ Pokégatchi ✦</h1>
+  <p>Choose your team to begin</p>
+  <div class="team-pick">
+    <div class="team-card" data-team="valor" onclick="selectTeam('valor')">
+      <span class="badge">🔴</span>
+      <div class="tname" style="color:#FF4444;">Valor</div>
+      <div class="tdesc">Fire burns bright</div>
+    </div>
+    <div class="team-card" data-team="mystic" onclick="selectTeam('mystic')">
+      <span class="badge">🔵</span>
+      <div class="tname" style="color:#4488FF;">Mystic</div>
+      <div class="tdesc">Wisdom prevails</div>
+    </div>
+    <div class="team-card" data-team="instinct" onclick="selectTeam('instinct')">
+      <span class="badge">🟡</span>
+      <div class="tname" style="color:#FFD700;">Instinct</div>
+      <div class="tdesc">Trust your gut</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SCENE ─── -->
+<div class="scene-wrap" id="sceneWrap" data-time="morning" data-weather="clear">
+  <div class="sky-layer" id="skyLayer"></div>
+  <div class="time-tint"></div>
+  <div class="scene-sun"></div>
+  <div class="scene-moon"></div>
+  <div class="night-stars-container" id="nightStarsContainer"></div>
+  <div class="weather-overlay-rain" id="rainOverlay"></div>
+  <div class="weather-overlay-snow" id="snowOverlay"></div>
+  <div class="weather-fog-layer"></div>
+  <div class="weather-cloudy-particles" id="cloudyParticles"></div>
+  <div class="ground-layer"></div>
+  <div class="scene-path"></div>
+  <div class="scene-mountain" style="left:5%;border-bottom-color:rgba(50,40,70,0.2);"></div>
+  <div class="scene-mountain" style="right:10%;border-left-width:100px;border-right-width:100px;border-bottom-width:70px;border-bottom-color:rgba(60,50,80,0.15);"></div>
+  <div class="scene-tree-group" style="left:8%;">
+    <div class="scene-tree"><div class="foliage"></div><div class="trunk"></div></div>
+    <div class="scene-tree" style="transform:scale(0.7);"><div class="foliage"></div><div class="trunk"></div></div>
+  </div>
+  <div class="scene-tree-group" style="right:10%;">
+    <div class="scene-tree" style="transform:scale(0.8);"><div class="foliage"></div><div class="trunk"></div></div>
+    <div class="scene-tree"><div class="foliage"></div><div class="trunk"></div></div>
+  </div>
+  <div class="scene-cloud" style="width:80px;height:30px;top:15%;left:-10%;--dur:80s;"></div>
+  <div class="scene-cloud" style="width:100px;height:25px;top:25%;left:-20%;--dur:110s;opacity:0.7;"></div>
+</div>
+
+<!-- ─── UI ─── -->
+<div class="ui-layer">
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <span class="logo">✦ PG</span>
+    <span class="pet-level" id="petLevelDisplay">EGG</span>
+    <span class="spacer"></span>
+    <span class="hud-group" id="hudStepsGroup">
+      <span class="hud-icon">👟</span>
+      <span class="hud-val" id="hudSteps">0</span>
+    </span>
+    <span class="hud-group" id="hudCatchesGroup">
+      <span class="hud-icon">🏆</span>
+      <span class="hud-val" id="hudCatches">0</span>
+    </span>
+    <span class="hud-group" id="hudStopsGroup">
+      <span class="hud-icon">🔄</span>
+      <span class="hud-val" id="hudStops">0</span>
+    </span>
+    <span class="team-badge" id="teamBadge" title="Tap to switch team">🔴</span>
+  </div>
+
+  <!-- AUTO MODE INDICATOR -->
+  <div id="autoStatus" class="auto-status" style="display:none;">
+    🤖 Auto: <span id="autoCatchCount">0</span> caught · <span id="autoSpinCount">0</span> spun
+  </div>
+
+  <!-- TIME & WEATHER -->
+  <div class="tw-indicator" id="twIndicator">☀️ Morning · Clear</div>
+
+  <!-- MODE TOGGLE -->
+  <div class="mode-toggle">
+    <button class="mode-btn active" onclick="setMode('play')">🎮 Play</button>
+    <button class="mode-btn" onclick="setMode('auto')">🤖 Auto</button>
+    <button class="mode-btn" onclick="setMode('scene')">🌄 Scenes</button>
+  </div>
+
+  <!-- SCENE CONTROLS -->
+  <div id="sceneControls">
+    <div class="sc-row">
+      <button onclick="setTime(0)">🌅 Dawn</button>
+      <button onclick="setTime(1)">☀️ Morning</button>
+      <button onclick="setTime(2)">🌤️ Afternoon</button>
+      <button onclick="setTime(3)">🌆 Evening</button>
+      <button onclick="setTime(4)">🌙 Night</button>
+    </div>
+    <div class="sc-row">
+      <button onclick="setWeather(0)">☀️ Clear</button>
+      <button onclick="setWeather(1)">☁️ Cloudy</button>
+      <button onclick="setWeather(2)">🌧️ Rain</button>
+      <button onclick="setWeather(3)">❄️ Snow</button>
+      <button onclick="setWeather(4)">🌫️ Fog</button>
+    </div>
+  </div>
+
+  <!-- EVOLUTION LINE PICKER -->
+  <div id="linePicker" class="mode-toggle" style="margin-bottom:8px;">
+    <button class="mode-btn active">Eevee Line</button>
+    <button class="mode-btn">Charmander Line</button>
+    <button class="mode-btn">Pikachu Line</button>
+  </div>
+
+  <!-- PET CARD -->
+  <div class="pet-card">
+    <div class="name" id="petName">—</div>
+    <div class="species" id="petSpecies">Tap Hatch to begin</div>
+    <div class="pet-canvas-wrap" id="petWrap">
+      <div id="pet3dContainer"></div>
+      <canvas id="expressionCanvas" width="320" height="320"></canvas>
+      <div class="sprite-glow" id="spriteGlow"></div>
+    </div>
+    <div class="mood-label" id="moodLabel">🥚 Waiting</div>
+    <div class="catch-streak" id="catchStreak">🔥 <span id="streakCount">0</span>-catch streak!</div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-panel">
+      <h3>❤️ Stats</h3>
+      <div id="statsPanel"></div>
+    </div>
+    <div class="stat-panel">
+      <h3>😊 Mood</h3>
+      <div class="mood-grid" id="moodGrid"></div>
+    </div>
+  </div>
+
+  <!-- GOALS -->
+  <div class="goal-tracker">
+    <h3>🎯 Evolution Goals</h3>
+    <div id="goalPanel"></div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="action-sections">
+    <div>
+      <div class="action-group-label">Care</div>
+      <div class="action-row">
+        <button id="btnHatch" class="primary" onclick="hatch()"><span class="btn-icon">🥚</span><span class="btn-label">Hatch</span></button>
+        <button onclick="feed()"><span class="btn-icon">🫐</span><span class="btn-label">Feed</span></button>
+        <button onclick="petAction()"><span class="btn-icon">🫳</span><span class="btn-label">Pet</span></button>
+        <button onclick="healPet()"><span class="btn-icon">💊</span><span class="btn-label">Heal</span></button>
+      </div>
+    </div>
+    <div>
+      <div class="action-group-label">Adventure</div>
+      <div class="action-row">
+        <button onclick="addCatch()" id="btnCatch"><span class="btn-icon">🏆</span><span class="btn-label">Catch!</span></button>
+        <button onclick="addStep(100)"><span class="btn-icon">👟</span><span class="btn-label">+100 Steps</span></button>
+        <button onclick="addStop()"><span class="btn-icon">🔄</span><span class="btn-label">Spin Stop</span></button>
+        <button onclick="walkBatch()" class="complete"><span class="btn-icon">🚶</span><span class="btn-label">Walk +1k</span></button>
+      </div>
+    </div>
+    <div>
+      <div class="action-group-label">Evolution</div>
+      <div class="action-row">
+        <button id="btnEvolve" onclick="evolve()" disabled><span class="btn-icon">⬆</span><span class="btn-label">Evolve</span></button>
+        <button onclick="resetPet()" class="danger"><span class="btn-icon">🔄</span><span class="btn-label">Reset</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EVOLUTION TRACK -->
+  <div class="evo-section">
+    <h3>📈 Evolution Line</h3>
+    <div class="evo-track" id="evoTrack"></div>
+  </div>
+
+  <!-- MINIGAMES -->
+  <div class="evo-section">
+    <h3>🎮 Mini-Games</h3>
+    <div class="minigames" id="minigamePanel"></div>
+  </div>
+
+  <!-- ACHIEVEMENTS (collapsible) -->
+  <div class="evo-section" style="cursor:pointer;" onclick="toggleAchievements()">
+    <h3>🏅 Achievements <span id="achBadge" style="margin-left:auto;font-size:0.7rem;color:var(--accent);"></span></h3>
+    <div id="achPanel" style="display:none;"></div>
+  </div>
+
+  <div class="footer">Pokégatchi · Press <kbd>C</kbd> catch · <kbd>S</kbd> +100 steps · <kbd>1-5</kbd> time · <kbd>Shift+1-5</kbd> weather</div>
+</div>
+
+<!-- ─── MISC ─── -->
+<div class="toast" id="toast"></div>
+<div class="milestone-popup" id="milestonePopup">
+  <span class="mp-icon" id="mpIcon">🎉</span>
+  <div class="mp-title" id="mpTitle">Milestone!</div>
+  <div class="mp-desc" id="mpDesc">You reached a goal!</div>
+  <button class="mp-btn" onclick="closeMilestone()">Awesome!</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════
+
+const STAGES = [
+  { id:'egg',    name:'Egg',        species:'—',                    color:'#E8E0F0', desc:'Warm & waiting',        needCatch:0, needSteps:0, needStops:0 },
+  { id:'baby',   name:'Trappup',    species:'Baby Trappup',         color:'#C4B5FD', desc:'The Nap Helper',        needCatch:0, needSteps:0, needStops:0 },
+  { id:'teen',   name:'Trappix',    species:'Teen Trappix',        color:'#A78BFA', desc:'Growing Spark',         needCatch:50, needSteps:5000, needStops:10 },
+  { id:'adult',  name:'Trappix',    species:'Adult Trappix',       color:'#8B5CF6', desc:'The Cozy Fox',          needCatch:250, needSteps:25000, needStops:30 },
+  { id:'mega',   name:'Mega Trappix', species:'Mega Trappix',      color:'#7C3AED', desc:'Dream Weaver',          needCatch:500, needSteps:50000, needStops:50 },
+];
+
+const TEAMS = {
+  valor:   { badge:'🔴', name:'Valor',   color:'#FF4444', icon:'🔥' },
+  mystic:  { badge:'🔵', name:'Mystic',  color:'#4488FF', icon:'🧊' },
+  instinct:{ badge:'🟡', name:'Instinct', color:'#FFD700', icon:'⚡' },
+};
+
+const TIMES = ['dawn','morning','afternoon','evening','night'];
+const TIMES_LABEL = { dawn:'🌅 Dawn', morning:'☀️ Morning', afternoon:'🌤️ Afternoon', evening:'🌆 Evening', night:'🌙 Night' };
+const WEATHERS = ['clear','cloudy','rain','snow','fog'];
+const WEATHER_LABEL = { clear:'☀️ Clear', cloudy:'☁️ Cloudy', rain:'🌧️ Rain', snow:'❄️ Snow', fog:'🌫️ Fog' };
+
+const STAT_META = [
+  { icon:'🍖', name:'Hunger', colors:['#4ADE80','#22C55E'] },
+  { icon:'❤️', name:'Bond',   colors:['#FBBF24','#F59E0B'] },
+  { icon:'⚡',  name:'Energy', colors:['#60A5FA','#3B82F6'] },
+  { icon:'🧠', name:'Smarts', colors:['#A78BFA','#8B5CF6'] },
+];
+
+const MOODS = ['😊 Happy','😐 Content','🍽️ Hungry','😢 Sad','🌟 Excited','😴 Sleepy'];
+
+const MINIGAMES = [
+  { icon:'🫳', name:'Pet & Coo',  stat:'+Bond',   desc:'Tap to pet' },
+  { icon:'🫐', name:'Berry Catch',stat:'+Weight',  desc:'Timing game' },
+  { icon:'🙈', name:'Peek-a-Boo', stat:'+Bond',   desc:'Tap when peeks' },
+  { icon:'🤸', name:'Jump Rope',  stat:'+Energy',  desc:'Tap to jump' },
+  { icon:'🧠', name:'Simon Says', stat:'+Smarts',  desc:'Repeat pattern' },
+  { icon:'🎯', name:'Target Tap', stat:'+Accuracy',desc:'Tap targets' },
+];
+
+const ACHIEVEMENTS = [
+  { id:'first_catch',  icon:'🏆', name:'First Catch!',     desc:'Catch your first Pokemon',          check: s => s.catches >= 1 },
+  { id:'hatch',        icon:'🥚', name:'New Life',          desc:'Hatch your first egg',              check: s => s.stage >= 1 },
+  { id:'50_catches',   icon:'🌟', name:'Novice Catcher',    desc:'Catch 50 Pokemon',                  check: s => s.catches >= 50 },
+  { id:'250_catches',  icon:'💫', name:'Expert Catcher',    desc:'Catch 250 Pokemon',                 check: s => s.catches >= 250 },
+  { id:'500_catches',  icon:'👑', name:'Master Catcher',    desc:'Catch 500 Pokemon',                 check: s => s.catches >= 500 },
+  { id:'1k_steps',     icon:'👟', name:'First Steps',       desc:'Walk 1,000 steps',                  check: s => s.steps >= 1000 },
+  { id:'10k_steps',    icon:'🏃', name:'Walker',            desc:'Walk 10,000 steps',                 check: s => s.steps >= 10000 },
+  { id:'50k_steps',    icon:'🚀', name:'Marathoner',        desc:'Walk 50,000 steps',                 check: s => s.steps >= 50000 },
+  { id:'10_stops',     icon:'🔄', name:'Tourist',           desc:'Spin 10 unique stops',              check: s => s.uniqueStops >= 10 },
+  { id:'30_stops',     icon:'🗺️', name:'Explorer',          desc:'Spin 30 unique stops',              check: s => s.uniqueStops >= 30 },
+  { id:'50_stops',     icon:'🌍', name:'World Traveler',    desc:'Spin 50 unique stops',              check: s => s.uniqueStops >= 50 },
+  { id:'evolve_teen',  icon:'⬆',  name:'Growing Up',        desc:'Evolve to Teen',                    check: s => s.stage >= 2 },
+  { id:'evolve_adult', icon:'🌟', name:'All Grown Up',      desc:'Evolve to Adult',                   check: s => s.stage >= 3 },
+  { id:'evolve_mega',  icon:'✨', name:'Mega Evolution!',   desc:'Reach Mega form',                   check: s => s.stage >= 4 },
+  { id:'full_stats',   icon:'💯', name:'Perfect Care',      desc:'Get all stats to 100',              check: s => s.stats.every(v => v >= 100) },
+  { id:'team_valor',   icon:'🔥', name:'Valor Heart',       desc:'Choose Team Valor',                 check: s => s.team === 'valor', oneTime: true },
+  { id:'team_mystic',  icon:'🧊', name:'Mystic Insight',    desc:'Choose Team Mystic',                check: s => s.team === 'mystic', oneTime: true },
+  { id:'team_instinct',icon:'⚡', name:'Instinct Spark',    desc:'Choose Team Instinct',              check: s => s.team === 'instinct', oneTime: true },
+];
+
+// ─── SPRITE EVOLUTION LINES ──────────────────────────
+// Multiple evolution lines you can switch between
+const EVO_LINES = {
+  // Eevee line: cute baby → spiky teen → sleek adult → elegant mega
+  eevee: {
+    name: 'Eevee Line',
+    sprites: ['assets/sprites/egg_pixel.png', 'assets/sprites/eevee.png', 'assets/sprites/jolteon.png', 'assets/sprites/umbreon.png', 'assets/sprites/sylveon.png'],
+    names: ['Egg', 'Eevee', 'Jolteon', 'Umbreon', 'Sylveon'],
+  },
+  // Charmander line: classic starter progression
+  charmander: {
+    name: 'Charmander Line',
+    sprites: ['assets/sprites/egg_pixel.png', 'assets/sprites/charmander.png', 'assets/sprites/charmeleon.png', 'assets/sprites/charizard.png', 'assets/sprites/mega-charizard-y.png'],
+    names: ['Egg', 'Charmander', 'Charmeleon', 'Charizard', 'Mega Charizard Y'],
+  },
+  // Pikachu line: baby → mascot → thunderbolt → alolan finale
+  pikachu: {
+    name: 'Pikachu Line',
+    sprites: ['assets/sprites/egg_pixel.png', 'assets/sprites/pichu.png', 'assets/sprites/pikachu.png', 'assets/sprites/raichu.png', 'assets/sprites/alolan-raichu.png'],
+    names: ['Egg', 'Pichu', 'Pikachu', 'Raichu', 'Alolan Raichu'],
+  },
+  // Bulbasaur line: the grass starter
+  bulbasaur: {
+    name: 'Bulbasaur Line',
+    sprites: ['assets/sprites/egg_pixel.png', 'assets/sprites/bulbasaur.png', 'assets/sprites/ivysaur.png', 'assets/sprites/venusaur.png', 'assets/sprites/mega-venusaur.png'],
+    names: ['Egg', 'Bulbasaur', 'Ivysaur', 'Venusaur', 'Mega Venusaur'],
+  },
+  // Squirtle line: the water starter
+  squirtle: {
+    name: 'Squirtle Line',
+    sprites: ['assets/sprites/egg_pixel.png', 'assets/sprites/squirtle.png', 'assets/sprites/wartortle.png', 'assets/sprites/blastoise.png', 'assets/sprites/mega-blastoise.png'],
+    names: ['Egg', 'Squirtle', 'Wartortle', 'Blastoise', 'Mega Blastoise'],
+  },
+  // Eeveelutions alt: the other eeveelutions
+  eeveelutions: {
+    name: 'Eeveelutions Alt',
+    sprites: ['assets/sprites/egg_pixel.png', 'assets/sprites/eevee.png', 'assets/sprites/vaporeon.png', 'assets/sprites/flareon.png', 'assets/sprites/espeon.png'],
+    names: ['Egg', 'Eevee', 'Vaporeon', 'Flareon', 'Espeon'],
+  },
+};
+
+// ─── 3D MODEL MAPPING ────────────────────────────────
+// Maps each evo line + stage → { id, category } for loading .glb models
+const MODEL_IDS = {
+  eevee:       { ids: [0, 133, 135, 197, 700], cats: ['','regular','regular','regular','regular'] },
+  charmander:  { ids: [0, 4, 5, 6, 6],         cats: ['','regular','regular','regular','regular'] },
+  pikachu:     { ids: [0, 172, 25, 26, 26],    cats: ['','regular','regular','regular','alolan'] },
+  bulbasaur:   { ids: [0, 1, 2, 3, 3],         cats: ['','regular','regular','regular','mega'] },
+  squirtle:    { ids: [0, 7, 8, 9, 9],         cats: ['','regular','regular','regular','regular'] },
+  eeveelutions:{ ids: [0, 133, 134, 136, 196], cats: ['','regular','regular','regular','regular'] },
+};
+function getSavedLine() {
+  try { const v = localStorage.getItem('pg_line'); if (v && EVO_LINES[v]) return v; } catch(e) {}
+  return null;
+}
+function setLine(key) {
+  if (!EVO_LINES[key]) return;
+  activeLine = key;
+  try { localStorage.setItem('pg_line', key); } catch(e) {}
+  renderAll();
+  toast(`✨ Switched to ${EVO_LINES[key].name}!`);
+}
+let activeLine = getSavedLine() || 'eevee';
+
+// ─── LINE PICKER UI ──────────────────────────────
+function renderLinePicker() {
+  const panel = document.getElementById('linePicker');
+  if (!panel) return;
+  panel.innerHTML = Object.entries(EVO_LINES).map(([key, line]) =>
+    `<button class="mode-btn ${activeLine === key ? 'active' : ''}" onclick="setLine('${key}')">${line.name}</button>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
+
+let S = {
+  team:'valor', stage:0, catches:0, steps:0, stops:0, uniqueStops:0,
+  stats:[80,50,70,40], mood:0, timeIdx:-1, weatherIdx:0, mode:'play',
+  streak:0, achievements: new Set(),
+  totalFeeds:0, totalPets:0, totalHeals:0,
+};
+let visitedStops = new Set();
+
+// ─── REAL-TIME CLOCK → TIME OF DAY ──────────────────
+
+function getTimeFromClock() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 8) return 0;  // dawn
+  if (h >= 8 && h < 12) return 1; // morning
+  if (h >= 12 && h < 17) return 2; // afternoon
+  if (h >= 17 && h < 20) return 3; // evening
+  return 4; // night
+}
+
+function syncTimeWithClock() {
+  if (S.mode !== 'auto') return;
+  S.timeIdx = getTimeFromClock();
+  applyScene();
+}
+
+// ─── BACKGROUND IMAGES ────────────────────────────
+const BG_IMAGES = [
+  'assets/backgrounds/cats-soup/day-forest.png',
+  'assets/backgrounds/cats-soup/magical-forest.png',
+  'assets/backgrounds/cats-soup/sunlit-forest.png',
+  'assets/backgrounds/cats-soup/enchanted-night.png',
+  'assets/backgrounds/cats-soup/enchanted-night.png',
+];
+// Map time-of-day indices to background image indices
+// 0=dawn→1(magical), 1=morning→0(day), 2=afternoon→2(sunlit), 3=evening→3(enchanted), 4=night→3(enchanted)
+const BG_MAP = [1, 0, 2, 3, 3];
+
+// ─── SCENE ──────────────────────────────────────────
+
+function applyScene() {
+  const w = document.getElementById('sceneWrap');
+  const t = S.timeIdx >= 0 ? TIMES[S.timeIdx] : 'morning';
+  const we = WEATHERS[S.weatherIdx];
+  w.dataset.time = t;
+  w.dataset.weather = we;
+  document.getElementById('twIndicator').textContent =
+    `${TIMES_LABEL[t]} · ${WEATHER_LABEL[we]}${S.timeIdx < 0 ? ' (auto)' : ''}`;
+
+  // Set background image based on time of day
+  const bgIdx = S.timeIdx >= 0 ? BG_MAP[S.timeIdx] : 1;
+  document.getElementById('skyLayer').style.backgroundImage = `url('${BG_IMAGES[bgIdx]}')`;
+
+  // Update weather filter on image layer
+  const sky = document.getElementById('skyLayer');
+  if (we === 'cloudy') sky.style.filter = 'brightness(0.7) saturate(0.6)';
+  else if (we === 'rain') sky.style.filter = 'brightness(0.5) saturate(0.5)';
+  else if (we === 'snow') sky.style.filter = 'brightness(0.6) saturate(0.4) hue-rotate(20deg)';
+  else if (we === 'fog') sky.style.filter = 'brightness(0.6) saturate(0.3)';
+  else sky.style.filter = '';
+}
+
+function setTime(idx) { S.timeIdx = idx; applyScene(); }
+function setWeather(idx) { S.weatherIdx = idx; applyScene(); }
+
+// ═══════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════
+
+function renderPet() {
+  renderPet3D();
+}
+
+function renderStats() {
+  const panel = document.getElementById('statsPanel');
+  panel.innerHTML = S.stats.map((v, i) => {
+    const p = Math.min(v, 100);
+    const meta = STAT_META[i];
+    const low = v <= 20;
+    return `<div class="stat-row ${low ? 'low' : ''}">
+      <span class="si">${meta.icon}</span>
+      <span class="sn">${meta.name}</span>
+      <div class="stat-bar-bg"><div class="stat-fill" style="width:${p}%;background:linear-gradient(90deg,${meta.colors[0]},${meta.colors[1]})"></div></div>
+      <span class="sv" style="color:${meta.colors[0]}">${v}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderMoods() {
+  document.getElementById('moodGrid').innerHTML = MOODS.map((m, i) =>
+    `<button class="mood-pill ${S.mood === i ? 'active' : ''}" onclick="setMood(${i})">${m}</button>`
+  ).join('');
+}
+
+function renderGoals() {
+  const panel = document.getElementById('goalPanel');
+  if (S.stage >= 4) {
+    panel.innerHTML = '<div style="color:var(--accent);font-size:0.8rem;font-weight:800;text-align:center;">✨ MAX EVOLUTION REACHED ✨</div>';
+    return;
+  }
+  const next = STAGES[S.stage + 1];
+  if (!next) return;
+  const goals = [
+    { icon:'🏆', label:'Catches',      cur:S.catches, need:next.needCatch, done:S.catches >= next.needCatch },
+    { icon:'👟', label:'Steps',        cur:S.steps,   need:next.needSteps, done:S.steps >= next.needSteps },
+    { icon:'🔄', label:'Unique Stops', cur:S.uniqueStops, need:next.needStops, done:S.uniqueStops >= next.needStops },
+  ];
+  panel.innerHTML = goals.map(g => {
+    const pct = g.need > 0 ? Math.min((g.cur / g.need) * 100, 100) : 100;
+    return `<div class="goal-row ${g.done ? 'done' : ''}">
+      <span class="gi">${g.done ? '✅' : g.icon}</span>
+      <span class="gl">${g.label}</span>
+      <div class="goal-bar-bg"><div class="goal-fill ${g.done ? 'complete' : ''}" style="width:${pct}%;background:${g.done ? 'linear-gradient(90deg,var(--accent),#FCD34D)' : `linear-gradient(90deg,var(--accent-dim),var(--accent))`}"></div></div>
+      <span class="gv">${g.done ? '✓' : `${g.cur.toLocaleString()}/${g.need.toLocaleString()}`}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderEvo() {
+  const line = EVO_LINES[activeLine];
+  const names = ['Egg', ...line.names.slice(0, 4)];
+  const reqs = ['Tap Hatch','—','50c +5k👟 +10🔄','250c +25k👟 +30🔄','500c +50k👟 +50🔄'];
+  const track = document.getElementById('evoTrack');
+  track.innerHTML = names.map((n, i) => {
+    const cls = i < S.stage ? 'active' : i === S.stage ? 'current' : '';
+    return `<div class="evo-node">
+      <div class="evo-dot ${cls}"></div>
+      <span class="evo-lbl">${n}</span>
+      <span class="evo-req">${reqs[i]}</span>
+    </div>${i < 4 ? '<span class="evo-arr">→</span>' : ''}`;
+  }).join('');
+}
+
+function renderMinigames() {
+  document.getElementById('minigamePanel').innerHTML = MINIGAMES.map(m =>
+    `<div class="mg-card" onclick="playMiniGame('${m.name}')">
+      <span class="mg-icon">${m.icon}</span>
+      <div class="mg-name">${m.name}</div>
+      <div class="mg-stat">${m.stat}</div>
+    </div>`
+  ).join('');
+}
+
+function renderAchievements() {
+  const unlocked = ACHIEVEMENTS.filter(a => S.achievements.has(a.id));
+  document.getElementById('achBadge').textContent = unlocked.length > 0 ? `🏅 ${unlocked.length}` : '';
+
+  if (!document.getElementById('achPanel').style.display === 'block') return;
+  document.getElementById('achPanel').innerHTML = ACHIEVEMENTS.map(a => {
+    const done = S.achievements.has(a.id);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;opacity:${done ? 1 : 0.3};">
+      <span style="font-size:1rem;">${done ? a.icon : '🔒'}</span>
+      <div style="flex:1;"><div style="font-size:0.7rem;font-weight:700;">${a.name}</div><div style="font-size:0.55rem;color:var(--text-dimmer);">${a.desc}</div></div>
+      ${done ? '<span style="font-size:0.8rem;">✅</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function updateButtons() {
+  document.getElementById('btnHatch').disabled = S.stage > 0;
+  document.getElementById('btnEvolve').disabled = S.stage === 0 || S.stage >= 4;
+}
+
+function renderAll() {
+  renderPet(); renderStats(); renderMoods(); renderGoals();
+  renderEvo(); renderMinigames(); renderAchievements(); updateButtons();
+  renderLinePicker();
+}
+
+// ═══════════════════════════════════════════════════
+//  ACTIONS
+// ═══════════════════════════════════════════════════
+
+function hatch() {
+  if (S.stage > 0) return;
+  S.stage = 1;
+  S.catches = 0; S.steps = 0; S.stops = 0; S.uniqueStops = 0;
+  S.stats = [80, 50, 70, 40];
+  visitedStops.clear();
+  S.streak = 0;
+  petAnim('bounce');
+  checkAchievements();
+  toast('🥚 <b>Trappup hatched!</b> 🎉');
+  renderAll();
+}
+
+function evolve() {
+  if (S.stage === 0 || S.stage >= 4) return;
+  const next = STAGES[S.stage + 1];
+  const can = S.catches >= next.needCatch && S.steps >= next.needSteps && S.uniqueStops >= next.needStops;
+  if (!can) { toast('⚠️ Complete all goals first!'); return; }
+
+  S.stage++;
+  S.stats = S.stats.map(s => Math.min(s + 15, 100));
+  S.streak = 0;
+  const name = STAGES[S.stage].name;
+  petAnim('sparkle');
+  showMilestone('✨', `${name}!`, `Your pet evolved!`);
+  checkAchievements();
+  renderAll();
+}
+
+function feed() {
+  if (S.stage === 0) { toast('🥚 The egg doesn\'t eat'); return; }
+  const old = S.stats[0];
+  S.stats[0] = Math.min(S.stats[0] + 15, 100);
+  S.stats[1] = Math.min(S.stats[1] + 3, 100);
+  S.totalFeeds++;
+  if (old <= 20 && S.stats[0] > 20) autoMoodCheck();
+  petAnim('bounce');
+  const msgs = ['🫐 Yum!', '🍇 Delicious!', '🍓 Nom nom!', '🫐 Tasty!', '🍊 Mmm!'];
+  toast(msgs[Math.floor(Math.random() * msgs.length)]);
+  tick();
+}
+
+function petAction() {
+  if (S.stage === 0) { toast('🥚 Wiggles happily'); return; }
+  S.stats[1] = Math.min(S.stats[1] + 10, 100);
+  S.stats[2] = Math.min(S.stats[2] + 3, 100);
+  S.totalPets++;
+  const r = ['purrs 🥰','nuzzles 🫳','sparks gently ✨','giggles 😊','leans in 🫂'];
+  petAnim('wiggle');
+  toast(`🫳 ${r[Math.floor(Math.random() * r.length)]}`);
+  tick();
+}
+
+function healPet() {
+  if (S.stage === 0) { toast('🥚 The egg is fine'); return; }
+  const wasLow = S.stats.some(v => v <= 20);
+  S.stats = S.stats.map(s => Math.min(s + 20, 100));
+  S.totalHeals++;
+  if (wasLow) autoMoodCheck();
+  petAnim('sparkle');
+  toast('💊 All healed up! ✨');
+  tick();
+}
+
+function setMood(i) {
+  S.mood = i;
+  renderMoods();
+  const labels = ['😊','😐','🍽️','😢','🌟','😴'];
+  toast(`${labels[i]} Mood set`);
+}
+
+function addCatch() {
+  if (S.stage === 0) return;
+  S.catches++;
+  S.streak++;
+  S.stats[1] = Math.min(S.stats[1] + 2, 100);
+  S.stats[2] = Math.max(0, S.stats[2] - 1);
+
+  // Weather tie-in (20% chance)
+  if (Math.random() < 0.2) {
+    S.weatherIdx = Math.floor(Math.random() * WEATHERS.length);
+    applyScene();
+  }
+
+  petAnim('bounce');
+  const msgs = ['🏆 Gotcha!', '⭐ Caught!', '✨ Wild caught!', '🎯 Nice throw!'];
+  toast(`${msgs[Math.floor(Math.random() * msgs.length)]} (${S.catches})`);
+  checkAchievements();
+  tick();
+}
+
+function addStep(n) {
+  if (S.stage === 0) return;
+  const oldMilestone = Math.floor(S.steps / 5000);
+  S.steps += n;
+  const newMilestone = Math.floor(S.steps / 5000);
+  if (newMilestone > oldMilestone) {
+    toast(`👟 ${S.steps.toLocaleString()} steps! Walking goal +1! 🎉`);
+  } else if (S.steps % 1000 === 0) {
+    toast(`👟 ${S.steps.toLocaleString()} steps!`);
+  }
+  checkAchievements();
+  tick();
+}
+
+function addStop() {
+  if (S.stage === 0) return;
+  const id = Math.floor(Math.random() * 10000);
+  S.stops++;
+  const wasNew = !visitedStops.has(id);
+  if (wasNew) { visitedStops.add(id); S.uniqueStops++; }
+  S.stats[3] = Math.min(S.stats[3] + 1, 100);
+  toast(`🔄 ${wasNew ? 'New' : 'Visited'} stop spun! (${S.uniqueStops} unique)`);
+  checkAchievements();
+  tick();
+}
+
+function walkBatch() {
+  addStep(1000);
+}
+
+function playMiniGame(name) {
+  if (S.stage === 0) { toast('🥚 Hatch first!'); return; }
+  // Simple minigame result
+  const outcomes = ['won! +5 Bond 🎉', 'tied! +2 Bond 🤝', 'almost! +1 Bond 💪'];
+  const result = outcomes[Math.floor(Math.random() * outcomes.length)];
+  S.stats[1] = Math.min(S.stats[1] + [5, 2, 1][outcomes.indexOf(result)], 100);
+  S.stats[2] = Math.max(0, S.stats[2] - 2);
+  petAnim('bounce');
+  toast(`🎮 ${name}: ${result}`);
+  renderAll();
+}
+
+function resetPet() {
+  if (!confirm('Reset your Pokégatchi?')) return;
+  S.stage = 0; S.catches = 0; S.steps = 0; S.stops = 0; S.uniqueStops = 0;
+  S.stats = [80, 50, 70, 40]; S.mood = 0; S.streak = 0;
+  S.achievements = new Set();
+  S.totalFeeds = 0; S.totalPets = 0; S.totalHeals = 0;
+  visitedStops.clear();
+  toast('🔄 Reset complete — fresh start!');
+  renderAll();
+}
+
+// ─── AUTO TICK ──────────────────────────────────────
+
+function tick() {
+  // Stats decay
+  S.stats[0] = Math.max(0, S.stats[0] - 1);  // Hunger
+  S.stats[2] = Math.max(0, S.stats[2] - 2);  // Energy
+  S.stats[3] = Math.max(0, S.stats[3] - 1);  // Smarts
+  autoMoodCheck();
+  checkAchievements();
+  renderAll();
+}
+
+// Auto game loop (every 60s)
+let gameLoopInterval;
+function startGameLoop() {
+  clearInterval(gameLoopInterval);
+  gameLoopInterval = setInterval(() => {
+    if (S.stage === 0) return;
+    tick();
+
+    // Auto mood-driven weather change
+    if (S.mood === 4 && Math.random() < 0.1) { // Excited → sunny
+      S.weatherIdx = 0; applyScene();
+    }
+    if (S.mood === 3 && Math.random() < 0.1) { // Sad → rain
+      S.weatherIdx = 2; applyScene();
+    }
+
+    // Sync time with clock every tick
+    if (S.mode === 'auto') {
+      syncTimeWithClock();
+    }
+  }, 60000);
+}
+
+// ─── AUTO MOOD ──────────────────────────────────────
+
+function autoMoodCheck() {
+  if (S.stage === 0) return;
+  const [hunger, bond, energy, smarts] = S.stats;
+
+  if (hunger <= 20) S.mood = 2;          // Hungry
+  else if (energy <= 15) S.mood = 5;     // Sleepy
+  else if (bond <= 20) S.mood = 3;       // Sad
+  else if (bond >= 80 && hunger >= 70) S.mood = 4; // Excited
+  else if (hunger >= 60 && energy >= 60) S.mood = 0; // Happy
+  else S.mood = 1;                       // Content
+
+  renderMoods();
+}
+
+// ═══════════════════════════════════════════════════
+//  PET ANIMATIONS
+// ═══════════════════════════════════════════════════
+
+function petAnim(type) {
+  const wrap = document.getElementById('petWrap');
+  wrap.classList.remove('bounce', 'wiggle', 'sparkle');
+  void wrap.offsetWidth; // force reflow
+  wrap.classList.add(type);
+  setTimeout(() => wrap.classList.remove(type), 600);
+}
+
+// ═══════════════════════════════════════════════════
+//  ACHIEVEMENTS
+// ═══════════════════════════════════════════════════
+
+let achToggle = false;
+function toggleAchievements() {
+  achToggle = !achToggle;
+  document.getElementById('achPanel').style.display = achToggle ? 'block' : 'none';
+  if (achToggle) renderAchievements();
+}
+
+function checkAchievements() {
+  ACHIEVEMENTS.forEach(a => {
+    if (S.achievements.has(a.id)) return;
+    if (a.check(S)) {
+      S.achievements.add(a.id);
+      showMilestone(a.icon, a.name, a.desc);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════════
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.innerHTML = msg;
+  t.classList.add('show');
+  clearTimeout(t._to);
+  t._to = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function showMilestone(icon, title, desc) {
+  document.getElementById('mpIcon').textContent = icon;
+  document.getElementById('mpTitle').textContent = title;
+  document.getElementById('mpDesc').textContent = desc;
+  document.getElementById('milestonePopup').classList.add('show');
+}
+
+function closeMilestone() {
+  document.getElementById('milestonePopup').classList.remove('show');
+}
+
+// ─── MODE ───────────────────────────────────────────
+
+let weatherInterval, timeInterval;
+
+function setMode(m) {
+  S.mode = m;
+  document.querySelectorAll('.mode-btn').forEach(b =>
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(m)));
+  document.getElementById('sceneControls').style.display = m === 'scene' ? 'block' : 'none';
+
+  clearInterval(weatherInterval);
+  clearInterval(timeInterval);
+  clearInterval(window._autoTick);
+  document.getElementById('autoStatus').style.display = 'none';
+
+  if (m === 'auto') {
+    // Auto-cycle weather every 12s, time every 20s
+    weatherInterval = setInterval(() => {
+      S.weatherIdx = (S.weatherIdx + 1) % WEATHERS.length;
+      applyScene();
+    }, 12000);
+    timeInterval = setInterval(() => {
+      syncTimeWithClock();
+    }, 20000);
+
+    // Auto play simulation — like PGSharp's auto-catch + auto-spin
+    S._autoCatch = 0;
+    S._autoSpin = 0;
+    S._autoStep = 0;
+    document.getElementById('autoStatus').style.display = 'block';
+    window._autoTick = setInterval(() => {
+      if (S.stage === 0) return;
+      const r = Math.random();
+      if (r < 0.35) { addCatch(); S._autoCatch++; }
+      else if (r < 0.65) { addStep(Math.floor(Math.random() * 200 + 50)); S._autoStep += 50; }
+      else { addStop(); S._autoSpin++; }
+      // Update auto counter display
+      document.getElementById('autoCatchCount').textContent = S._autoCatch;
+      document.getElementById('autoSpinCount').textContent = S._autoSpin;
+    }, 2500);
+
+    toast('🤖 Auto mode ON — catching & spinning only');
+
+    // Start with real time
+    syncTimeWithClock();
+  }
+}
+
+// ─── TEAM ───────────────────────────────────────────
+
+function selectTeam(t) {
+  S.team = t;
+  document.documentElement.dataset.team = t;
+  document.getElementById('teamBadge').textContent = TEAMS[t].badge;
+  document.getElementById('teamOverlay').classList.add('hidden');
+
+  // Set initial weather based on team
+  S.weatherIdx = t === 'valor' ? 0 : t === 'mystic' ? 2 : 1;
+  S.timeIdx = getTimeFromClock();
+  applyScene();
+  renderAll();
+  startGameLoop();
+
+  checkAchievements();
+  try { localStorage.setItem('pokegatchi_team', t); } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════
+//  3D RENDERER — Three.js + Expression Overlay
+// ═══════════════════════════════════════════════════
+
+// ─── THREE.JS SETUP ─────────────────────────────────
+
+const MODEL_DIR = 'assets/models';
+let threeScene, threeCamera, threeRenderer;
+let threeModel = null;
+let threeMixer = null;
+let threeClock = new THREE.Clock();
+let threeInitDone = false;
+
+function initThree() {
+  if (threeInitDone) return;
+  const container = document.getElementById('pet3dContainer');
+  if (!container) { setTimeout(initThree, 100); return; }
+
+  threeScene = new THREE.Scene();
+
+  threeCamera = new THREE.PerspectiveCamera(25, 1, 0.1, 100);
+  threeCamera.position.set(0, 1.2, 4.5);
+  threeCamera.lookAt(0, 0.5, 0);
+
+  threeRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  threeRenderer.setSize(320, 320);
+  threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  threeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  threeRenderer.toneMappingExposure = 1.2;
+  threeRenderer.outputEncoding = THREE.sRGBEncoding;
+  container.appendChild(threeRenderer.domElement);
+
+  // Lighting
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  threeScene.add(ambient);
+
+  const key = new THREE.DirectionalLight(0xffffff, 1.8);
+  key.position.set(3, 4, 3);
+  threeScene.add(key);
+
+  const fill = new THREE.DirectionalLight(0x8888ff, 0.5);
+  fill.position.set(-2, 1, -2);
+  threeScene.add(fill);
+
+  const rim = new THREE.DirectionalLight(0xffffff, 0.4);
+  rim.position.set(0, -1, -3);
+  threeScene.add(rim);
+
+  const back = new THREE.DirectionalLight(0xffcc88, 0.3);
+  back.position.set(-1, 2, -4);
+  threeScene.add(back);
+
+  // Subtle fog for depth
+  threeScene.fog = new THREE.Fog(0x0f0e1a, 6, 12);
+
+  threeInitDone = true;
+  animateThree();
+}
+
+// ─── MODEL LOADING ──────────────────────────────────
+
+const loader = new THREE.GLTFLoader();
+let loadingModel = false;
+
+function loadModel(pokedexId, category) {
+  if (loadingModel) return;
+  if (pokedexId === 0) {
+    // Egg stage — show a simple egg
+    showEgg();
+    return;
+  }
+  loadingModel = true;
+
+  // Clear current model
+  if (threeModel) {
+    threeScene.remove(threeModel);
+    if (threeModel.traverse) {
+      threeModel.traverse(c => { if (c.geometry) c.geometry.dispose(); });
+    }
+    threeModel = null;
+  }
+  threeMixer = null;
+
+  const url = `${MODEL_DIR}/${category}/${pokedexId}.glb`;
+  loader.load(url, gltf => {
+    const model = gltf.scene;
+    model.scale.set(1.2, 1.2, 1.2);
+    model.position.set(0, -0.3, 0);
+
+    // Center model
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.sub(center);
+    model.position.y = -0.2;
+
+    // Apply materials
+    model.traverse(c => {
+      if (c.isMesh) {
+        c.material = c.material.clone();
+        c.material.envMapIntensity = 0.3;
+      }
+    });
+
+    threeScene.add(model);
+    threeModel = model;
+
+    // Animations
+    if (gltf.animations && gltf.animations.length > 0) {
+      threeMixer = new THREE.AnimationMixer(model);
+      const action = threeMixer.clipAction(gltf.animations[0]);
+      action.play();
+    }
+
+    loadingModel = false;
+  }, undefined, err => {
+    console.warn('3D model load failed, using fallback:', err);
+    loadingModel = false;
+    // Fallback: simple shape
+    showFallback(pokedexId);
+  });
+}
+
+function showEgg() {
+  if (threeModel) {
+    threeScene.remove(threeModel);
+    threeModel = null;
+  }
+  threeMixer = null;
+  const geo = new THREE.SphereGeometry(0.5, 24, 24);
+  geo.scale(1, 1.2, 1);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xe8e0f0, roughness: 0.3, metalness: 0.0,
+    emissive: 0x6c63ff, emissiveIntensity: 0.05,
+  });
+  const egg = new THREE.Mesh(geo, mat);
+  egg.position.set(0, 0.5, 0);
+  threeScene.add(egg);
+  threeModel = egg;
+  // Add a subtle glow ring
+  const ringGeo = new THREE.TorusGeometry(0.55, 0.02, 16, 32);
+  const ringMat = new THREE.MeshStandardMaterial({
+    color: 0x6c63ff, emissive: 0x6c63ff, emissiveIntensity: 0.3,
+    transparent: true, opacity: 0.4,
+  });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.set(0, 0.25, 0);
+  ring.rotation.x = Math.PI / 2;
+  threeScene.add(ring);
+  threeModel = egg;
+  threeModel.userData.ring = ring;
+}
+
+function showFallback(id) {
+  const hue = (id * 37) % 360;
+  const color = new THREE.Color(`hsl(${hue}, 60%, 50%)`);
+  const geo = new THREE.SphereGeometry(0.6, 16, 16);
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.4 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(0, 0.5, 0);
+  threeScene.add(mesh);
+  threeModel = mesh;
+}
+
+// ─── ANIMATION LOOP ─────────────────────────────────
+
+let threeAnimId = null;
+
+function animateThree() {
+  threeAnimId = requestAnimationFrame(animateThree);
+  const dt = threeClock.getDelta();
+
+  if (threeMixer) threeMixer.update(dt);
+
+  // Rotate model slowly
+  if (threeModel && !threeModel.userData.ring) {
+    threeModel.rotation.y += dt * 0.4;
+  }
+
+  // Float animation
+  if (threeModel && S.stage > 0) {
+    const floatY = Math.sin(Date.now() * 0.0015) * 0.06;
+    // Don't touch the position of meshes with complex hierarchies — apply float to a group or just use the existing position
+    // We'll handle this via the camera lookAt or the scene
+  }
+
+  // Egg wobble
+  if (threeModel && S.stage === 0) {
+    threeModel.rotation.z = Math.sin(Date.now() * 0.003) * 0.08;
+    // Ring pulse
+    if (threeModel.userData.ring) {
+      threeModel.userData.ring.scale.setScalar(1 + Math.sin(Date.now() * 0.002) * 0.05);
+    }
+  }
+
+  if (threeRenderer && threeScene && threeCamera) {
+    threeRenderer.render(threeScene, threeCamera);
+  }
+}
+
+// ─── EXPRESSION OVERLAY ─────────────────────────────
+
+const EXPR_CANVAS = document.getElementById('expressionCanvas');
+const EXPR_CTX = EXPR_CANVAS ? EXPR_CANVAS.getContext('2d') : null;
+const EXPR_W = 320, EXPR_H = 320;
+if (EXPR_CANVAS) { EXPR_CANVAS.width = EXPR_W; EXPR_CANVAS.height = EXPR_H; }
+
+let exprBlink = false;
+let exprBlinkTimer = 0;
+let exprFloatPhase = 0;
+let exprMoodTimer = 0;
+let exprPrevMood = -1;
+let exprParticles = [];
+
+const EXPR_PARTICLE_MAP = [
+  { emoji:'❤️', count:3, speed:0.4, life:90, every:12 },
+  { emoji:'♫',  count:1, speed:0.2, life:120, every:20 },
+  { emoji:'🍽️', count:1, speed:0.3, life:80, every:25 },
+  { emoji:'💧', count:2, speed:0.5, life:60, every:15 },
+  { emoji:'✨', count:3, speed:0.5, life:50, every:10 },
+  { emoji:'💤', count:1, speed:0.2, life:100, every:22 },
+];
+
+function spawnExprParticle(mood) {
+  if (exprParticles.length >= 15) return;
+  const cfg = EXPR_PARTICLE_MAP[mood] || EXPR_PARTICLE_MAP[1];
+  exprParticles.push({
+    x: EXPR_W * (0.3 + Math.random() * 0.4),
+    y: EXPR_H * 0.15,
+    vx: (Math.random() - 0.5) * cfg.speed * 0.5,
+    vy: -cfg.speed * (0.5 + Math.random()),
+    life: cfg.life + Math.floor(Math.random() * 20),
+    maxLife: cfg.life + 20,
+    emoji: cfg.emoji,
+    size: 10 + Math.random() * 6,
+  });
+}
+
+function updateExprParticles() {
+  for (let i = exprParticles.length - 1; i >= 0; i--) {
+    const p = exprParticles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.008;
+    p.life--;
+    if (p.life <= 0 || p.y > EXPR_H) exprParticles.splice(i, 1);
+  }
+}
+
+function drawExprParticles(ctx) {
+  for (const p of exprParticles) {
+    const alpha = Math.min(1, p.life / 20) * (p.life > p.maxLife - 15 ? (p.maxLife - p.life) / 15 : 1);
+    ctx.globalAlpha = alpha * 0.85;
+    ctx.font = `${p.size}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.emoji, p.x, p.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+let exprAnimFrame = null;
+
+function startExpressionLoop() {
+  if (exprAnimFrame) return;
+  exprAnimFrame = requestAnimationFrame(exprTick);
+}
+
+function exprTick() {
+  if (!EXPR_CTX || S.stage === 0) {
+    // Clear overlay for egg
+    if (EXPR_CTX) EXPR_CTX.clearRect(0, 0, EXPR_W, EXPR_H);
+    exprAnimFrame = requestAnimationFrame(exprTick);
+    return;
+  }
+
+  // Blink
+  exprBlinkTimer++;
+  if (!exprBlink && exprBlinkTimer > 180 + Math.floor(Math.random() * 120)) {
+    exprBlink = true;
+    exprBlinkTimer = 0;
+  }
+  if (exprBlink && exprBlinkTimer > 5) {
+    exprBlink = false;
+    exprBlinkTimer = 0;
+  }
+
+  // Particle spawn
+  const pcfg = EXPR_PARTICLE_MAP[S.mood] || EXPR_PARTICLE_MAP[1];
+  exprMoodTimer++;
+  if (exprMoodTimer >= pcfg.every) {
+    exprMoodTimer = 0;
+    for (let i = 0; i < pcfg.count; i++) spawnExprParticle(S.mood);
+  }
+  updateExprParticles();
+
+  // Draw expression overlay
+  EXPR_CTX.clearRect(0, 0, EXPR_W, EXPR_H);
+
+  // Get face data for the current species
+  const line = EVO_LINES[activeLine];
+  const s = Math.min(S.stage, 4);
+  const spriteName = line ? line.sprites[s].split('/').pop().replace('.png', '') : '';
+  const face = FACE_DATA[spriteName] || { ex:0.48, ey:0.30, ew:0.28, eh:0.20, mx:0.48, my:0.50, mw:0.18, mh:0.10 };
+
+  const pad = EXPR_W * 0.15;
+  const areaSize = EXPR_W - pad * 2;
+  const cx = pad + face.ex * areaSize;
+  const cy = pad + face.ey * areaSize;
+  const cw = face.ew * areaSize;
+  const ch = face.eh * areaSize;
+  const mx = pad + face.mx * areaSize;
+  const my = pad + face.my * areaSize;
+  const mw = face.mw * areaSize;
+  const mh = face.mh * areaSize;
+
+  // Float offset
+  const floatY = Math.sin(Date.now() * 0.0025) * 2.5;
+
+  EXPR_CTX.save();
+  EXPR_CTX.translate(0, floatY);
+  drawEyes(EXPR_CTX, cx, cy, cw, ch, S.mood, exprBlink);
+  drawMouth(EXPR_CTX, mx, my, mw, mh, S.mood);
+  EXPR_CTX.restore();
+
+  drawExprParticles(EXPR_CTX);
+
+  exprAnimFrame = requestAnimationFrame(exprTick);
+}
+
+// ─── PUBLIC RENDER FUNCTIONS ─────────────────────────
+
+function renderPet3D() {
+  const s = Math.min(S.stage, 4);
+  const line = EVO_LINES[activeLine];
+  const modelInfo = MODEL_IDS[activeLine];
+
+  if (!threeInitDone) initThree();
+
+  if (modelInfo && s <= 4) {
+    loadModel(modelInfo.ids[s], modelInfo.cats[s]);
+  }
+
+  const wrap = document.getElementById('petWrap');
+  if (wrap) {
+    wrap.className = 'pet-canvas-wrap';
+    if (s === 0) wrap.classList.add('egg-wobble');
+    else wrap.classList.add('idle-bob');
+    wrap.classList.toggle('has-glow', s >= 3);
+  }
+
+  const st = STAGES[s];
+  document.getElementById('petName').textContent = line ? line.names[s] : '—';
+  document.getElementById('petSpecies').textContent = st ? st.species : '—';
+  document.getElementById('moodLabel').textContent = MOODS[S.mood];
+  document.getElementById('petLevelDisplay').textContent = st ? st.id.toUpperCase() : '—';
+
+  document.getElementById('hudCatches').textContent = S.catches;
+  document.getElementById('hudSteps').textContent = S.steps.toLocaleString();
+  document.getElementById('hudStops').textContent = S.uniqueStops;
+
+  const streakEl = document.getElementById('catchStreak');
+  if (S.streak >= 3) {
+    streakEl.classList.add('show');
+    document.getElementById('streakCount').textContent = S.streak;
+  } else {
+    streakEl.classList.remove('show');
+  }
+
+  const checks = [
+    { id:'hudCatchesGroup', val: S.catches, thresholds: [50, 100, 250, 500] },
+    { id:'hudStepsGroup', val: S.steps, thresholds: [1000, 5000, 10000, 25000, 50000] },
+    { id:'hudStopsGroup', val: S.uniqueStops, thresholds: [10, 25, 50] },
+  ];
+  checks.forEach(c => {
+    const el = document.getElementById(c.id);
+    const hit = c.thresholds.some(t => c.val >= t && c.val < t + (c.id === 'hudStopsGroup' ? 1 : 50));
+    el.classList.toggle('milestone', hit);
+  });
+
+  // Start expression overlay
+  startExpressionLoop();
+}
+
+// Face region data (normalised 0-1) for every species we use
+// ex,ey = eye centre · ew,eh = eye bounding size
+// mx,my = mouth centre · mw,mh = mouth bounding size
+const FACE_DATA = {
+  'eevee':      { ex:.49, ey:.32, ew:.30, eh:.22, mx:.49, my:.52, mw:.22, mh:.10 },
+  'jolteon':    { ex:.49, ey:.28, ew:.28, eh:.20, mx:.49, my:.50, mw:.20, mh:.10 },
+  'umbreon':    { ex:.49, ey:.30, ew:.30, eh:.22, mx:.49, my:.52, mw:.22, mh:.10 },
+  'sylveon':    { ex:.49, ey:.28, ew:.28, eh:.20, mx:.49, my:.50, mw:.20, mh:.10 },
+  'charmander': { ex:.49, ey:.30, ew:.28, eh:.20, mx:.49, my:.50, mw:.20, mh:.10 },
+  'charmeleon': { ex:.49, ey:.28, ew:.26, eh:.18, mx:.49, my:.48, mw:.18, mh:.10 },
+  'charizard':  { ex:.47, ey:.25, ew:.24, eh:.16, mx:.49, my:.44, mw:.16, mh:.08 },
+  'mega-charizard-y': { ex:.47, ey:.24, ew:.24, eh:.16, mx:.49, my:.44, mw:.16, mh:.08 },
+  'mega-charizard-x': { ex:.47, ey:.24, ew:.22, eh:.16, mx:.49, my:.44, mw:.16, mh:.08 },
+  'pichu':      { ex:.49, ey:.33, ew:.30, eh:.22, mx:.49, my:.53, mw:.22, mh:.12 },
+  'pikachu':    { ex:.49, ey:.31, ew:.28, eh:.20, mx:.49, my:.51, mw:.20, mh:.10 },
+  'raichu':     { ex:.49, ey:.30, ew:.26, eh:.18, mx:.49, my:.50, mw:.18, mh:.10 },
+  'alolan-raichu': { ex:.49, ey:.30, ew:.26, eh:.18, mx:.49, my:.50, mw:.18, mh:.10 },
+  'bulbasaur':  { ex:.49, ey:.34, ew:.30, eh:.22, mx:.49, my:.54, mw:.22, mh:.12 },
+  'ivysaur':    { ex:.49, ey:.32, ew:.28, eh:.20, mx:.49, my:.52, mw:.20, mh:.10 },
+  'venusaur':   { ex:.49, ey:.28, ew:.26, eh:.18, mx:.49, my:.48, mw:.18, mh:.10 },
+  'mega-venusaur': { ex:.49, ey:.28, ew:.26, eh:.18, mx:.49, my:.48, mw:.18, mh:.10 },
+  'squirtle':   { ex:.49, ey:.34, ew:.28, eh:.20, mx:.49, my:.54, mw:.20, mh:.10 },
+  'wartortle':  { ex:.49, ey:.30, ew:.26, eh:.18, mx:.49, my:.50, mw:.18, mh:.10 },
+  'blastoise':  { ex:.49, ey:.28, ew:.24, eh:.16, mx:.49, my:.48, mw:.16, mh:.08 },
+  'mega-blastoise': { ex:.49, ey:.28, ew:.24, eh:.16, mx:.49, my:.48, mw:.16, mh:.08 },
+  'vaporeon':   { ex:.49, ey:.30, ew:.28, eh:.20, mx:.49, my:.50, mw:.20, mh:.10 },
+  'flareon':    { ex:.49, ey:.30, ew:.28, eh:.20, mx:.49, my:.50, mw:.20, mh:.10 },
+  'espeon':     { ex:.49, ey:.28, ew:.26, eh:.18, mx:.49, my:.48, mw:.18, mh:.10 },
+};
+
+// ─── CANVAS EXPRESSION DRAWING ───────────────────────
+
+function drawEyes(ctx, cx, cy, w, h, mood, blink) {
+  const r = Math.min(w, h) * 0.22;
+  const spacing = w * 0.30;
+  const lx = cx - spacing, rx = cx + spacing;
+  const ey = cy;
+
+  if (blink) {
+    // Closed eyes (narrow lines)
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = Math.max(2, r * 0.5);
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(lx - r*0.7, ey); ctx.lineTo(lx + r*0.7, ey); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(rx - r*0.7, ey); ctx.lineTo(rx + r*0.7, ey); ctx.stroke();
+    return;
+  }
+
+  switch (mood) {
+    case 0: // Happy ^_^
+      ctx.strokeStyle = '#222'; ctx.lineWidth = Math.max(2, r * 0.5); ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(lx, ey + r*0.1, r*0.9, Math.PI*1.25, Math.PI*1.75); ctx.stroke();
+      ctx.beginPath(); ctx.arc(rx, ey + r*0.1, r*0.9, Math.PI*1.25, Math.PI*1.75); ctx.stroke();
+      // Blush
+      ctx.fillStyle = 'rgba(255,130,130,0.3)';
+      ctx.beginPath(); ctx.ellipse(lx - r*0.2, ey + r*0.5, r*0.6, r*0.3, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(rx + r*0.2, ey + r*0.5, r*0.6, r*0.3, 0, 0, Math.PI*2); ctx.fill();
+      break;
+    case 1: // Content —_—
+      ctx.fillStyle = '#222';
+      ctx.beginPath(); ctx.arc(lx, ey, r, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(rx, ey, r, 0, Math.PI*2); ctx.fill();
+      // Tiny highlight
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(lx - r*0.3, ey - r*0.3, r*0.35, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(rx - r*0.3, ey - r*0.3, r*0.35, 0, Math.PI*2); ctx.fill();
+      break;
+    case 2: // Hungry 〇_〇 (wide)
+      ctx.fillStyle = '#222';
+      ctx.beginPath(); ctx.ellipse(lx, ey, r*1.2, r*1.3, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(rx, ey, r*1.2, r*1.3, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(lx - r*0.2, ey - r*0.3, r*0.4, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(rx - r*0.2, ey - r*0.3, r*0.4, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,200,100,0.2)';
+      ctx.beginPath(); ctx.ellipse(lx - r*0.5, ey + r, r*0.8, r*0.2, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(rx + r*0.5, ey + r, r*0.8, r*0.2, 0, 0, Math.PI*2); ctx.fill();
+      break;
+    case 3: // Sad ;_;
+      ctx.fillStyle = '#222';
+      // Droopy sad eyes
+      ctx.beginPath(); ctx.ellipse(lx - r*0.1, ey + r*0.2, r*0.9, r*0.8, -0.2, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(rx + r*0.1, ey + r*0.2, r*0.9, r*0.8, 0.2, 0, Math.PI*2); ctx.fill();
+      // Tear drops
+      ctx.fillStyle = 'rgba(100,180,255,0.6)';
+      ctx.beginPath(); ctx.ellipse(lx - r*0.2, ey + r*1.2, r*0.15, r*0.25, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(rx + r*0.2, ey + r*1.2, r*0.15, r*0.25, 0, 0, Math.PI*2); ctx.fill();
+      break;
+    case 4: // Excited ☆_☆
+      // Star eyes
+      drawStarEye(ctx, lx, ey, r);
+      drawStarEye(ctx, rx, ey, r);
+      // Blush
+      ctx.fillStyle = 'rgba(255,180,180,0.35)';
+      ctx.beginPath(); ctx.ellipse(lx - r*0.3, ey + r*0.6, r*0.6, r*0.3, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(rx + r*0.3, ey + r*0.6, r*0.6, r*0.3, 0, 0, Math.PI*2); ctx.fill();
+      break;
+    case 5: // Sleepy >__<
+      ctx.strokeStyle = '#222'; ctx.lineWidth = Math.max(2, r * 0.5); ctx.lineCap = 'round';
+      // Droopy sleepy lines
+      ctx.beginPath(); ctx.moveTo(lx - r*0.8, ey + r*0.1); ctx.quadraticCurveTo(lx, ey - r*0.4, lx + r*0.8, ey + r*0.1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(rx - r*0.8, ey + r*0.1); ctx.quadraticCurveTo(rx, ey - r*0.4, rx + r*0.8, ey + r*0.1); ctx.stroke();
+      break;
+    default: // Normal eyes
+      ctx.fillStyle = '#222';
+      ctx.beginPath(); ctx.arc(lx, ey, r, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(rx, ey, r, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(lx - r*0.3, ey - r*0.3, r*0.35, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(rx - r*0.3, ey - r*0.3, r*0.35, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+function drawStarEye(ctx, cx, cy, r) {
+  const s = r * 0.8;
+  ctx.fillStyle = '#FFD700';
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.beginPath();
+  for (let i = 0; i < 4; i++) {
+    ctx.lineTo(Math.cos((i*2 - 0.5) * Math.PI/4) * s, Math.sin((i*2 - 0.5) * Math.PI/4) * s);
+    ctx.lineTo(Math.cos((i*2 + 0.5) * Math.PI/4) * s * 0.4, Math.sin((i*2 + 0.5) * Math.PI/4) * s * 0.4);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath(); ctx.arc(0, -s*0.3, s*0.2, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawMouth(ctx, mx, my, mw, mh, mood) {
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = Math.max(2, mh * 0.3);
+  ctx.lineCap = 'round';
+  ctx.fillStyle = '#333';
+
+  switch (mood) {
+    case 0: // Happy :D
+      ctx.beginPath(); ctx.arc(mx, my + mh*0.2, mw*0.55, 0.1, Math.PI - 0.1); ctx.stroke();
+      break;
+    case 1: // Content :)
+      ctx.beginPath(); ctx.arc(mx, my - mh*0.1, mw*0.4, 0.15, Math.PI - 0.15); ctx.stroke();
+      break;
+    case 2: // Hungry :o
+      ctx.fillStyle = '#333';
+      ctx.beginPath(); ctx.ellipse(mx, my, mw*0.25, mh*0.45, 0, 0, Math.PI*2); ctx.fill();
+      break;
+    case 3: // Sad :(
+      ctx.beginPath(); ctx.arc(mx, my + mh*0.3, mw*0.4, Math.PI + 0.15, -0.15); ctx.stroke();
+      break;
+    case 4: // Excited :D (wide)
+      ctx.fillStyle = '#333';
+      ctx.beginPath(); ctx.ellipse(mx, my + mh*0.1, mw*0.35, mh*0.35, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#E55'; // tongue hint
+      ctx.beginPath(); ctx.ellipse(mx, my + mh*0.2, mw*0.15, mh*0.15, 0, 0, Math.PI*2); ctx.fill();
+      break;
+    case 5: // Sleepy >( )
+      ctx.beginPath(); ctx.arc(mx, my + mh*0.1, mw*0.2, 0.1, Math.PI - 0.1); ctx.stroke();
+      break;
+    default:
+      ctx.beginPath(); ctx.arc(mx, my - mh*0.1, mw*0.35, 0.15, Math.PI - 0.15); ctx.stroke();
+  }
+}
+
+// ═══════════════════════════════════════════════════
+
+function initParticles() {
+  // Stars
+  const nc = document.getElementById('nightStarsContainer');
+  for (let i = 0; i < 50; i++) {
+    const s = document.createElement('div');
+    s.className = 'star-dot';
+    s.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*55}%;width:${1+Math.random()*2}px;height:${1+Math.random()*2}px;--d:${1+Math.random()*3}s;opacity:${0.2+Math.random()*0.5}`;
+    nc.appendChild(s);
+  }
+  // Rain
+  const rain = document.getElementById('rainOverlay');
+  for (let i = 0; i < 80; i++) {
+    const d = document.createElement('div');
+    d.style.cssText = `position:absolute;left:${Math.random()*100}%;top:${-10-Math.random()*20}%;width:1.5px;height:${8+Math.random()*12}px;background:linear-gradient(180deg,transparent,rgba(180,200,255,0.3));animation:rainFall ${0.5+Math.random()*0.4}s linear infinite;animation-delay:${Math.random()*0.8}s;opacity:${0.3+Math.random()*0.4}`;
+    rain.appendChild(d);
+  }
+  // Snow
+  const snow = document.getElementById('snowOverlay');
+  for (let i = 0; i < 50; i++) {
+    const s = document.createElement('div');
+    s.style.cssText = `position:absolute;left:${Math.random()*100}%;top:${-10-Math.random()*20}%;width:${3+Math.random()*4}px;height:${3+Math.random()*4}px;background:rgba(255,255,255,0.6);border-radius:50%;animation:snowFall ${2+Math.random()*3}s linear infinite;animation-delay:${Math.random()*3}s;opacity:${0.5+Math.random()*0.4}`;
+    snow.appendChild(s);
+  }
+  // Clouds
+  const cp = document.getElementById('cloudyParticles');
+  for (let i = 0; i < 6; i++) {
+    const c = document.createElement('div');
+    c.className = 'wc';
+    c.style.cssText = `left:${Math.random()*100}%;top:${8+Math.random()*20}%;width:${60+Math.random()*100}px;height:${20+Math.random()*30}px;animation:cloudDrift ${40+Math.random()*60}s linear infinite;animation-delay:${Math.random()*20}s`;
+    cp.appendChild(c);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  KEYS
+// ═══════════════════════════════════════════════════
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'c' || e.key === 'C') addCatch();
+  if (e.key === 's' || e.key === 'S') addStep(100);
+  if (e.key === 'f' || e.key === 'F') feed();
+  if (e.key === 'p' || e.key === 'P') petAction();
+  if (e.key === 'h' || e.key === 'H') healPet();
+  if (e.key >= '1' && e.key <= '5' && !e.shiftKey) { S.timeIdx = parseInt(e.key) - 1; applyScene(); }
+  if (e.key >= '1' && e.key <= '5' && e.shiftKey) { S.weatherIdx = parseInt(e.key) - 1; applyScene(); }
+});
+
+// ═══════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════
+
+initParticles();
+initThree();
+
+// Check for saved team
+try {
+  const saved = localStorage.getItem('pokegatchi_team');
+  if (saved && TEAMS[saved]) {
+    selectTeam(saved);
+  } else {
+    S.timeIdx = getTimeFromClock();
+    applyScene();
+    renderAll();
+  }
+} catch(e) {
+  S.timeIdx = getTimeFromClock();
+  applyScene();
+  renderAll();
+}
+</script>
+</body>
+</html>

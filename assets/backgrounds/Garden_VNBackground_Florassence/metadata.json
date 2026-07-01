@@ -1,0 +1,21 @@
+{
+  "pack": "Garden VN Backgrounds - Florassence",
+  "source": "Free visual novel background pack",
+  "description": "7 pastel 1920x1080 garden/outdoor scenes for virtual pet environments. Soft pastel colors, painterly impressionistic style with geometric low-poly elements.",
+  "scenes": {
+    "1.png": { "name": "Garden Path", "description": "Pathway lined with trees leading to a classical building with large windows. Soft pastel colors, serene atmosphere with geometric low-poly rendering effect." },
+    "2.png": { "name": "Winding Path", "description": "Winding stone pathway through dense pink, purple and green foliage. Dreamy impressionist style with dappled sunlight filtering through leaves." },
+    "3.png": { "name": "Wooden Swing", "description": "Rope swing suspended from tree branches, surrounded by lush greenery. Pink, purple, green and beige pastels. Nostalgic, tranquil mood." },
+    "4.png": { "name": "Suburban House", "description": "Large gabled-roof house set in wooded area with stone/brick facade. Driveway curves toward house. Pink/purple/beige sky, dreamy impressionist style." },
+    "5.png": { "name": "Cherry Blossom Bridge", "description": "Arched bridge with metal railings, cherry blossom trees in full bloom. Pink and white petals, warm romantic spring atmosphere. Painterly style." },
+    "6.png": { "name": "Patio Dining", "description": "Outdoor dining patio with wooden table, wicker chairs, plates set for a meal. Warm earthy tones of brown, beige, green. Serene backyard setting." },
+    "7.png": { "name": "Greenhouse Garden", "description": "Glass greenhouse surrounded by foliage. Autumn tree with vibrant pink and orange leaves in foreground. Mosaic-like geometric style, peaceful mood." }
+  },
+  "time_mapping": {
+    "dawn": "1.png",
+    "morning": "6.png",
+    "afternoon": "2.png",
+    "evening": "5.png",
+    "night": "4.png"
+  }
+}
