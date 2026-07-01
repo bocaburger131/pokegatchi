@@ -11,6 +11,24 @@ wearos-app/local.properties
 *.apk
 *.aab
 
+# Downloaded/compressed assets (already extracted)
+assets/downloaded/
+assets/extracted_oga/
+assets/kenney_ui-pack.zip
+assets/oga_backgrounds.zip
+assets/oga_backgrounds.7z
+assets/patch.img
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
 # OS files
 .DS_Store
 Thumbs.db
+
+# Editor
+*.swp
+*.swo
+
