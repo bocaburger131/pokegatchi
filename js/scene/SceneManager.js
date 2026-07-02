@@ -15,6 +15,22 @@ export class SceneManager {
     this._successCallback = null;
     this._activeAnim = null;
     this._idleBobOffset = 0;
+    this._armature = null;
+
+    // Idle state machine
+    this._idleState = 'FLOAT';
+    this._idleTimer = 0;
+    this._idleNextSwitch = this._randomIdleInterval();
+    this._idleAnimProgress = 0; // 0-1 progress for LOOK_LEFT/RIGHT/BOUNCE transitions
+    this._idleFromRotY = 0;
+    this._idleTargetRotY = 0;
+    this._idleFromPosY = 0;
+    this._idleTargetPosY = 0;
+    this._idlePaused = false;
+  }
+
+  _randomIdleInterval() {
+    return 3 + Math.random() * 5; // 3-8 seconds
   }
 
   _detectWebGL() {
@@ -28,7 +44,6 @@ export class SceneManager {
   init() {
     if (!this.container) return false;
     if (!this.webglAvailable) {
-      // WebGL not available — sprite-only mode immediately
       this.container.classList.add('sprite-only');
       console.warn('WebGL not available — using 2D sprite fallback');
       return false;
@@ -77,6 +92,14 @@ export class SceneManager {
     // Remove old model
     this._clearModel();
 
+    // Reset idle state machine
+    this._idleState = 'FLOAT';
+    this._idleTimer = 0;
+    this._idleNextSwitch = this._randomIdleInterval();
+    this._idleAnimProgress = 0;
+    this._idlePaused = false;
+    this._armature = null;
+
     // Clear any pending timeout
     if (this._loadingTimeout) {
       clearTimeout(this._loadingTimeout);
@@ -91,7 +114,7 @@ export class SceneManager {
     const url = `https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/${category}/${pokedexId}.glb`;
     const loader = new THREE.GLTFLoader();
     
-    // Set a 15-second timeout — if model doesn't load by then, fire fallback
+    // Set a 15-second timeout
     let timedOut = false;
     this._loadingTimeout = setTimeout(() => {
       timedOut = true;
@@ -132,6 +155,25 @@ export class SceneManager {
         this.mixer = new THREE.AnimationMixer(this.model);
         this.mixer.clipAction(gltf.animations[0]).play();
       }
+
+      // === ARMATURE / SKELETON CHECK ===
+      this._armature = null;
+      this.model.traverse(c => {
+        // THREE.Bone is the standard bone class; also check for isBone or Armature naming
+        if (c.isBone || c instanceof THREE.Bone || c.type === 'Bone') {
+          this._armature = c;
+        }
+      });
+      // If no direct Bone found, check for Skeleton/Armature objects
+      if (!this._armature) {
+        this.model.traverse(c => {
+          if (c.type === 'Skeleton' || c.type === 'Armature' || c.isArmature) {
+            this._armature = c;
+          }
+        });
+      }
+      console.log('Skeleton found:', !!this._armature);
+
     } catch (err) {
       if (timedOut) return;
       clearTimeout(this._loadingTimeout);
@@ -155,7 +197,6 @@ export class SceneManager {
   }
 
   showSpriteOnly(spriteUrl) {
-    // Destroy 3D scene, show just the sprite
     this._disposeScene();
     this.setSpriteBackground(spriteUrl);
   }
@@ -186,7 +227,6 @@ export class SceneManager {
   }
 
   _showFallback(id) {
-    // When 3D model fails, switch to sprite-only mode
     if (this.container) {
       this.container.classList.add('sprite-only');
     }
@@ -203,6 +243,7 @@ export class SceneManager {
     }
     this.model = null;
     this.mixer = null;
+    this._armature = null;
   }
 
   _disposeScene() {
@@ -222,8 +263,7 @@ export class SceneManager {
   /**
    * Play a buddy-style interaction animation on the loaded 3D model.
    * Uses a simple tween system with lerp interpolation in the update() loop.
-   * Each animation applies a triangle-wave curve (0→1→0) to scale/rotation/position.
-   * @param {'feed'|'pet'|'heal'|'hatch'|'celebrate'} type
+   * @param {'feed'|'pet'|'heal'|'hatch'|'celebrate'|'bounce'} type
    */
   playAnimation(type) {
     if (!this.model || this.model.userData.ring) return; // No animations on egg
@@ -241,34 +281,46 @@ export class SceneManager {
 
     switch (type) {
       case 'feed':
-        duration = 0.5;
+        duration = 0.7;
         peakS = { x: fromS.x * 1.15, y: fromS.y * 1.15, z: fromS.z * 1.15 };
         peakR = { x: fromR.x, y: fromR.y + 0.26, z: fromR.z }; // +15° Y
-        peakP = { ...fromP };
+        peakP = { x: fromP.x, y: fromP.y + 0.05, z: fromP.z }; // subtle Y hop
         break;
       case 'pet':
-        duration = 0.4;
+        duration = 0.7;
         peakS = { ...fromS };
-        peakR = { x: fromR.x, y: fromR.y, z: fromR.z + 0.087 }; // +5° Z lean
+        // Lean Z ±5° (pick random sign) + brief rotation toward camera (~-10° Y)
+        peakR = {
+          x: fromR.x,
+          y: fromR.y - 0.17, // ~-10° toward camera
+          z: fromR.z + (Math.random() > 0.5 ? 0.087 : -0.087) // ±5° Z lean
+        };
         peakP = { ...fromP };
         break;
       case 'heal':
-        duration = 0.8;
+        duration = 1.0;
         peakS = { x: fromS.x * 1.2, y: fromS.y * 1.2, z: fromS.z * 1.2 };
-        peakR = { x: fromR.x, y: fromR.y + Math.PI * 2, z: fromR.z }; // Full spin
+        peakR = { x: fromR.x, y: fromR.y + Math.PI * 2, z: fromR.z }; // Full 360° spin
         peakP = { ...fromP };
+        this._animFlashBrightness = true; // trigger brightness flash
         break;
       case 'hatch':
-        duration = 1.0;
+        duration = 0.8;
         peakS = { x: fromS.x * 1.3, y: fromS.y * 1.3, z: fromS.z * 1.3 };
-        peakR = { x: fromR.x + 0.3, y: fromR.y, z: fromR.z + 0.3 }; // Wobble
-        peakP = { ...fromP };
+        peakR = { x: fromR.x, y: fromR.y, z: fromR.z + 0.175 }; // ±10° Z wobble
+        peakP = { x: fromP.x, y: fromP.y + 0.05, z: fromP.z };
         break;
       case 'celebrate':
-        duration = 0.6;
+        duration = 0.8;
         peakS = { x: fromS.x * 1.25, y: fromS.y * 1.25, z: fromS.z * 1.25 };
+        peakR = { x: fromR.x, y: fromR.y + Math.PI * 2, z: fromR.z }; // Full 360° spin
+        peakP = { x: fromP.x, y: fromP.y + 0.3, z: fromP.z }; // Hop up 0.3 units
+        break;
+      case 'bounce':
+        duration = 0.5;
+        peakS = { ...fromS };
         peakR = { ...fromR };
-        peakP = { x: fromP.x, y: fromP.y + 0.3, z: fromP.z }; // Bounce up
+        peakP = { x: fromP.x, y: fromP.y + 0.1, z: fromP.z }; // Hop up 0.1 units
         break;
       default:
         return;
@@ -278,6 +330,9 @@ export class SceneManager {
       type, startTime: Date.now(), duration,
       fromS, fromR, fromP, peakS, peakR, peakP,
     };
+
+    // Pause idle state machine while animation plays
+    this._idlePaused = true;
   }
 
   /**
@@ -300,8 +355,8 @@ export class SceneManager {
 
       // Triangle wave: 0 → 1 → 0 (out and back)
       let f;
-      if (a.type === 'heal') {
-        // Heal: scale goes out-and-back, rotation smoothly completes full 360°
+      if (a.type === 'heal' || a.type === 'celebrate') {
+        // Full spin: rotation smoothly completes full 360°, scale/pos use triangle wave
         const half = a.duration / 2;
         f = elapsed < half ? elapsed / half : 2 - elapsed / half;
         const rT = Math.min(elapsed / a.duration, 1);
@@ -333,36 +388,176 @@ export class SceneManager {
         this._lerp(a.fromP.z, a.peakP.z, f)
       );
 
+      // Brightness flash for heal
+      if (a.type === 'heal' && this._animFlashBrightness) {
+        // Flash at peak (t ~0.5)
+        const flashIntensity = Math.sin(t * Math.PI);
+        if (this.model.traverse) {
+          this.model.traverse(c => {
+            if (c.isMesh && c.material) {
+              c.material.emissiveIntensity = flashIntensity * 0.5;
+            }
+          });
+        }
+      }
+
       // Animation complete — restore base transforms
       if (t >= 1) {
         this.model.scale.set(a.fromS.x, a.fromS.y, a.fromS.z);
         this.model.position.set(a.fromP.x, a.fromP.y, a.fromP.z);
-        if (a.type !== 'heal') {
+        if (a.type !== 'heal' && a.type !== 'celebrate') {
           this.model.rotation.set(a.fromR.x, a.fromR.y, a.fromR.z);
-        } // heal leaves rotation at full spin (net zero from Euler wrap)
-        this._activeAnim = null;
-      }
-      // Skip auto-rotation and idle bob while animating
-    } else if (this.model) {
-      // Rotate & float (existing logic)
-      if (!this.model.userData.ring) {
-        this.model.rotation.y += dt * 0.4;
+        } // heal/celebrate leave rotation at full spin (net zero from Euler wrap)
+        
+        // Reset emissive flash
+        if (this._animFlashBrightness) {
+          this._animFlashBrightness = false;
+          if (this.model.traverse) {
+            this.model.traverse(c => {
+              if (c.isMesh && c.material) {
+                c.material.emissiveIntensity = 0;
+              }
+            });
+          }
+        }
 
-        // Gentle idle bob — continuous sine wave on Y position
-        const targetBob = Math.sin(Date.now() * 0.003) * 0.005;
-        const deltaBob = targetBob - this._idleBobOffset;
-        this.model.position.y += deltaBob;
-        this._idleBobOffset = targetBob;
-      } else {
-        // Egg wobble
+        this._activeAnim = null;
+        // Resume idle state machine
+        this._idlePaused = false;
+      }
+      // Skip idle while animating
+    } else if (this.model) {
+      // === IDLE STATE MACHINE ===
+      if (this.model.userData.ring) {
+        // Egg wobble — NO auto Y rotation, just wobble Z + ring pulse
         this.model.rotation.z = Math.sin(Date.now() * 0.003) * 0.08;
         if (this.model.userData.ring) {
           this.model.userData.ring.scale.setScalar(1 + Math.sin(Date.now() * 0.002) * 0.05);
         }
+      } else {
+        this._updateIdle(dt);
       }
     }
 
     this.renderer.render(this.scene, this.camera);
+  }
+
+  _updateIdle(dt) {
+    if (this._idlePaused) return;
+
+    this._idleTimer += dt;
+
+    const now = Date.now();
+
+    if (this._idleState === 'FLOAT') {
+      // More pronounced Y-position sine bob
+      const targetBob = Math.sin(now * 0.003) * 0.03;
+      const deltaBob = targetBob - this._idleBobOffset;
+      this.model.position.y += deltaBob;
+      this._idleBobOffset = targetBob;
+
+      // Gradually return rotation to neutral
+      this.model.rotation.y += (0 - this.model.rotation.y) * 0.02;
+    }
+
+    // Check if it's time to switch to a new idle state
+    if (this._idleTimer >= this._idleNextSwitch) {
+      this._idleTimer = 0;
+      this._idleNextSwitch = this._randomIdleInterval();
+
+      // Pick a new random state (not FLOAT if we were already in FLOAT at least once)
+      const states = ['LOOK_LEFT', 'LOOK_RIGHT', 'BOUNCE', 'FLOAT', 'FLOAT'];
+      const newState = states[Math.floor(Math.random() * states.length)];
+      
+      // Save current values as starting point for transition
+      this._idleFromRotY = this.model.rotation.y;
+      this._idleFromPosY = this.model.position.y;
+      this._idleAnimProgress = 0;
+
+      this._idleState = newState;
+
+      switch (newState) {
+        case 'LOOK_LEFT':
+          this._idleTargetRotY = -0.35; // ~-20°
+          break;
+        case 'LOOK_RIGHT':
+          this._idleTargetRotY = 0.35; // ~20°
+          break;
+        case 'BOUNCE':
+          this._idleTargetPosY = this._idleFromPosY + 0.1; // hop up 0.1
+          break;
+        case 'FLOAT':
+        default:
+          // FLOAT just continues naturally
+          break;
+      }
+    }
+
+    // Process active idle transitions
+    const speed = 0.016; // ~60fps step for smooth transitions
+    const turnSpeed = 0.02;
+
+    switch (this._idleState) {
+      case 'LOOK_LEFT':
+      case 'LOOK_RIGHT': {
+        // Smooth rotate to target over ~1s, hold ~1s, return
+        this._idleAnimProgress += dt;
+        const lookDuration = 2.5; // 1s to turn, 0.5s hold, 1s to return
+        const progress = Math.min(this._idleAnimProgress / lookDuration, 1);
+
+        if (progress < 0.4) {
+          // Turning toward target
+          const p = progress / 0.4;
+          this.model.rotation.y = this._idleFromRotY + (this._idleTargetRotY - this._idleFromRotY) * this._smoothstep(p);
+        } else if (progress < 0.6) {
+          // Hold at target
+          this.model.rotation.y = this._idleTargetRotY;
+        } else {
+          // Return to neutral
+          const p = (progress - 0.6) / 0.4;
+          this.model.rotation.y = this._idleTargetRotY + (0 - this._idleTargetRotY) * this._smoothstep(p);
+        }
+
+        if (progress >= 1) {
+          this._idleState = 'FLOAT';
+          this._idleTimer = 0;
+        }
+        break;
+      }
+      case 'BOUNCE': {
+        // Quick Y hop up 0.1 units then back
+        this._idleAnimProgress += dt;
+        const bounceDuration = 0.4;
+        const progress = Math.min(this._idleAnimProgress / bounceDuration, 1);
+
+        if (progress < 0.5) {
+          // Going up
+          const p = progress / 0.5;
+          this.model.position.y = this._idleFromPosY + 0.1 * this._smoothstep(p);
+        } else {
+          // Coming down
+          const p = (progress - 0.5) / 0.5;
+          this.model.position.y = this._idleFromPosY + 0.1 * (1 - this._smoothstep(p));
+        }
+
+        if (progress >= 1) {
+          this.model.position.y = this._idleFromPosY;
+          this._idleState = 'FLOAT';
+          this._idleTimer = 0;
+        }
+        break;
+      }
+      case 'FLOAT':
+      default:
+        // Already handled above (continuous bob), but also gently
+        // drift Y rotation back to 0 (facing forward)
+        this.model.rotation.y += (0 - this.model.rotation.y) * turnSpeed;
+        break;
+    }
+  }
+
+  _smoothstep(t) {
+    return t * t * (3 - 2 * t);
   }
 
   get canvas() {

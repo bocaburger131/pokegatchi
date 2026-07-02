@@ -333,6 +333,7 @@ window.healPet = function() {
 window.addCatch = function() {
   const p = store.state.pet;
   if (p.stage === 0) return;
+  sceneMan.playAnimation('bounce');
   store.state.catches = (store.state.catches || 0) + 1;
   store.state.streak = (store.state.streak || 0) + 1;
   p.stats.boredom = Math.max(0, p.stats.boredom - 0.02);
