@@ -161,12 +161,6 @@ export class SceneManager {
       this.scene.add(this.model);
 
       // === BAKE SKINNING INTO GEOMETRY ===
-      // PokeMiners GLBs store bind-pose geometry with skeleton at origin.
-      // THREE.js skinning doesn't render these correctly — manually bake.
-      // IMPORTANT: Temporarily zero out model position so bone.matrixWorld
-      // doesn't include the model's world offset (which would bake into vertices)
-      const savePos = this.model.position.clone();
-      this.model.position.set(0, 0, 0);
       this.model.updateMatrixWorld(true);
       this.model.traverse(c => {
         if (c.isSkinnedMesh && c.skeleton && c.geometry) {
@@ -174,25 +168,26 @@ export class SceneManager {
           const skinIndex = c.geometry.attributes.skinIndex;
           const skinWeight = c.geometry.attributes.skinWeight;
           if (!pos || !skinIndex || !skinWeight) return;
-          
+
           const bakedPos = new Float32Array(pos.count * 3);
           const tempVec = new THREE.Vector3();
           const skinVec = new THREE.Vector3();
           const mat4 = new THREE.Matrix4();
-          
+          const modelPos = new THREE.Vector3();
+          this.model.getWorldPosition(modelPos);
+
           for (let i = 0; i < pos.count; i++) {
             tempVec.fromBufferAttribute(pos, i);
             skinVec.set(0, 0, 0);
-            
+
             const w = [skinWeight.getX(i), skinWeight.getY(i), skinWeight.getZ(i), skinWeight.getW(i)];
             const idx = [skinIndex.getX(i), skinIndex.getY(i), skinIndex.getZ(i), skinIndex.getW(i)];
-            
+
             for (let j = 0; j < 4; j++) {
               if (w[j] > 0) {
                 const bone = c.skeleton.bones[idx[j]];
                 if (bone) {
                   const inv = c.skeleton.boneInverses[idx[j]];
-                  // Final matrix: bone.worldMatrix * inverseBindMatrix
                   mat4.multiplyMatrices(bone.matrixWorld, inv);
                   const transformed = tempVec.clone().applyMatrix4(mat4);
                   skinVec.x += transformed.x * w[j];
@@ -201,10 +196,12 @@ export class SceneManager {
                 }
               }
             }
-            
-            bakedPos[i * 3] = skinVec.x;
-            bakedPos[i * 3 + 1] = skinVec.y;
-            bakedPos[i * 3 + 2] = skinVec.z;
+
+            // Subtract model world position so final vertex positions are
+            // relative to model root (model.position will be applied by the scene graph)
+            bakedPos[i * 3] = skinVec.x - modelPos.x;
+            bakedPos[i * 3 + 1] = skinVec.y - modelPos.y;
+            bakedPos[i * 3 + 2] = skinVec.z - modelPos.z;
           }
           
           // Replace geometry with baked positions
@@ -233,9 +230,6 @@ export class SceneManager {
           console.log(`Baked skin for ${c.name}: ${pos.count} verts`);
         }
       });
-      // Restore model position after baking
-      this.model.position.copy(savePos);
-      this.model.updateMatrixWorld(true);
 
       // === DEBUG: expose for inspection ===
       window.__debugScene = this.scene;
