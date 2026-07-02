@@ -39,9 +39,17 @@ sceneMan.setFallbackCallback((pokedexId) => {
     container.style.opacity = '1';
     container.style.filter = 'brightness(1.2) contrast(1.1)';
   }
-  // Show sprite glow
+  // Show sprite glow with pulsing animation
   const glow = document.getElementById('spriteGlow');
   if (glow) glow.style.opacity = '0.6';
+  const petWrap = document.getElementById('petWrap');
+  if (petWrap) petWrap.classList.add('has-glow');
+});
+
+// When 3D model loads successfully, keep the glow subtle (no pulse)
+sceneMan.setSuccessCallback((pokedexId) => {
+  const petWrap = document.getElementById('petWrap');
+  if (petWrap) petWrap.classList.remove('has-glow');
 });
 
 // === EXPRESSION OVERLAY ===
@@ -488,7 +496,18 @@ window.resetPet = function() {
 };
 
 /**
+ * window.updateAutoDisplay() — update the auto mode live counter (caught/spun only)
+ */
+window.updateAutoDisplay = function() {
+  const catchEl = document.getElementById('autoCatchCount');
+  const spinEl = document.getElementById('autoSpinCount');
+  if (catchEl) catchEl.textContent = store.state._autoCatches || 0;
+  if (spinEl) spinEl.textContent = store.state._autoSpins || 0;
+};
+
+/**
  * window.setMode(m) — 'play' | 'auto' | 'scene', toggles controls & auto intervals
+ * Auto mode only simulates catch + spin (NO auto-walk or auto-steps).
  */
 window.setMode = function(m) {
   store.state.mode = m;
@@ -498,8 +517,19 @@ window.setMode = function(m) {
     sceneControls.style.display = (m === 'scene') ? 'flex' : 'none';
   }
   
-  // Auto mode intervals
+  // Auto status display
+  const autoStatus = document.getElementById('autoStatus');
+  
+  // Auto mode intervals — only catch + spin, no walking
   if (m === 'auto') {
+    // Reset live counters on each auto session start
+    store.state._autoCatches = 0;
+    store.state._autoSpins = 0;
+    window.updateAutoDisplay();
+    
+    // Show auto status bar
+    if (autoStatus) autoStatus.style.display = 'block';
+    
     if (!store._autoWeatherInterval) {
       store._autoWeatherInterval = setInterval(() => {
         store.state.time.weatherIdx = (store.state.time.weatherIdx + 1) % WEATHERS.length;
@@ -517,9 +547,21 @@ window.setMode = function(m) {
     if (!store._autoCatchInterval) {
       store._autoCatchInterval = setInterval(() => {
         window.addCatch();
+        store.state._autoCatches = (store.state._autoCatches || 0) + 1;
+        window.updateAutoDisplay();
       }, 8000);
     }
+    if (!store._autoSpinInterval) {
+      store._autoSpinInterval = setInterval(() => {
+        window.addStop();
+        store.state._autoSpins = (store.state._autoSpins || 0) + 1;
+        window.updateAutoDisplay();
+      }, 6000);
+    }
   } else {
+    // Hide auto status bar
+    if (autoStatus) autoStatus.style.display = 'none';
+    
     if (store._autoWeatherInterval) {
       clearInterval(store._autoWeatherInterval);
       store._autoWeatherInterval = null;
@@ -531,6 +573,10 @@ window.setMode = function(m) {
     if (store._autoCatchInterval) {
       clearInterval(store._autoCatchInterval);
       store._autoCatchInterval = null;
+    }
+    if (store._autoSpinInterval) {
+      clearInterval(store._autoSpinInterval);
+      store._autoSpinInterval = null;
     }
   }
   renderAll();

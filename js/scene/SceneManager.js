@@ -12,6 +12,7 @@ export class SceneManager {
     this.webglAvailable = this._detectWebGL();
     this._loadingTimeout = null;
     this._fallbackCallback = null;
+    this._successCallback = null;
   }
 
   _detectWebGL() {
@@ -66,6 +67,10 @@ export class SceneManager {
     this._fallbackCallback = cb;
   }
 
+  setSuccessCallback(cb) {
+    this._successCallback = cb;
+  }
+
   async loadModel(pokedexId, category) {
     // Remove old model
     this._clearModel();
@@ -99,6 +104,7 @@ export class SceneManager {
       if (timedOut) return; // Already fell back
       clearTimeout(this._loadingTimeout);
       this._loadingTimeout = null;
+      if (this._successCallback) this._successCallback(pokedexId);
 
       this.model = gltf.scene;
       this.model.scale.set(1.2, 1.2, 1.2);

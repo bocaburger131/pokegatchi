@@ -373,7 +373,7 @@ body {
 
 /* Egg wobble / idle bob on canvas wrap */
 .pet-canvas-wrap.egg-wobble { animation: eggWobble 1.2s ease-in-out infinite; }
-.pet-canvas-wrap.idle-bob { animation: petIdleBob 2s ease-in-out infinite; }
+.pet-canvas-wrap.idle-bob { animation: petIdleBob 3s ease-in-out infinite; }
 
 @keyframes eggWobble {
   0%,100% { transform: rotate(0deg); }
@@ -381,8 +381,8 @@ body {
   75% { transform: rotate(4deg); }
 }
 @keyframes petIdleBob {
-  0%,100% { transform: translateY(0px); }
-  50% { transform: translateY(-2px); }
+  0%,100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-3px) scale(1.04); }
 }
 
 /* Expression overlay canvas */
@@ -407,12 +407,12 @@ body {
 }
 
 /* Sprite idle animations */
-.pet-canvas-wrap .pet-sprite.idle-bob { animation: spriteIdleBob 2s ease-in-out infinite; }
+.pet-canvas-wrap .pet-sprite.idle-bob { animation: spriteIdleBob 3s ease-in-out infinite; }
 .pet-canvas-wrap .pet-sprite.idle-wobble { animation: spriteIdleWobble 3s ease-in-out infinite; }
 
 @keyframes spriteIdleBob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-6px) scale(1.06); }
 }
 @keyframes spriteIdleWobble {
   0%, 100% { transform: rotate(-2deg); }
@@ -665,6 +665,26 @@ body {
   cursor: pointer; font-family: 'Nunito', sans-serif;
 }
 
+/* ─── LOADING SPINNER ─── */
+#loading-spinner {
+  position: absolute; top: 50%; left: 50%;
+  width: 44px; height: 44px;
+  margin: -22px 0 0 -22px;
+  border: 4px solid rgba(108,99,255,0.12);
+  border-top-color: #6C63FF;
+  border-radius: 50%;
+  z-index: 2;
+  animation: spinRing 0.7s linear infinite;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+#loading-spinner.hidden {
+  opacity: 0;
+}
+@keyframes spinRing {
+  to { transform: rotate(360deg); }
+}
+
 /* ─── TOAST ─── */
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
@@ -695,4 +715,69 @@ body {
   .action-row button { min-width: 50px; padding: 6px 4px; }
   .action-row button .btn-icon { font-size: 1rem; }
   .milestone-popup { padding: 20px 24px; }
+}
+
+/* ─── MOBILE TOUCH POLISH ─── */
+/* Touch-friendly tap targets (minimum 44×44px Apple HIG / Material Design) */
+button,
+[role="button"],
+.team-card,
+.mood-pill,
+.mg-card,
+.mode-btn,
+#sceneControls button,
+.milestone-popup .mp-btn,
+.top-bar .team-badge {
+  min-height: 44px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Tap feedback: scale down on :active for tactile feel */
+button:active,
+[role="button"]:active,
+.team-card:active,
+.mood-pill:active,
+.mg-card:active,
+.mode-btn:active,
+#sceneControls button:active,
+.milestone-popup .mp-btn:active {
+  transform: scale(0.97) !important;
+}
+
+/* Evolution line picker — ensure buttons wrap properly on small screens */
+.evo-section {
+  flex-wrap: wrap;
+}
+.evo-node {
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
+}
+
+/* Unified smooth transitions across all interactive elements */
+button,
+[role="button"],
+.team-card,
+.mood-pill,
+.mg-card,
+.mode-btn,
+#sceneControls button,
+.milestone-popup .mp-btn,
+.top-bar .team-badge,
+.evo-node,
+.evo-dot {
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Ensure action-row buttons respect min-height */
+.action-row button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+/* Make mood pills properly tappable */
+.mood-pill {
+  min-width: 44px;
 }
