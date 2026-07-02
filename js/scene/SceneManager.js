@@ -178,13 +178,20 @@ export class SceneManager {
       });
       console.log(`DEBUG model: ${meshCount} meshes, ${vertCount} vertices`);
 
-      // Built-in animations
+      // Built-in animations — apply first frame for default pose
+      // PokeMiners GLBs store bones at origin (bind pose); animations position them
       if (gltf.animations && gltf.animations.length > 0) {
-        // These are stale keyframes from PokeMiners (no meaningful animation data)
-        // Our _updateBoneIdle and _playBoneAnimation handle all animation
+        const tempMixer = new THREE.AnimationMixer(this.model);
+        const action = tempMixer.clipAction(gltf.animations[0]);
+        action.play();
+        // Step to first frame to apply default pose
+        tempMixer.update(0.001);
+        // Stop and remove — our _updateBoneIdle takes over from here
+        action.stop();
+        tempMixer.uncacheClip(gltf.animations[0]);
       }
 
-      // === SCAN FOR BONES ===
+      // === SCAN FOR BONES (AFTER pose applied) ===
       this._scanBones();
       this.useV2 = true;
 
