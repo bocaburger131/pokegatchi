@@ -27,15 +27,33 @@
 <!-- ─── UI ─── -->
 <div class="ui-layer">
 
-  <!-- TOP BAR -->
+  <!-- ─── TOP BAR ─── -->
   <div class="top-bar">
     <span class="logo">✦ PG</span>
     <span class="debug-toggle" onclick="window.toggleDebugOverlay()" id="debugToggle" title="Toggle expression debug overlay" style="cursor:pointer;font-size:0.65rem;padding:1px 5px;border-radius:6px;background:var(--accent-dim);color:var(--accent);font-weight:700;font-family:monospace;margin-left:3px;">🔍</span>
     <span class="pet-name" id="petNameDisplay">Pikachu</span>
-    <span class="spacer"></span>
+    <span class="spacer">
+      <!-- HUD COUNTERS -->
+      <span class="hud-group" data-store-key="steps">
+        <span class="hud-icon">👟</span>
+        <span class="hud-val" id="hudSteps">0</span>
+      </span>
+      <span class="hud-group" data-store-key="pokemonCaught">
+        <span class="hud-icon">⚡</span>
+        <span class="hud-val" id="hudCaught">12</span>
+      </span>
+      <span class="hud-group" data-store-key="pokestopSpins">
+        <span class="hud-icon">💠</span>
+        <span class="hud-val" id="hudSpins">7</span>
+      </span>
+      <span class="hud-group" data-store-key="badges">
+        <span class="hud-icon">🏅</span>
+        <span class="hud-val" id="hudBadges">3</span>
+      </span>
+    </span>
   </div>
 
-  <!-- PET CARD -->
+  <!-- ─── PET CARD ─── -->
   <div class="pet-card">
     <div class="name" id="petName">Pikachu</div>
     <div class="species" id="petSpecies">Select a Pokémon to begin</div>
@@ -60,6 +78,7 @@
 
     <!-- ACTIONS -->
     <div class="action-sections">
+      <!-- Row 1: Interactions -->
       <div>
         <div class="action-group-label">Interactions</div>
         <div class="action-row">
@@ -68,6 +87,95 @@
           <button onclick="window.healPet()"><span class="btn-icon">💊</span><span class="btn-label">Heal</span></button>
           <button onclick="window.bounce()" class="primary"><span class="btn-icon">🌟</span><span class="btn-label">Bounce</span></button>
         </div>
+      </div>
+      <!-- Row 2: Bag -->
+      <div>
+        <div class="action-group-label">Inventory</div>
+        <div class="action-row">
+          <button onclick="window.openBag()" class="primary"><span class="btn-icon">🎒</span><span class="btn-label">Open Bag</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── STAT INDICATORS ─── -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-row">
+      <span class="si">🍽</span>
+      <span class="sn">Hunger</span>
+      <div class="stat-bar-bg"><div class="stat-fill" id="barHunger" style="width:80%;background:var(--accent);"></div></div>
+      <span class="sv" id="valHunger" data-store-key="hunger">80</span>
+    </div>
+    <div class="stat-row">
+      <span class="si">😊</span>
+      <span class="sn">Happy</span>
+      <div class="stat-bar-bg"><div class="stat-fill" id="barHappiness" style="width:60%;background:var(--accent);"></div></div>
+      <span class="sv" id="valHappiness" data-store-key="happiness">60</span>
+    </div>
+    <div class="stat-row">
+      <span class="si">💕</span>
+      <span class="sn">Affect</span>
+      <div class="stat-bar-bg"><div class="stat-fill" id="barAffection" style="width:50%;background:var(--accent);"></div></div>
+      <span class="sv" id="valAffection" data-store-key="affection">50</span>
+    </div>
+  </div>
+
+  <!-- ─── BAG SECTION (collapsible) ─── -->
+  <div class="collapsible-section" id="bagSection">
+    <div class="collapsible-header" id="bagToggle" onclick="window.toggleBag()">
+      <span class="collapsible-chevron">▼</span>
+      <span class="collapsible-title">🎒 Bag</span>
+    </div>
+    <div class="collapsible-body" id="bagContent">
+      <div class="bag-grid">
+        <button class="bag-item" onclick="window.useItem('berries')" id="bagItemBerries">
+          <span class="bag-item-icon">🫐</span>
+          <span class="bag-item-name">Berries</span>
+          <span class="count-badge" id="bagCountBerries">0</span>
+        </button>
+        <button class="bag-item" onclick="window.useItem('toys')" id="bagItemToys">
+          <span class="bag-item-icon">🧸</span>
+          <span class="bag-item-name">Toys</span>
+          <span class="count-badge" id="bagCountToys">0</span>
+        </button>
+        <button class="bag-item" onclick="window.useItem('potions')" id="bagItemPotions">
+          <span class="bag-item-icon">💊</span>
+          <span class="bag-item-name">Potions</span>
+          <span class="count-badge" id="bagCountPotions">0</span>
+        </button>
+        <button class="bag-item" onclick="window.useItem('candy')" id="bagItemCandy">
+          <span class="bag-item-icon">🍬</span>
+          <span class="bag-item-name">Candy</span>
+          <span class="count-badge" id="bagCountCandy">0</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── DEMO BOOST SECTION (collapsible) ─── -->
+  <div class="collapsible-section" id="demoSection">
+    <div class="collapsible-header" id="demoToggle" onclick="window.toggleDemo()">
+      <span class="collapsible-chevron">▼</span>
+      <span class="collapsible-title">⚡ Demo Boost</span>
+    </div>
+    <div class="collapsible-body" id="demoContent">
+      <!-- Row 1: Stats +10 -->
+      <div class="demo-row">
+        <button class="demo-btn" onclick="window.demoBoost('hunger', 10)">+Hunger</button>
+        <button class="demo-btn" onclick="window.demoBoost('happiness', 10)">+Happiness</button>
+        <button class="demo-btn" onclick="window.demoBoost('affection', 10)">+Affection</button>
+      </div>
+      <!-- Row 2: Progress -->
+      <div class="demo-row">
+        <button class="demo-btn" onclick="window.demoBoost('steps', 100)">+Steps (100)</button>
+        <button class="demo-btn" onclick="window.demoBoost('caught', 1)">+Caught (1)</button>
+        <button class="demo-btn" onclick="window.demoBoost('spin', 1)">+Spin (1)</button>
+      </div>
+      <!-- Row 3: Inventory -->
+      <div class="demo-row">
+        <button class="demo-btn" onclick="window.demoBoost('berry', 1)">+Berry</button>
+        <button class="demo-btn" onclick="window.demoBoost('toy', 1)">+Toy</button>
+        <button class="demo-btn" onclick="window.demoBoost('potion', 1)">+Potion</button>
       </div>
     </div>
   </div>
@@ -81,6 +189,6 @@
 <!-- ─── LOADING SPINNER ─── -->
 <div id="loading-spinner"></div>
 
-<script type="module" src="js/main.js?v=3"></script>
+<script type="module" src="js/main.js?v=4"></script>
 </body>
 </html>

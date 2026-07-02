@@ -895,3 +895,189 @@ button,
   color: var(--text);
   margin-left: 6px;
 }
+
+/* ─── HUD DIM VARIANT ─── */
+.hud-group .hud-val.dim {
+  color: var(--text-dimmer);
+}
+
+/* ─── COLLAPSIBLE SECTIONS (Bag, Demo) ─── */
+.collapsible-section {
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--card-border);
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  min-height: 44px;
+  transition: background 0.2s;
+}
+
+.collapsible-header:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.collapsible-chevron {
+  font-size: 0.5rem;
+  transition: transform 0.3s ease;
+  display: inline-block;
+  color: var(--text-dimmer);
+}
+
+.collapsible-section.open .collapsible-chevron {
+  transform: rotate(0deg);
+}
+
+.collapsible-section:not(.open) .collapsible-chevron {
+  transform: rotate(-90deg);
+}
+
+.collapsible-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.collapsible-body {
+  display: none;
+  padding: 0 14px 14px;
+}
+
+.collapsible-section.open .collapsible-body {
+  display: block;
+}
+
+/* ─── BAG GRID ─── */
+.bag-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.bag-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 8px;
+  min-height: 70px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius-xs);
+  color: var(--text);
+  cursor: pointer;
+  font-family: 'Nunito', system-ui, sans-serif;
+  transition: all 0.15s;
+}
+
+.bag-item:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.bag-item:active {
+  transform: scale(0.97);
+}
+
+.bag-item-icon {
+  font-size: 1.4rem;
+  display: block;
+}
+
+.bag-item-name {
+  font-size: 0.65rem;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.bag-item .count-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+/* ─── DEMO BOOST ─── */
+.demo-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.demo-row:last-child {
+  margin-bottom: 0;
+}
+
+.demo-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 6px;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  min-height: 44px;
+}
+
+.demo-btn:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.demo-btn:active {
+  transform: scale(0.97);
+  box-shadow: none;
+}
+
+/* Colorful demo button variants */
+.demo-btn[onclick*="hunger"]:hover  { border-color: #FF6B6B; background: rgba(255,107,107,0.1); }
+.demo-btn[onclick*="happiness"]:hover { border-color: #FCD34D; background: rgba(252,211,77,0.1); }
+.demo-btn[onclick*="affection"]:hover { border-color: #F472B6; background: rgba(244,114,182,0.1); }
+.demo-btn[onclick*="steps"]:hover     { border-color: #60A5FA; background: rgba(96,165,250,0.1); }
+.demo-btn[onclick*="caught"]:hover    { border-color: #A78BFA; background: rgba(167,139,250,0.1); }
+.demo-btn[onclick*="spin"]:hover      { border-color: #34D399; background: rgba(52,211,153,0.1); }
+.demo-btn[onclick*="berry"]:hover     { border-color: #FB923C; background: rgba(251,146,60,0.1); }
+.demo-btn[onclick*="toy"]:hover       { border-color: #E879F9; background: rgba(232,121,249,0.1); }
+.demo-btn[onclick*="potion"]:hover    { border-color: #22D3EE; background: rgba(34,211,238,0.1); }
+
+/* ─── RESPONSIVE ADJUSTMENTS ─── */
+@media (max-width: 500px) {
+  .bag-grid { grid-template-columns: 1fr 1fr; }
+  .demo-btn { font-size: 0.6rem; padding: 6px 4px; }
+}
