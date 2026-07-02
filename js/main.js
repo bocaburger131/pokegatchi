@@ -497,6 +497,43 @@ window.evolve = function() {
   }
 };
 
+// === MINI-GAMES ===
+
+/**
+ * window.playMiniGame(name) — play a mini-game by name, boosting the associated stat.
+ * stat:1 → hunger (+0.10), stat:2 → boredom (-0.10, inverted since lower=better),
+ * stat:3 → cleanliness (+0.10). Shows toast, animates, saves & re-renders.
+ */
+window.playMiniGame = function(name) {
+  const p = store.state.pet;
+  if (p.stage === 0) return;
+
+  const game = MINIGAMES.find(m => m.name === name);
+  if (!game) {
+    toast(`❌ Unknown minigame: ${name}`);
+    return;
+  }
+
+  const statIdx = game.stat; // 1=hunger, 2=boredom, 3=cleanliness
+  const boost = 0.10;
+
+  if (statIdx === 1) {
+    // Hunger — higher is better
+    p.stats.hunger = Math.min(1.0, p.stats.hunger + boost);
+  } else if (statIdx === 2) {
+    // Boredom — lower is better, so subtract
+    p.stats.boredom = Math.max(0, p.stats.boredom - boost);
+  } else if (statIdx === 3) {
+    // Cleanliness — higher is better
+    p.stats.cleanliness = Math.min(1.0, p.stats.cleanliness + boost);
+  }
+
+  toast(`${game.icon} ${game.name}!`);
+  petAnim('bounce');
+  tick();
+  renderAll();
+};
+
 // ─── DEMO ONLY: quick-boost helpers for evolution testing ───
 /**
  * DEMO ONLY: window.boostCatches(n) — add n catches, show toast
