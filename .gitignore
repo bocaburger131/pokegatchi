@@ -1,34 +1,26 @@
-# Pokémon 3D models — loaded from CDN on GitHub Pages
 assets/models/
 assets/models/**/*.glb
-assets/models/**/*.png
-
-# Wear OS build artifacts
-wearos-app/.gradle/
-wearos-app/build/
-wearos-app/app/build/
-wearos-app/local.properties
-*.apk
-*.aab
-
-# Downloaded/compressed assets (already extracted)
 assets/downloaded/
 assets/extracted_oga/
 assets/kenney_ui-pack.zip
 assets/oga_backgrounds.zip
 assets/oga_backgrounds.7z
 assets/patch.img
-
-# Python cache
+assets/trappup-evolution.png
 __pycache__/
 *.pyc
 *.pyo
-
-# OS files
+wearos-app/.gradle/
+wearos-app/build/
+wearos-app/app/build/
+*.apk
+*.apk
 .DS_Store
 Thumbs.db
-
-# Editor
 *.swp
 *.swo
+
+# Old slimmed lib files (replaced by CDN)
+lib/three.min.js
+lib/GLTFLoader.js
 
