@@ -27,6 +27,12 @@ if (!store.state.team) store.state.team = null;
 if (!store.state._uniqueStopSet) store.state._uniqueStopSet = [];
 if (!store.state.moodSwirl) store.state.moodSwirl = false;
 
+// Track last loaded 3D model stage+line to avoid redundant loadModel() calls
+// loadModel() always calls _clearModel() first, destroying the current model.
+// Without this guard, System 4 (2s refresh) wipes the model every cycle.
+let _lastLoadedStage = -1;
+let _lastLoadedLine = null;
+
 // === THREE.JS SETUP ===
 const sceneMan = new SceneManager('pet3dContainer');
 sceneMan.init();
@@ -127,7 +133,15 @@ function renderPetView() {
     sceneMan.setSpriteBackground(absSpritePath);
   }
 
-  if (modelInfo) {
+  // Only reload 3D model if stage or evolution line actually changed.
+  // loadModel() calls _clearModel() which destroys the current model, so
+  // calling it every render cycle (every 2s via System 4) would never let
+  // a model finish loading. Track last loaded values and skip if unchanged.
+  const stageChanged = _lastLoadedStage !== s;
+  const lineChanged = _lastLoadedLine !== store.state.activeLine;
+  if (modelInfo && (stageChanged || lineChanged)) {
+    _lastLoadedStage = s;
+    _lastLoadedLine = store.state.activeLine;
     sceneMan.loadModel(modelInfo.ids[s], modelInfo.cats[s]);
   }
 
