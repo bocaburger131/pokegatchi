@@ -235,14 +235,16 @@ export function closeMilestone() {
 
 /**
  * toggleAchievements() — toggles achievement panel visibility
+ * Self-synchronizing: reads actual display state instead of a separate boolean.
  */
-let _achToggle = false;
 export function toggleAchievements() {
-  _achToggle = !_achToggle;
   const panel = document.getElementById('achPanel');
+  const chevron = document.getElementById('achChevron');
   if (!panel) return;
-  panel.style.display = _achToggle ? 'block' : 'none';
-  if (_achToggle) renderAchievements();
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) renderAchievements();
+  if (chevron) chevron.classList.toggle('open', !isOpen);
 }
 
 // ══════════════════════════════════════════════════════════

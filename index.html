@@ -210,10 +210,10 @@
     <div class="minigames" id="minigamePanel"></div>
   </div>
 
-  <!-- ACHIEVEMENTS (collapsible) -->
+  <!-- ACHIEVEMENTS (collapsible, shown by default) -->
   <div class="evo-section" style="cursor:pointer;" onclick="window.toggleAchievements()">
-    <h3>🏅 Achievements <span id="achBadge" style="margin-left:auto;font-size:0.7rem;color:var(--accent);"></span></h3>
-    <div id="achPanel" style="display:none;"></div>
+    <h3>🏅 Achievements <span id="achChevron" class="ach-chevron open">▼</span><span id="achBadge" style="margin-left:auto;font-size:0.7rem;color:var(--accent);"></span></h3>
+    <div id="achPanel" style="display:block;"></div>
   </div>
 
   <div class="footer">Pokégatchi · Press <kbd>C</kbd> catch · <kbd>S</kbd> +100 steps · <kbd>1-5</kbd> time · <kbd>Shift+1-5</kbd> weather</div>

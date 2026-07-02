@@ -324,7 +324,7 @@ body {
   transition: all 0.2s;
 }
 .mode-btn.active { border-color: var(--accent); background: var(--accent-dim); color: var(--text); }
-.mode-btn:hover { color: var(--text); }
+.mode-btn:hover { color: var(--text); box-shadow: 0 0 12px var(--accent-glow); }
 
 /* ─── SCENE CONTROLS ─── */
 #sceneControls {
@@ -566,8 +566,8 @@ body {
 }
 .action-row button .btn-icon { display: block; font-size: 1.1rem; margin-bottom: 1px; }
 .action-row button .btn-label { font-size: 0.6rem; opacity: 0.7; font-weight: 600; }
-.action-row button:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); transform: translateY(-1px); }
-.action-row button:active { transform: translateY(0); }
+.action-row button:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); transform: translateY(-1px); box-shadow: 0 0 12px var(--accent-glow); }
+.action-row button:active { transform: translateY(0); box-shadow: none; }
 .action-row button:disabled { opacity: 0.25; cursor: not-allowed; transform: none !important; }
 
 /* Button variants */
@@ -622,6 +622,19 @@ body {
   text-transform: uppercase; letter-spacing: 1.5px;
   margin-bottom: 8px;
   display: flex; align-items: center; gap: 6px;
+}
+
+/* Chevron for collapsible sections */
+.ach-chevron {
+  font-size: 0.5rem;
+  transition: transform 0.3s ease;
+  display: inline-block;
+}
+.ach-chevron.open {
+  transform: rotate(0deg);
+}
+.ach-chevron:not(.open) {
+  transform: rotate(-90deg);
 }
 .evo-track { display: flex; align-items: center; justify-content: center; gap: 2px; flex-wrap: wrap; }
 .evo-node {
