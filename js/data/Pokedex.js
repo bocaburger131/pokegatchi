@@ -103,7 +103,8 @@ export const ACHIEVEMENTS = [
   { id:'streak_5', icon:'🔥', name:'On Fire!', desc:'5-catch streak', oneTime:true },
   { id:'streak_10', icon:'🔥', name:'Unstoppable!', desc:'10-catch streak', oneTime:true },
   { id:'feeder', icon:'🍖', name:'Full Belly', desc:'Feed 25 times', oneTime:true },
-  { id:'healer', icon:'💊', name:'Nurse', desc:'Heal 10 times', oneTime:true },\n];
+  { id:'healer', icon:'💊', name:'Nurse', desc:'Heal 10 times', oneTime:true },
+];
 
 export const MOOD_THRESHOLDS = {
   hunger: { low: 0.25, veryLow: 0.10 },
