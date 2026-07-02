@@ -7,6 +7,7 @@ export const store = {
       stage: 0, // 0=egg, 1=baby, 2=teen, 3=adult, 4=mega
       stats: { hunger: 1.0, boredom: 0.0, cleanliness: 1.0 },
       inventory: { berries: 2, toys: 3 },
+      mood: 0,
     },
     backlog: {
       pendingSpins: 0,

@@ -1,267 +1,248 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pokégatchi — Production</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <style>
-        :root {
-            --bg: #000000;
-            --mg: #00FF66;
-            --mg-dim: rgba(0,255,102,0.15);
-            --wr: #FF3333;
-            --text: #FFFFFF;
-            --text-dim: #888;
-            --radius: 12px;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
-        body {
-            background: var(--bg);
-            font-family: 'Courier New', Courier, monospace;
-            overflow: hidden;
-            color: var(--text);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            height: 100dvh;
-        }
-        #game-container {
-            width: 100%;
-            max-width: 420px;
-            height: 100%;
-            max-height: 420px;
-            position: relative;
-            background: #111;
-            border: 2px solid #333;
-            border-radius: 40px;
-            overflow: hidden;
-            box-shadow: 0 0 40px rgba(0,255,102,0.05);
-        }
-
-        /* ── 2.5D LAYERS ── */
-        #layer-2d-background {
-            position: absolute; inset: 0; width: 100%; height: 100%;
-            z-index: 1;
-            background-size: cover; background-position: center;
-            transition: background-image 1.5s ease;
-        }
-        #layer-2d-cameos {
-            position: absolute; inset: 0; width: 100%; height: 100%;
-            z-index: 2;
-            pointer-events: none;
-        }
-        #layer-3d-buddy {
-            position: absolute; inset: 0; width: 100%; height: 100%;
-            z-index: 3;
-            display: flex; align-items: center; justify-content: center;
-        }
-        #layer-3d-buddy canvas {
-            width: 320px !important; height: 320px !important;
-        }
-        #expressionCanvas {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 320px; height: 320px;
-            z-index: 4;
-            pointer-events: none;
-        }
-        #layer-ui {
-            position: absolute; inset: 0; width: 100%; height: 100%;
-            z-index: 5;
-            display: flex; flex-direction: column;
-            justify-content: space-between;
-            padding: 16px;
-            pointer-events: none;
-        }
-        .interactive { pointer-events: auto; }
-
-        /* ── HUD ── */
-        .hud-row {
-            display: flex; justify-content: space-between; width: 100%;
-        }
-        .stat-badge {
-            background: rgba(0,0,0,0.75);
-            padding: 4px 8px; border-radius: 8px;
-            font-size: 11px;
-            border: 1px solid #444;
-            color: var(--mg);
-        }
-        .stat-badge.alert { color: var(--wr); border-color: var(--wr); }
-        .pet-info {
-            display: flex; flex-direction: column; align-items: center;
-            margin-top: 8px;
-        }
-        .pet-name {
-            font-size: 16px; font-weight: bold; color: var(--mg);
-            text-shadow: 0 0 10px rgba(0,255,102,0.3);
-        }
-        .pet-species { font-size: 11px; color: var(--text-dim); }
-        .hud-status {
-            background: rgba(0,0,0,0.5);
-            padding: 3px 10px; border-radius: 6px;
-            font-size: 10px; color: var(--mg);
-            text-align: center;
-            letter-spacing: 1px;
-        }
-        .hud-counter {
-            display: flex; gap: 8px; align-items: center;
-        }
-        .stage-badge {
-            background: rgba(0,255,102,0.1);
-            border: 1px solid var(--mg);
-            color: var(--mg);
-            padding: 2px 8px; border-radius: 6px;
-            font-size: 10px; font-weight: bold;
-        }
-
-        /* ── ACTION TRAY ── */
-        .action-tray {
-            display: flex; justify-content: space-around; width: 100%;
-            margin-bottom: 4px;
-        }
-        .btn-action {
-            background: #222;
-            border: 1px solid var(--mg);
-            color: white;
-            padding: 6px 10px;
-            font-family: inherit;
-            font-size: 10px;
-            cursor: pointer;
-            border-radius: 6px;
-            transition: all 0.15s;
-        }
-        .btn-action:active { background: var(--mg); color: black; }
-        .btn-action:disabled { opacity: 0.3; border-color: #444; pointer-events: none; }
-
-        /* ── LINE PICKER ── */
-        #linePicker {
-            display: flex; gap: 4px; flex-wrap: wrap;
-            justify-content: center;
-            margin-top: 4px;
-        }
-        #linePicker button {
-            background: #222;
-            border: 1px solid #444;
-            color: var(--text-dim);
-            padding: 3px 8px;
-            font-family: inherit;
-            font-size: 9px;
-            cursor: pointer;
-            border-radius: 6px;
-        }
-        #linePicker button.active {
-            border-color: var(--mg);
-            color: var(--mg);
-            background: rgba(0,255,102,0.1);
-        }
-        #linePicker button:active { background: rgba(0,255,102,0.2); }
-
-        /* ── WAKE-UP OVERLAY ── */
-        #ledger-overlay {
-            position: absolute; inset: 0;
-            background: rgba(0,0,0,0.95);
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 24px;
-            text-align: center;
-        }
-        .ledger-box {
-            border: 2px dashed var(--mg);
-            padding: 16px;
-            width: 100%;
-            margin: 16px 0;
-            font-size: 12px;
-            line-height: 1.8;
-        }
-        .ledger-box div { margin: 4px 0; }
-        .ledger-rewards { color: #FFD700; }
-
-        /* ── LOADING SPINNER ── */
-        #loading-spinner {
-            position: absolute;
-            top: 45%; left: 45%;
-            width: 40px; height: 40px;
-            border: 4px solid #333;
-            border-top: 4px solid var(--mg);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            z-index: 6;
-            display: none;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* ── RESPONSIVE ── */
-        @media (max-width: 440px) {
-            #game-container { border-radius: 24px; max-height: 100vh; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pokégatchi</title>
+<link rel="stylesheet" href="assets/styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
-    <div id="game-container">
-        <!-- 2.5D LAYERS -->
-        <div id="layer-2d-background"></div>
-        <div id="layer-2d-cameos"></div>
-        <div id="layer-3d-buddy"></div>
-        <canvas id="expressionCanvas" width="320" height="320"></canvas>
-        <div id="loading-spinner"></div>
 
-        <!-- UI LAYER -->
-        <div id="layer-ui">
-            <!-- Top HUD -->
-            <div class="hud-row">
-                <div class="hud-counter">
-                    <span class="stage-badge" id="petStage">EGG</span>
-                </div>
-                <div class="hud-counter">
-                    <div id="hud-hunger" class="stat-badge">HG: 100%</div>
-                    <div id="hud-boredom" class="stat-badge">BD: 0%</div>
-                </div>
-            </div>
-
-            <!-- Pet Info -->
-            <div class="pet-info">
-                <div class="pet-name" id="petName">—</div>
-                <div class="pet-species" id="petSpecies">Wake up...</div>
-            </div>
-
-            <!-- Status -->
-            <div style="display:flex;justify-content:center;margin:4px 0;">
-                <div id="hud-status" class="hud-status">• WAKE UP •</div>
-            </div>
-
-            <!-- Action Tray -->
-            <div class="action-tray interactive">
-                <button class="btn-action" onclick="window.handleFeedClick()">FEED (<span id="inv-berries">0</span>)</button>
-                <button class="btn-action" onclick="window.handlePlayClick()">PLAY (<span id="inv-toys">0</span>)</button>
-                <button class="btn-action" onclick="window.handleCleanClick()">CLEAN</button>
-                <button class="btn-action" onclick="window.handleHatchClick()">HATCH</button>
-            </div>
-
-            <!-- Line Picker -->
-            <div id="linePicker" class="interactive"></div>
-        </div>
-
-        <!-- WAKE-UP LEDGER OVERLAY -->
-        <div id="ledger-overlay" class="interactive">
-            <h3 style="color:var(--mg);margin-bottom:8px;">⚡ CATCHER SYNC</h3>
-            <p style="font-size:11px;color:var(--text-dim);">Catcher data detected from last session</p>
-            <div class="ledger-box">
-                <div id="ledger-spins">STOPS DETECTED: 0</div>
-                <div id="ledger-catches">CAPTURES SUCCESS: 0</div>
-                <hr style="border-color:#333;margin:8px 0;">
-                <div id="ledger-rewards" class="ledger-rewards">UNLOCKED: None</div>
-            </div>
-            <button class="btn-action" onclick="window.dismissLedger()">⬡ SYNC DATA</button>
-        </div>
+<!-- ─── TEAM SELECT ─── -->
+<div id="teamOverlay">
+  <h1>✦ Pokégatchi ✦</h1>
+  <p>Choose your team to begin</p>
+  <div class="team-pick">
+    <div class="team-card" data-team="valor" onclick="window.selectTeam('valor')">
+      <span class="badge">🔴</span>
+      <div class="tname" style="color:#FF4444;">Valor</div>
+      <div class="tdesc">Fire burns bright</div>
     </div>
+    <div class="team-card" data-team="mystic" onclick="window.selectTeam('mystic')">
+      <span class="badge">🔵</span>
+      <div class="tname" style="color:#4488FF;">Mystic</div>
+      <div class="tdesc">Wisdom prevails</div>
+    </div>
+    <div class="team-card" data-team="instinct" onclick="window.selectTeam('instinct')">
+      <span class="badge">🟡</span>
+      <div class="tname" style="color:#FFD700;">Instinct</div>
+      <div class="tdesc">Trust your gut</div>
+    </div>
+  </div>
+</div>
 
-    <script type="module" src="js/main.js"></script>
+<!-- ─── SCENE ─── -->
+<div class="scene-wrap" id="sceneWrap" data-time="morning" data-weather="clear">
+  <div class="sky-layer" id="skyLayer"></div>
+  <div class="time-tint"></div>
+  <div class="scene-sun"></div>
+  <div class="scene-moon"></div>
+  <div class="night-stars-container" id="nightStarsContainer"></div>
+  <div class="weather-overlay-rain" id="rainOverlay"></div>
+  <div class="weather-overlay-snow" id="snowOverlay"></div>
+  <div class="weather-fog-layer"></div>
+  <div class="weather-cloudy-particles" id="cloudyParticles"></div>
+  <div class="weather-overlay" id="weather-overlay"></div>
+  <div class="ground-layer"></div>
+  <div class="scene-path"></div>
+  <div class="scene-mountain" style="left:5%;border-bottom-color:rgba(50,40,70,0.2);"></div>
+  <div class="scene-mountain" style="right:10%;border-left-width:100px;border-right-width:100px;border-bottom-width:70px;border-bottom-color:rgba(60,50,80,0.15);"></div>
+  <div class="scene-tree-group" style="left:8%;">
+    <div class="scene-tree"><div class="foliage"></div><div class="trunk"></div></div>
+    <div class="scene-tree" style="transform:scale(0.7);"><div class="foliage"></div><div class="trunk"></div></div>
+  </div>
+  <div class="scene-tree-group" style="right:10%;">
+    <div class="scene-tree" style="transform:scale(0.8);"><div class="foliage"></div><div class="trunk"></div></div>
+    <div class="scene-tree"><div class="foliage"></div><div class="trunk"></div></div>
+  </div>
+  <div class="scene-cloud" style="width:80px;height:30px;top:15%;left:-10%;--dur:80s;"></div>
+  <div class="scene-cloud" style="width:100px;height:25px;top:25%;left:-20%;--dur:110s;opacity:0.7;"></div>
+</div>
+
+<!-- ─── UI ─── -->
+<div class="ui-layer">
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <span class="logo">✦ PG</span>
+    <span class="pet-level" id="petLevelDisplay">EGG</span>
+    <span class="spacer"></span>
+    <span class="hud-group" id="hudStepsGroup">
+      <span class="hud-icon">👟</span>
+      <span class="hud-val" id="hudSteps">0</span>
+    </span>
+    <span class="hud-group" id="hudCatchesGroup">
+      <span class="hud-icon">🏆</span>
+      <span class="hud-val" id="hudCatches">0</span>
+    </span>
+    <span class="hud-group" id="hudStopsGroup">
+      <span class="hud-icon">🔄</span>
+      <span class="hud-val" id="hudStops">0</span>
+    </span>
+    <span class="hud-group" id="hudHungerGroup">
+      <span class="hud-icon">🍖</span>
+      <span class="hud-val" id="hud-hunger">HG: 100%</span>
+    </span>
+    <span class="hud-group" id="hudBoredomGroup">
+      <span class="hud-icon">🎯</span>
+      <span class="hud-val" id="hud-boredom">BD: 0%</span>
+    </span>
+    <span class="team-badge" id="teamBadge" title="Tap to switch team">🔴</span>
+  </div>
+
+  <!-- AUTO MODE INDICATOR -->
+  <div id="autoStatus" class="auto-status" style="display:none;">
+    🤖 Auto: <span id="autoCatchCount">0</span> caught · <span id="autoSpinCount">0</span> spun
+  </div>
+
+  <!-- TIME & WEATHER -->
+  <div class="tw-indicator" id="twIndicator">☀️ Morning · Clear</div>
+
+  <!-- MODE TOGGLE -->
+  <div class="mode-toggle">
+    <button class="mode-btn active" onclick="window.setMode('play')">🎮 Play</button>
+    <button class="mode-btn" onclick="window.setMode('auto')">🤖 Auto</button>
+    <button class="mode-btn" onclick="window.setMode('scene')">🌄 Scenes</button>
+  </div>
+
+  <!-- SCENE CONTROLS -->
+  <div id="sceneControls">
+    <div class="sc-row">
+      <button onclick="window.setTime(0)">🌅 Dawn</button>
+      <button onclick="window.setTime(1)">☀️ Morning</button>
+      <button onclick="window.setTime(2)">🌤️ Afternoon</button>
+      <button onclick="window.setTime(3)">🌆 Evening</button>
+      <button onclick="window.setTime(4)">🌙 Night</button>
+    </div>
+    <div class="sc-row">
+      <button onclick="window.setWeather(0)">☀️ Clear</button>
+      <button onclick="window.setWeather(1)">☁️ Cloudy</button>
+      <button onclick="window.setWeather(2)">🌧️ Rain</button>
+      <button onclick="window.setWeather(3)">❄️ Snow</button>
+      <button onclick="window.setWeather(4)">🌫️ Fog</button>
+    </div>
+  </div>
+
+  <!-- EVOLUTION LINE PICKER -->
+  <div id="linePicker" class="mode-toggle" style="margin-bottom:8px;">
+    <button class="mode-btn active">Eevee Line</button>
+    <button class="mode-btn">Charmander Line</button>
+    <button class="mode-btn">Pikachu Line</button>
+  </div>
+
+  <!-- PET CARD -->
+  <div class="pet-card">
+    <div class="name" id="petName">—</div>
+    <div class="species" id="petSpecies">Tap Hatch to begin</div>
+    <div class="pet-canvas-wrap" id="petWrap">
+      <div id="pet3dContainer"></div>
+      <canvas id="expressionCanvas" width="320" height="320"></canvas>
+      <div class="sprite-glow" id="spriteGlow"></div>
+    </div>
+    <div class="mood-label" id="moodLabel">🥚 Waiting</div>
+    <div class="catch-streak" id="catchStreak">🔥 <span id="streakCount">0</span>-catch streak!</div>
+    <div class="hud-status" id="hud-status">• SEARCHING •</div>
+    <div class="inv-row">
+      <span>🫐 <span id="inv-berries">0</span></span>
+      <span>🧸 <span id="inv-toys">0</span></span>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-panel">
+      <h3>❤️ Stats</h3>
+      <div id="statsPanel"></div>
+    </div>
+    <div class="stat-panel">
+      <h3>😊 Mood</h3>
+      <div class="mood-grid" id="moodGrid"></div>
+    </div>
+  </div>
+
+  <!-- GOALS -->
+  <div class="goal-tracker">
+    <h3>🎯 Evolution Goals</h3>
+    <div id="goalPanel"></div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="action-sections">
+    <div>
+      <div class="action-group-label">Care</div>
+      <div class="action-row">
+        <button id="btnHatch" class="primary" onclick="window.hatch()"><span class="btn-icon">🥚</span><span class="btn-label">Hatch</span></button>
+        <button onclick="window.feed()"><span class="btn-icon">🫐</span><span class="btn-label">Feed</span></button>
+        <button onclick="window.petAction()"><span class="btn-icon">🫳</span><span class="btn-label">Pet</span></button>
+        <button onclick="window.healPet()"><span class="btn-icon">💊</span><span class="btn-label">Heal</span></button>
+      </div>
+    </div>
+    <div>
+      <div class="action-group-label">Adventure</div>
+      <div class="action-row">
+        <button onclick="window.addCatch()" id="btnCatch"><span class="btn-icon">🏆</span><span class="btn-label">Catch!</span></button>
+        <button onclick="window.addStep(100)"><span class="btn-icon">👟</span><span class="btn-label">+100 Steps</span></button>
+        <button onclick="window.addStop()"><span class="btn-icon">🔄</span><span class="btn-label">Spin Stop</span></button>
+        <button onclick="window.walkBatch()" class="complete"><span class="btn-icon">🚶</span><span class="btn-label">Walk +1k</span></button>
+      </div>
+    </div>
+    <div>
+      <div class="action-group-label">Evolution</div>
+      <div class="action-row">
+        <button id="btnEvolve" onclick="window.evolve()" disabled><span class="btn-icon">⬆</span><span class="btn-label">Evolve</span></button>
+        <button onclick="window.resetPet()" class="danger"><span class="btn-icon">🔄</span><span class="btn-label">Reset</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EVOLUTION TRACK -->
+  <div class="evo-section">
+    <h3>📈 Evolution Line</h3>
+    <div class="evo-track" id="evoTrack"></div>
+  </div>
+
+  <!-- MINIGAMES -->
+  <div class="evo-section">
+    <h3>🎮 Mini-Games</h3>
+    <div class="minigames" id="minigamePanel"></div>
+  </div>
+
+  <!-- ACHIEVEMENTS (collapsible) -->
+  <div class="evo-section" style="cursor:pointer;" onclick="window.toggleAchievements()">
+    <h3>🏅 Achievements <span id="achBadge" style="margin-left:auto;font-size:0.7rem;color:var(--accent);"></span></h3>
+    <div id="achPanel" style="display:none;"></div>
+  </div>
+
+  <div class="footer">Pokégatchi · Press <kbd>C</kbd> catch · <kbd>S</kbd> +100 steps · <kbd>1-5</kbd> time · <kbd>Shift+1-5</kbd> weather</div>
+</div>
+
+<!-- ─── MISC ─── -->
+<div class="toast" id="toast"></div>
+<div class="milestone-popup" id="milestonePopup">
+  <span class="mp-icon" id="mpIcon">🎉</span>
+  <div class="mp-title" id="mpTitle">Milestone!</div>
+  <div class="mp-desc" id="mpDesc">You reached a goal!</div>
+  <button class="mp-btn" onclick="window.closeMilestone()">Awesome!</button>
+</div>
+
+<!-- ─── WAKE-UP LEDGER OVERLAY ─── -->
+<div id="ledger-overlay" class="interactive">
+  <h3 style="color:var(--accent);margin-bottom:8px;font-weight:900;">⚡ CATCHER SYNC</h3>
+  <p style="font-size:11px;color:var(--text-dim);">Catcher data detected from last session</p>
+  <div class="ledger-box">
+    <div id="ledger-spins">STOPS DETECTED: 0</div>
+    <div id="ledger-catches">CAPTURES SUCCESS: 0</div>
+    <hr style="border-color:rgba(255,255,255,0.06);margin:8px 0;">
+    <div id="ledger-rewards" class="ledger-rewards">UNLOCKED: None</div>
+  </div>
+  <button class="btn-action" onclick="window.dismissLedger()">⬡ SYNC DATA</button>
+</div>
+
+<!-- ─── LOADING SPINNER ─── -->
+<div id="loading-spinner"></div>
+
+<script type="module" src="js/main.js"></script>
 </body>
 </html>

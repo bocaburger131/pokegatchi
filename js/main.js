@@ -1,4 +1,4 @@
-// js/main.js — Production Bootstrap
+// js/main.js — Production Bootstrap (Merged)
 import { store } from './core/Store.js';
 import { GameLoop } from './core/GameLoop.js';
 import { 
@@ -9,15 +9,26 @@ import {
 } from './data/Pokedex.js';
 import { SceneManager } from './scene/SceneManager.js';
 import { ExpressionOverlay } from './scene/ExpressionOverlay.js';
+import { 
+  renderStats, renderMoods, renderGoals, renderEvo, renderMinigames, 
+  renderAchievements, updateButtons, renderLinePicker,
+  toast, showMilestone, closeMilestone, toggleAchievements, 
+  checkAchievements, autoMoodCheck as uiAutoMoodCheck, petAnim
+} from './ui/UIRenderer.js';
+
+// === CONSTANTS ===
+const WEATHER_TYPES = ['clear', 'cloudy', 'rain', 'snow', 'fog'];
 
 // === INIT ===
 store.load(); // Restore saved state
 
-// Active line state
-store.set('activeLine', store.get('activeLine') || 'eevee');
+// Init runtime fields
+if (!store.state.team) store.state.team = null;
+if (!store.state._uniqueStopSet) store.state._uniqueStopSet = [];
+if (!store.state.moodSwirl) store.state.moodSwirl = false;
 
 // === THREE.JS SETUP ===
-const sceneMan = new SceneManager('layer-3d-buddy');
+const sceneMan = new SceneManager('pet3dContainer');
 sceneMan.init();
 
 // === EXPRESSION OVERLAY ===
@@ -29,7 +40,7 @@ const loop = new GameLoop();
 // System 1: 3D render
 loop.register((dt) => sceneMan.update(dt));
 
-// System 2: Stat decay (once per second, not every frame)
+// System 2: Stat decay (once per second)
 let decayAccum = 0;
 loop.register((dt) => {
   decayAccum += dt;
@@ -43,13 +54,23 @@ loop.register((dt) => {
   }
 });
 
-// System 3: Expression update (every ~6 seconds change mood slightly)
+// System 3: Expression check / mood (every ~6 seconds)
 let exprCheckAccum = 0;
 loop.register((dt) => {
   exprCheckAccum += dt;
   if (exprCheckAccum >= 6.0) {
     exprCheckAccum = 0;
     autoMoodCheck();
+  }
+});
+
+// System 4: UI refresh (every ~2 seconds)
+let renderAccum = 0;
+loop.register((dt) => {
+  renderAccum += dt;
+  if (renderAccum >= 2.0) {
+    renderAccum = 0;
+    renderAll();
   }
 });
 
@@ -71,35 +92,23 @@ function renderPetView() {
   const modelInfo = MODEL_IDS[store.state.activeLine];
   const spritePath = SPRITES[store.state.activeLine][s];
 
-  // Update name/species
   document.getElementById('petName').textContent = line?.names[s] || '—';
   document.getElementById('petSpecies').textContent = STAGES[s]?.species || '—';
-  document.getElementById('petStage').textContent = STAGES[s]?.id.toUpperCase() || 'EGG';
+  document.getElementById('petLevelDisplay').textContent = STAGES[s]?.id.toUpperCase() || 'EGG';
 
-  // Load 3D model (async)
   if (modelInfo) {
     sceneMan.loadModel(modelInfo.ids[s], modelInfo.cats[s]);
   }
 
-  // Update expression overlay
   const spriteName = spritePath?.split('/').pop().replace('.png', '') || 'eevee';
   const face = FACE_DATA[spriteName];
   exprOverlay.setSpecies(spriteName);
-  // Set face data on overlay
   if (face) {
     exprOverlay._getFaceData = () => face;
   }
   const mood = store.state.pet?.mood || 0;
   exprOverlay.setMood(mood);
   exprOverlay.start(spriteName, mood);
-}
-
-function updateLinePicker() {
-  const panel = document.getElementById('linePicker');
-  if (!panel) return;
-  panel.innerHTML = Object.entries(EVO_LINES).map(([key, line]) =>
-    `<button class="mode-btn ${store.state.activeLine === key ? 'active' : ''}" onclick="window.setLine('${key}')">${line.name}</button>`
-  ).join('');
 }
 
 function renderStatus() {
@@ -125,8 +134,28 @@ function autoMoodCheck() {
   if (s.boredom > 0.75) mood = 3;
   if (s.boredom > 0.90) mood = 3;
   store.set('pet.mood', mood);
-  // Update expression
   exprOverlay.setMood(mood);
+}
+
+// === renderAll() — full UI refresh ===
+function renderAll() {
+  renderPetView();
+  renderStats();
+  renderMoods();
+  renderGoals();
+  renderEvo();
+  renderMinigames();
+  renderAchievements();
+  updateButtons();
+  renderLinePicker();
+  updateHUD();
+  updateInventory();
+  renderStatus();
+}
+
+// === HELPER: tick() ===
+function tick() {
+  store.save();
 }
 
 // === WAKE-UP LEDGER ===
@@ -142,7 +171,6 @@ function processWakeupLedger() {
   store.state.pet.inventory.berries += earnedBerries;
   store.state.pet.inventory.toys += earnedToys;
   
-  // Highest rarity bonus
   if (b.highestRarity === 'ultra' || b.highestRarity === 'master') {
     store.state.pet.inventory.berries += 2;
   }
@@ -163,13 +191,12 @@ function dismissLedger() {
 // === EVOLUTION SYSTEM ===
 function checkEvolution() {
   const p = store.state.pet;
-  if (p.stage === 0) return; // Egg — need hatch first
-  if (p.stage >= 4) return; // Maxed out
+  if (p.stage === 0) return;
+  if (p.stage >= 4) return;
   
   const next = STAGES[p.stage + 1];
   if (!next) return;
   
-  // Simplified: berries as evolution trigger for now
   if (p.inventory.berries >= 5 && p.stage === 1) {
     loop.lock();
     document.getElementById('hud-status').textContent = '★ EVOLUTION TRIGGERED ★';
@@ -185,59 +212,393 @@ function checkEvolution() {
   }
 }
 
-// === ACTIONS (exposed globally for onclick) ===
-window.handleFeedClick = function() {
+// === SCENE / WEATHER ===
+function applyScene() {
+  const timeIdx = store.state.time.timeIdx;
+  const weatherIdx = store.state.time.weatherIdx;
+  
+  const bgContainer = document.getElementById('skyLayer');
+  if (!bgContainer) return;
+  
+  if (timeIdx >= 0 && timeIdx < BG_IMAGES.length) {
+    bgContainer.style.backgroundImage = `url(${BG_IMAGES[timeIdx]})`;
+  } else {
+    bgContainer.style.backgroundImage = '';
+  }
+  
+  const weatherEl = document.getElementById('weather-overlay');
+  if (!weatherEl) return;
+  weatherEl.className = 'weather-overlay';
+  if (weatherIdx >= 0 && weatherIdx < WEATHERS.length) {
+    weatherEl.classList.add(WEATHERS[weatherIdx]);
+  }
+}
+
+function initParticles() {
+  const scene3d = document.getElementById('pet3dContainer');
+  if (!scene3d) return;
+  
+  // Stars
+  let starsEl = document.getElementById('star-particles');
+  if (!starsEl) {
+    starsEl = document.createElement('div');
+    starsEl.id = 'star-particles';
+    starsEl.className = 'particle-layer stars';
+    scene3d.appendChild(starsEl);
+  }
+  
+  // Rain
+  let rainEl = document.getElementById('rain-particles');
+  if (!rainEl) {
+    rainEl = document.createElement('div');
+    rainEl.id = 'rain-particles';
+    rainEl.className = 'particle-layer rain';
+    scene3d.appendChild(rainEl);
+  }
+  
+  // Snow
+  let snowEl = document.getElementById('snow-particles');
+  if (!snowEl) {
+    snowEl = document.createElement('div');
+    snowEl.id = 'snow-particles';
+    snowEl.className = 'particle-layer snow';
+    scene3d.appendChild(snowEl);
+  }
+}
+
+// === WINDOW ACTIONS ===
+
+/**
+ * window.hatch() — hatch the egg (stage 0→1), reset progress counters
+ */
+window.hatch = function() {
   const p = store.state.pet;
-  if (p.inventory.berries <= 0) return;
-  p.inventory.berries--;
-  p.stats.hunger = Math.min(1.0, p.stats.hunger + 0.35);
-  document.getElementById('hud-status').textContent = '• FEEDING TIME •';
-  setTimeout(() => renderStatus(), 2000);
-  store.save();
-  updateHUD();
-  updateInventory();
-  checkEvolution();
-};
-
-window.handlePlayClick = function() {
-  const p = store.state.pet;
-  if (p.inventory.toys <= 0) return;
-  p.inventory.toys--;
-  p.stats.boredom = Math.max(0, p.stats.boredom - 0.50);
-  document.getElementById('hud-status').textContent = '• PLAYING METRICS UP •';
-  setTimeout(() => renderStatus(), 2000);
-  store.save();
-  updateHUD();
-  updateInventory();
-  checkEvolution();
-};
-
-window.handleCleanClick = function() {
-  store.state.pet.stats.cleanliness = 1.0;
-  document.getElementById('hud-status').textContent = '• SYSTEM BATH COMPLETED •';
-  setTimeout(() => renderStatus(), 2000);
-  store.save();
-};
-
-window.handleHatchClick = function() {
-  if (store.state.pet.stage > 0) return;
+  if (p.stage !== 0) return;
   store.set('pet.stage', 1);
-  const name = EVO_LINES[store.state.activeLine].names[1];
-  document.getElementById('hud-status').textContent = `★ ${name} HATCHED! ★`;
-  store.save();
-  renderPetView();
-  updateLinePicker();
+  store.state.catches = 0;
+  store.state.steps = 0;
+  store.state.stops = 0;
+  store.state.uniqueStops = 0;
+  store.state._uniqueStopSet = [];
+  const name = EVO_LINES[store.state.activeLine]?.names[1] || 'Buddy';
+  toast(`🥚 ${name} HATCHED!`);
+  renderAll();
 };
 
+/**
+ * window.feed() — +10 Hunger (0-100 scale = +0.10), +3 Bond (= boredom -0.03)
+ */
+window.feed = function() {
+  const p = store.state.pet;
+  if (p.stage === 0) return;
+  p.stats.hunger = Math.min(1.0, p.stats.hunger + 0.10);
+  p.stats.boredom = Math.max(0, p.stats.boredom - 0.03);
+  store.state.totalFeeds = (store.state.totalFeeds || 0) + 1;
+  autoMoodCheck();
+  petAnim('bounce');
+  toast('🍖 Yum! +10 Hunger, +3 Bond');
+  tick();
+  renderAll();
+};
+
+/**
+ * window.petAction() — +10 Bond (= boredom -0.10), +3 Energy (= cleanliness +0.03)
+ */
+window.petAction = function() {
+  const p = store.state.pet;
+  if (p.stage === 0) return;
+  p.stats.boredom = Math.max(0, p.stats.boredom - 0.10);
+  p.stats.cleanliness = Math.min(1.0, p.stats.cleanliness + 0.03);
+  store.state.totalPets = (store.state.totalPets || 0) + 1;
+  petAnim('wiggle');
+  toast('💛 Pet! +10 Bond, +3 Energy');
+  tick();
+  renderAll();
+};
+
+/**
+ * window.healPet() — boost all stats by a substantial amount
+ */
+window.healPet = function() {
+  const p = store.state.pet;
+  if (p.stage === 0) return;
+  p.stats.hunger = Math.min(1.0, p.stats.hunger + 0.25);
+  p.stats.boredom = Math.max(0, p.stats.boredom - 0.25);
+  p.stats.cleanliness = Math.min(1.0, p.stats.cleanliness + 0.25);
+  store.state.totalHeals = (store.state.totalHeals || 0) + 1;
+  petAnim('sparkle');
+  toast('💊 Healed! All stats boosted');
+  tick();
+  renderAll();
+};
+
+/**
+ * window.addCatch() — increment catches/streak, +2 Bond, -1 Energy, 20% random weather
+ */
+window.addCatch = function() {
+  const p = store.state.pet;
+  if (p.stage === 0) return;
+  store.state.catches = (store.state.catches || 0) + 1;
+  store.state.streak = (store.state.streak || 0) + 1;
+  p.stats.boredom = Math.max(0, p.stats.boredom - 0.02);
+  p.stats.cleanliness = Math.max(0, p.stats.cleanliness - 0.01);
+  
+  // 20% random weather change
+  if (Math.random() < 0.2) {
+    const wi = Math.floor(Math.random() * WEATHERS.length);
+    store.state.time.weatherIdx = wi;
+    applyScene();
+  }
+  
+  toast(`🏆 Caught! Streak: ${store.state.streak}`);
+  checkAchievements();
+  tick();
+  renderAll();
+};
+
+/**
+ * window.addStep(n) — add steps, check milestones, check achievements
+ */
+window.addStep = function(n) {
+  if (store.state.pet.stage === 0) return;
+  store.state.steps = (store.state.steps || 0) + n;
+  
+  // Check milestones
+  const milestones = [1000, 5000, 10000, 25000, 50000, 100000];
+  for (const m of milestones) {
+    if (store.state.steps >= m && !store.state[`_milestone_${m}`]) {
+      store.state[`_milestone_${m}`] = true;
+      showMilestone('👟', `${m.toLocaleString()} Steps!`, 'Keep walking!');
+    }
+  }
+  
+  toast(`👟 +${n} steps (Total: ${(store.state.steps || 0).toLocaleString()})`);
+  checkAchievements();
+  tick();
+  renderAll();
+};
+
+/**
+ * window.addStop() — random stop ID, track unique, check achievements
+ */
+window.addStop = function() {
+  if (store.state.pet.stage === 0) return;
+  const stopIds = ['stop_a', 'stop_b', 'stop_c', 'stop_d', 'stop_e', 'stop_f', 'stop_g', 'stop_h'];
+  const id = stopIds[Math.floor(Math.random() * stopIds.length)];
+  
+  // Track unique
+  if (!store.state._uniqueStopSet) store.state._uniqueStopSet = [];
+  if (!store.state._uniqueStopSet.includes(id)) {
+    store.state._uniqueStopSet.push(id);
+    store.state.uniqueStops = (store.state.uniqueStops || 0) + 1;
+  }
+  store.state.stops = (store.state.stops || 0) + 1;
+  
+  toast(`🔄 Stop spun! (${store.state.uniqueStops} unique)`);
+  checkAchievements();
+  tick();
+  renderAll();
+};
+
+/**
+ * window.walkBatch() — quick 1000-step batch
+ */
+window.walkBatch = function() {
+  window.addStep(1000);
+};
+
+/**
+ * window.evolve() — check stage goals from STAGES, evolve if met
+ */
+window.evolve = function() {
+  const p = store.state.pet;
+  if (p.stage === 0 || p.stage >= 4) return;
+  
+  const next = STAGES[p.stage + 1];
+  if (!next) return;
+  
+  const s = store.state;
+  const catches = s.catches || 0;
+  const steps = s.steps || 0;
+  const uniqueStops = s.uniqueStops || 0;
+  
+  if (catches >= next.needCatch && steps >= next.needSteps && uniqueStops >= next.needStops) {
+    store.set('pet.stage', p.stage + 1);
+    
+    // Boost stats +15 (0-100 scale → +0.15 on 0-1 scale)
+    p.stats.hunger = Math.min(1.0, p.stats.hunger + 0.15);
+    p.stats.boredom = Math.max(0, p.stats.boredom - 0.15);
+    p.stats.cleanliness = Math.min(1.0, p.stats.cleanliness + 0.15);
+    
+    s.streak = 0;
+    
+    const line = EVO_LINES[s.activeLine];
+    const newName = line?.names[p.stage] || '???';
+    showMilestone('⬆', `Evolved to ${newName}!`, 'Stats boosted!');
+    
+    store.save();
+    renderAll();
+  } else {
+    toast(`❌ Need ${next.needCatch}c / ${next.needSteps.toLocaleString()}👟 / ${next.needStops}🔄`);
+  }
+};
+
+/**
+ * window.resetPet() — confirm dialog, wipe everything
+ */
+window.resetPet = function() {
+  if (!confirm('Reset your pet? All progress will be lost!')) return;
+  store.state.pet.stage = 0;
+  store.state.pet.stats = { hunger: 1.0, boredom: 0.0, cleanliness: 1.0 };
+  store.state.pet.mood = 1;
+  store.state.catches = 0;
+  store.state.steps = 0;
+  store.state.stops = 0;
+  store.state.uniqueStops = 0;
+  store.state._uniqueStopSet = [];
+  store.state.streak = 0;
+  store.state.totalFeeds = 0;
+  store.state.totalPets = 0;
+  store.state.totalHeals = 0;
+  store.state.achievements = [];
+  renderAll();
+};
+
+/**
+ * window.setMode(m) — 'play' | 'auto' | 'scene', toggles controls & auto intervals
+ */
+window.setMode = function(m) {
+  store.state.mode = m;
+  
+  const sceneControls = document.getElementById('sceneControls');
+  if (sceneControls) {
+    sceneControls.style.display = (m === 'scene') ? 'flex' : 'none';
+  }
+  
+  // Auto mode intervals
+  if (m === 'auto') {
+    if (!store._autoWeatherInterval) {
+      store._autoWeatherInterval = setInterval(() => {
+        store.state.time.weatherIdx = (store.state.time.weatherIdx + 1) % WEATHERS.length;
+        applyScene();
+        renderAll();
+      }, 15000);
+    }
+    if (!store._autoTimeInterval) {
+      store._autoTimeInterval = setInterval(() => {
+        store.state.time.timeIdx = (store.state.time.timeIdx + 1) % TIMES.length;
+        applyScene();
+        renderAll();
+      }, 10000);
+    }
+    if (!store._autoCatchInterval) {
+      store._autoCatchInterval = setInterval(() => {
+        window.addCatch();
+      }, 8000);
+    }
+  } else {
+    if (store._autoWeatherInterval) {
+      clearInterval(store._autoWeatherInterval);
+      store._autoWeatherInterval = null;
+    }
+    if (store._autoTimeInterval) {
+      clearInterval(store._autoTimeInterval);
+      store._autoTimeInterval = null;
+    }
+    if (store._autoCatchInterval) {
+      clearInterval(store._autoCatchInterval);
+      store._autoCatchInterval = null;
+    }
+  }
+  renderAll();
+};
+
+/**
+ * window.setTime(i) — set time-of-day index, apply scene
+ */
+window.setTime = function(i) {
+  store.state.time.timeIdx = i;
+  applyScene();
+};
+
+/**
+ * window.setWeather(i) — set weather index, apply scene
+ */
+window.setWeather = function(i) {
+  store.state.time.weatherIdx = i;
+  applyScene();
+};
+
+/**
+ * window.selectTeam(team) — hide team overlay, set team, save
+ */
+window.selectTeam = function(team) {
+  const overlay = document.getElementById('teamOverlay');
+  if (overlay) overlay.style.display = 'none';
+  store.state.team = team;
+  store.save();
+  renderAll();
+  applyScene();
+};
+
+/**
+ * window.setMood(i) — manually set pet mood
+ */
+window.setMood = function(i) {
+  store.state.pet.mood = i;
+  renderMoods();
+  toast(MOODS[i] || `Mood ${i}`);
+};
+
+/**
+ * window.setLine(key) — switch evolution line
+ */
 window.setLine = function(key) {
   if (!EVO_LINES[key]) return;
   store.set('activeLine', key);
   localStorage.setItem('pg_line', key);
   renderPetView();
-  updateLinePicker();
+  renderLinePicker();
+};
+
+/**
+ * window.toggleAchievements() — delegate to UIRenderer
+ */
+window.toggleAchievements = function() {
+  toggleAchievements();
+};
+
+/**
+ * window.closeMilestone() — delegate to UIRenderer
+ */
+window.closeMilestone = function() {
+  closeMilestone();
 };
 
 window.dismissLedger = dismissLedger;
+
+// === KEYBOARD SHORTCUTS ===
+document.addEventListener('keydown', (e) => {
+  // Shift+1-5 for weather
+  if (e.shiftKey && e.key >= '1' && e.key <= '5') {
+    e.preventDefault();
+    window.setWeather(parseInt(e.key) - 1);
+    return;
+  }
+  
+  switch (e.key.toLowerCase()) {
+    case 'c': window.addCatch(); break;
+    case 's': window.addStep(100); break;
+    case 'f': window.feed(); break;
+    case 'p': window.petAction(); break;
+    case 'h': window.healPet(); break;
+  }
+  
+  // 1-5 for time-of-day
+  if (e.key >= '1' && e.key <= '5') {
+    window.setTime(parseInt(e.key) - 1);
+  }
+});
 
 // === INIT ===
 function initEngine() {
@@ -245,8 +606,10 @@ function initEngine() {
   renderPetView();
   updateHUD();
   updateInventory();
-  updateLinePicker();
   renderStatus();
+  renderAll();
+  initParticles();
+  applyScene();
   loop.start();
 }
 
