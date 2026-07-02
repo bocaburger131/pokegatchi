@@ -127,16 +127,6 @@ body {
 }
 
 /* Trees */
-.scene-tree-group { position: absolute; bottom: 30%; }
-.scene-tree { display: inline-block; margin: 0 4px; }
-.scene-tree .trunk { width: 8px; height: 30px; background: linear-gradient(90deg,#5C4A32,#7A5A3A,#5C4A32); margin: 0 auto; border-radius: 2px; }
-.scene-tree .foliage {
-  width: 0; height: 0;
-  border-left: 18px solid transparent; border-right: 18px solid transparent;
-  border-bottom: 28px solid #2a6a3a; margin: 0 auto -4px;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-}
-
 /* Clouds */
 .scene-cloud {
   position: absolute; background: rgba(200,200,220,0.15); border-radius: 50%;

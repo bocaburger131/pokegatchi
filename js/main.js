@@ -414,7 +414,10 @@ window.addStep = function(n) {
  */
 window.addStop = function() {
   if (store.state.pet.stage === 0) return;
-  const stopIds = ['stop_a', 'stop_b', 'stop_c', 'stop_d', 'stop_e', 'stop_f', 'stop_g', 'stop_h'];
+  const stopIds = [];
+  for (let i = 0; i < 200; i++) {
+    stopIds.push(`stop_${i}`);
+  }
   const id = stopIds[Math.floor(Math.random() * stopIds.length)];
   
   // Track unique
