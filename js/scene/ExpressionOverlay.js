@@ -13,6 +13,12 @@ export class ExpressionOverlay {
     this.floatY = 0;
     this._tempMood = null;
     this._tempMoodTimer = null;
+    this.debug = false;
+  }
+
+  toggleDebug() {
+    this.debug = !this.debug;
+    return this.debug;
   }
 
   start(speciesName, mood) {
@@ -64,6 +70,12 @@ export class ExpressionOverlay {
     this._drawEyes(ctx, cx, cy, cw, ch, effectiveMood, this.isBlinking);
     // Draw mouth
     this._drawMouth(ctx, face.mx * w, face.my * h + this.floatY, face.mw * w, face.mh * h, effectiveMood);
+
+    // === DEBUG OVERLAY ===
+    if (this.debug) {
+      this._drawDebug(ctx, face, w, h, cx, cy, cw, ch,
+        face.mx * w, face.my * h + this.floatY);
+    }
   }
 
   _getFaceData() {
@@ -87,6 +99,72 @@ export class ExpressionOverlay {
       this._tempMood = null;
       this._tempMoodTimer = null;
     }, duration * 1000);
+  }
+
+  _drawDebug(ctx, face, w, h, cx, cy, cw, ch, mx, my) {
+    // Eye centers — red crosshairs
+    const spacing = cw * 0.30;
+    const lx = cx - spacing, rx = cx + spacing;
+    const ey = cy;
+    const r = Math.min(cw, ch) * 0.22;
+
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+
+    // --- Eye zones (pink circles) ---
+    ctx.strokeStyle = '#ff4466';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.arc(lx, ey, r*0.9, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(rx, ey, r*0.9, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // --- Eye crosshairs ---
+    const chSize = 8;
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 1.5;
+    [lx, rx].forEach(x => {
+      ctx.beginPath(); ctx.moveTo(x - chSize, ey); ctx.lineTo(x + chSize, ey); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, ey - chSize); ctx.lineTo(x, ey + chSize); ctx.stroke();
+    });
+
+    // --- Mouth crosshair (green) ---
+    ctx.strokeStyle = '#00ff44';
+    ctx.beginPath(); ctx.moveTo(mx - chSize, my); ctx.lineTo(mx + chSize, my); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(mx, my - chSize); ctx.lineTo(mx, my + chSize); ctx.stroke();
+    ctx.beginPath(); ctx.arc(mx, my, 3, 0, Math.PI*2); ctx.fillStyle = '#00ff44'; ctx.fill();
+
+    // --- Face bounding box (blue) ---
+    ctx.strokeStyle = '#4488ff';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.strokeRect(cx - cw/2, cy - ch/2, cw, ch);
+    ctx.setLineDash([]);
+
+    // --- Labels ---
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px monospace';
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 4;
+
+    const labelY = cy - ch/2 - 12;
+    ctx.fillText(
+      `ex:${(face.ex*100).toFixed(0)}% ey:${(face.ey*100).toFixed(0)}% ` +
+      `ew:${(face.ew*100).toFixed(0)}% eh:${(face.eh*100).toFixed(0)}%`,
+      8, labelY
+    );
+    ctx.fillText(
+      `mx:${(face.mx*100).toFixed(0)}% my:${(face.my*100).toFixed(0)}% ` +
+      `mw:${(face.mw*100).toFixed(0)}% mh:${(face.mh*100).toFixed(0)}%`,
+      8, labelY + 16
+    );
+    ctx.fillText(
+      `species: ${this.speciesName || '(none)'}  mood: ${this.mood}`,
+      8, labelY + 32
+    );
+    ctx.fillText('[DEBUG ON] tap D to toggle', 8, h - 10);
+
+    ctx.restore();
   }
 
   _drawEyes(ctx, cx, cy, w, h, mood, blink) {

@@ -56,6 +56,12 @@ sceneMan.setSuccessCallback((pokedexId) => {
 // === EXPRESSION OVERLAY ===
 const exprOverlay = new ExpressionOverlay('expressionCanvas');
 
+// Debug overlay toggle
+window.toggleDebugOverlay = function() {
+  const on = exprOverlay.toggleDebug();
+  toast(on ? '🔍 Debug overlay ON — tap D to toggle' : '🔍 Debug overlay OFF');
+};
+
 // === GAME LOOP ===
 const loop = new GameLoop();
 
@@ -689,6 +695,7 @@ document.addEventListener('keydown', (e) => {
     case 'f': window.feed(); break;
     case 'p': window.petAction(); break;
     case 'h': window.healPet(); break;
+    case 'd': window.toggleDebugOverlay(); break;
   }
 });
 
