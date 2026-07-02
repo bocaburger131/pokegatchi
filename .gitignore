@@ -1,3 +1,13 @@
 node_modules/
 *.fbx
 .DS_Store
+__pycache__/
+*.pyc
+assets/downloaded/
+assets/extracted_oga/
+assets/models/
+assets/Suota.Go+.apk
+assets/*.7z
+assets/*.zip
+lib/
+package-lock.json

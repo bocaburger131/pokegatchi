@@ -30,6 +30,7 @@ let _lastLoadedLine = null;
 
 // === THREE.JS SETUP ===
 const sceneMan = new SceneManager('pet3dContainer');
+window.__sceneMan = sceneMan; // Debug access
 sceneMan.init();
 
 // When 3D model fails after timeout, ensure sprite background stays visible
