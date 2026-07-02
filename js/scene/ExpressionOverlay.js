@@ -20,6 +20,9 @@ export class ExpressionOverlay {
     this.mood = mood;
     if (this.running || !this.ctx) return;
     this.running = true;
+    // Preserve blink continuity — start timer at a random offset so
+    // the first blink isn't immediate (avoids flash on species change)
+    this.blinkTimer = Math.floor(Math.random() * 120) + 30;
     this._tick();
   }
 
@@ -94,10 +97,19 @@ export class ExpressionOverlay {
 
     if (blink) {
       ctx.strokeStyle = '#222';
-      ctx.lineWidth = Math.max(2, r * 0.5);
+      ctx.lineWidth = Math.max(2.5, r * 0.45);
       ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(lx - r*0.7, ey); ctx.lineTo(lx + r*0.7, ey); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(rx - r*0.7, ey); ctx.lineTo(rx + r*0.7, ey); ctx.stroke();
+      // Cute closed eyes — upward curves (rounded ^ ^)
+      const bw = r * 0.7;
+      const arcHeight = r * 0.25;
+      ctx.beginPath();
+      ctx.moveTo(lx - bw, ey);
+      ctx.quadraticCurveTo(lx, ey - arcHeight, lx + bw, ey);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(rx - bw, ey);
+      ctx.quadraticCurveTo(rx, ey - arcHeight, rx + bw, ey);
+      ctx.stroke();
       return;
     }
 
@@ -143,27 +155,78 @@ export class ExpressionOverlay {
 
   _drawStarEye(ctx, x, y, size) {
     ctx.fillStyle = '#333';
-    for (let i = 0; i < 4; i++) {
-      const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
-      const ex = x + Math.cos(angle) * size;
-      const ey = y + Math.sin(angle) * size;
-      ctx.beginPath();
-      ctx.ellipse(ex, ey, size*0.3, size*0.3, angle, 0, Math.PI*2);
-      ctx.fill();
-    }
+    // Draw a proper 4-pointed sparkle star
+    // Two thin diamonds rotated 45° from each other
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.PI / 4); // 45° angle
+
+    // Vertical diamond
+    ctx.beginPath();
+    ctx.moveTo(0, -size);
+    ctx.lineTo(size * 0.2, -size * 0.25);
+    ctx.lineTo(0, 0);
+    ctx.lineTo(-size * 0.2, -size * 0.25);
+    ctx.closePath();
+    ctx.fill();
+
+    // Horizontal diamond
+    ctx.beginPath();
+    ctx.moveTo(-size, 0);
+    ctx.lineTo(-size * 0.25, -size * 0.2);
+    ctx.lineTo(0, 0);
+    ctx.lineTo(-size * 0.25, size * 0.2);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
   }
 
   _drawMouth(ctx, mx, my, mw, mh, mood) {
     ctx.strokeStyle = '#222';
-    ctx.lineWidth = Math.max(2, mh * 0.12);
+    ctx.lineWidth = Math.max(2.5, mh * 0.12);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.fillStyle = '#333';
     switch(mood) {
-      case 0: ctx.beginPath(); ctx.arc(mx, my, mw*0.3, 0, Math.PI); ctx.fill(); break;
-      case 1: ctx.beginPath(); ctx.arc(mx, my, mw*0.2, 0, Math.PI); ctx.fill(); break;
-      case 2: ctx.beginPath(); ctx.ellipse(mx, my, mw*0.25, mh*0.3, 0, 0, Math.PI*2); ctx.fill(); break;
-      case 3: ctx.beginPath(); ctx.arc(mx, my + mh*0.1, mw*0.3, Math.PI, Math.PI*2); ctx.stroke(); break;
-      case 4: ctx.beginPath(); ctx.arc(mx, my, mw*0.35, 0, Math.PI); ctx.fillStyle = '#E74C3C'; ctx.fill(); break;
-      case 5: ctx.beginPath(); ctx.arc(mx, my + mh*0.05, mw*0.15, 0, Math.PI); ctx.fill(); break;
+      case 0: // Happy — wide open smile
+        ctx.beginPath(); ctx.arc(mx, my - mh*0.05, mw*0.35, 0.1, Math.PI - 0.1); ctx.fill();
+        // Lip line
+        ctx.strokeStyle = '#c0392b';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(mx, my - mh*0.1, mw*0.33, 0.1, Math.PI - 0.1); ctx.stroke();
+        break;
+      case 1: // Content — gentle closed smile
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = Math.max(2, mh * 0.14);
+        ctx.beginPath(); ctx.arc(mx, my - mh*0.1, mw*0.2, 0.2, Math.PI - 0.2); ctx.stroke();
+        break;
+      case 2: // Hungry — open "om" shape
+        ctx.fillStyle = '#222';
+        ctx.beginPath(); ctx.ellipse(mx, my, mw*0.28, mh*0.35, 0, 0, Math.PI*2); ctx.fill();
+        // Tongue hint
+        ctx.fillStyle = '#e74c3c';
+        ctx.beginPath(); ctx.ellipse(mx, my + mh*0.1, mw*0.15, mh*0.12, 0, 0, Math.PI); ctx.fill();
+        break;
+      case 3: // Sad — pronounced frown
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = Math.max(2.5, mh * 0.15);
+        ctx.beginPath();
+        ctx.moveTo(mx - mw*0.25, my);
+        ctx.quadraticCurveTo(mx, my + mh*0.25, mx + mw*0.25, my);
+        ctx.stroke();
+        break;
+      case 4: // Excited — big open happy mouth
+        ctx.fillStyle = '#222';
+        ctx.beginPath(); ctx.arc(mx, my - mh*0.05, mw*0.38, 0.1, Math.PI - 0.1); ctx.fill();
+        // Tongue
+        ctx.fillStyle = '#e74c3c';
+        ctx.beginPath(); ctx.ellipse(mx, my + mh*0.08, mw*0.2, mh*0.12, 0, 0, Math.PI); ctx.fill();
+        break;
+      case 5: // Sleepy — tiny "o" like snoring
+        ctx.fillStyle = '#555';
+        ctx.beginPath(); ctx.arc(mx, my + mh*0.05, mw*0.12, 0, Math.PI*2); ctx.fill();
+        break;
     }
   }
 }

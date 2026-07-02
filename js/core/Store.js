@@ -12,7 +12,6 @@ export const store = {
     backlog: {
       pendingSpins: 0,
       pendingCatches: 0,
-      highestRarity: 'common',
     },
     mode: 'play', // 'play' | 'auto'
     activeLine: 'eevee',

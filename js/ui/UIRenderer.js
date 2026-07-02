@@ -317,32 +317,6 @@ export function checkAchievements() {
 }
 
 // ══════════════════════════════════════════════════════════
-//  AUTO MOOD
-// ══════════════════════════════════════════════════════════
-
-/**
- * autoMoodCheck() — sets mood based on stat thresholds
- * Uses the old threshold logic converted to new 0-100 stat values.
- */
-export function autoMoodCheck() {
-  const stage = _stage();
-  if (stage === 0) return;
-  const stats = _statArray();
-  const [hunger, bond, energy] = stats;
-
-  let mood;
-  if (hunger <= 20) mood = 2;          // Hungry
-  else if (energy <= 15) mood = 5;     // Sleepy
-  else if (bond <= 20) mood = 3;       // Sad
-  else if (bond >= 80 && hunger >= 70) mood = 4; // Excited
-  else if (hunger >= 60 && energy >= 60) mood = 0; // Happy
-  else mood = 1;                       // Content
-
-  store.set('pet.mood', mood);
-  renderMoods();
-}
-
-// ══════════════════════════════════════════════════════════
 //  PET ANIMATIONS
 // ══════════════════════════════════════════════════════════
 

@@ -12,7 +12,7 @@ import {
   renderStats, renderMoods, renderGoals, renderEvo, renderMinigames, 
   renderAchievements, updateButtons, renderLinePicker,
   toast, showMilestone, closeMilestone, toggleAchievements, 
-  checkAchievements, autoMoodCheck as uiAutoMoodCheck, petAnim
+  checkAchievements, petAnim
 } from './ui/UIRenderer.js';
 
 // === INIT ===
@@ -21,7 +21,6 @@ store.load(); // Restore saved state
 // Init runtime fields
 if (!store.state.team) store.state.team = null;
 if (!store.state._uniqueStopSet) store.state._uniqueStopSet = [];
-if (!store.state.moodSwirl) store.state.moodSwirl = false;
 
 // Track last loaded 3D model stage+line to avoid redundant loadModel() calls
 // loadModel() always calls _clearModel() first, destroying the current model.
@@ -212,13 +211,8 @@ function processWakeupLedger() {
   store.state.pet.inventory.berries += earnedBerries;
   store.state.pet.inventory.toys += earnedToys;
   
-  if (b.highestRarity === 'ultra' || b.highestRarity === 'master') {
-    store.state.pet.inventory.berries += 2;
-  }
-  
   store.state.backlog.pendingSpins = 0;
   store.state.backlog.pendingCatches = 0;
-  store.state.backlog.highestRarity = 'common';
   store.save();
   updateInventory();
 }
