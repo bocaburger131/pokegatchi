@@ -163,7 +163,22 @@ export class SceneManager {
 
       this.scene.add(this.model);
 
-      // Built-in animations (if any) — stopped; we use our own bone system
+      // === DEBUG: expose for inspection ===
+      window.__debugScene = this.scene;
+      window.__debugModel = this.model;
+      window.__debugCamera = this.camera;
+      window.__debugRenderer = this.renderer;
+
+      // Initial visibility check
+      let meshCount = 0; let vertCount = 0;
+      this.model.traverse(c => {
+        if (c.isMesh) { meshCount++;
+          if (c.geometry) vertCount += c.geometry.attributes.position?.count || 0;
+        }
+      });
+      console.log(`DEBUG model: ${meshCount} meshes, ${vertCount} vertices`);
+
+      // Built-in animations
       if (gltf.animations && gltf.animations.length > 0) {
         // These are stale keyframes from PokeMiners (no meaningful animation data)
         // Our _updateBoneIdle and _playBoneAnimation handle all animation

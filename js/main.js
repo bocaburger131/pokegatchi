@@ -128,12 +128,10 @@ function init() {
 
   // Sync all HUD elements from initial store state
   syncAllHUD();
-
-  // Load default species
-  selectSpecies(store.state.current || 'pikachu');
+  // NOTE: default species loaded below after all window exports are defined
 }
 
-// === SPECIES SELECTION ===
+// === ALL WINDOW EXPORTS (defined BEFORE init runs) ===
 window.selectSpecies = function(species) {
   currentSpecies = species;
   store.set('current', species);
@@ -396,3 +394,8 @@ window.toggleDebugOverlay = function() {
   btn.style.background = on ? 'var(--accent)' : 'var(--accent-dim)';
   toast(on ? '🔍 Debug ON' : '🔍 Debug OFF');
 };
+
+// Load default species (deferred — all window exports must be defined first)
+Promise.resolve().then(() => {
+  window.selectSpecies(store.state.current || 'pikachu');
+});
