@@ -163,6 +163,10 @@ export class SceneManager {
       // === BAKE SKINNING INTO GEOMETRY ===
       // PokeMiners GLBs store bind-pose geometry with skeleton at origin.
       // THREE.js skinning doesn't render these correctly — manually bake.
+      // IMPORTANT: Temporarily zero out model position so bone.matrixWorld
+      // doesn't include the model's world offset (which would bake into vertices)
+      const savePos = this.model.position.clone();
+      this.model.position.set(0, 0, 0);
       this.model.updateMatrixWorld(true);
       this.model.traverse(c => {
         if (c.isSkinnedMesh && c.skeleton && c.geometry) {
@@ -229,6 +233,9 @@ export class SceneManager {
           console.log(`Baked skin for ${c.name}: ${pos.count} verts`);
         }
       });
+      // Restore model position after baking
+      this.model.position.copy(savePos);
+      this.model.updateMatrixWorld(true);
 
       // === DEBUG: expose for inspection ===
       window.__debugScene = this.scene;
