@@ -11,3 +11,6 @@ assets/*.7z
 assets/*.zip
 lib/
 package-lock.json
+*.zip
+*.7z
+*.img
