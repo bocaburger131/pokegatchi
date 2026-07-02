@@ -147,7 +147,7 @@ export class SceneManager {
       // BAKED MODE — no scaling needed, bake produces correct-sized geometry
       this._v2Scale = 1;
       this.model.scale.set(1, 1, 1);
-      this.model.position.y = 0;
+      this.model.position.y = 0.8; // Move up so Pikachu is visible (body at y~-1.8, shift up)
 
       // Clone materials (textures are already embedded in the GLB)
       this.model.traverse(c => {
