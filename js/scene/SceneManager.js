@@ -159,10 +159,10 @@ export class SceneManager {
 
       this.scene.add(this.model);
 
-      // Built-in animations (if any)
+      // Built-in animations (if any) — stopped; we use our own bone system
       if (gltf.animations && gltf.animations.length > 0) {
-        this.mixer = new THREE.AnimationMixer(this.model);
-        this.mixer.clipAction(gltf.animations[0]).play();
+        // These are stale keyframes from PokeMiners (no meaningful animation data)
+        // Our _updateBoneIdle and _playBoneAnimation handle all animation
       }
 
       // === SCAN FOR BONES ===
@@ -391,6 +391,14 @@ export class SceneManager {
     return this.bones[name];
   }
 
+  /** Try multiple bone names, return first match */
+  _boneAny(...names) {
+    for (const n of names) {
+      if (this.bones[n]) return this.bones[n];
+    }
+    return undefined;
+  }
+
   /**
    * Set a target quaternion for a bone (will slerp toward it)
    */
@@ -415,12 +423,13 @@ export class SceneManager {
       if (!boneData) continue;
       const bone = boneData.bone;
       if (target.q) {
-        // Blend from rest toward target
-        const blended = new THREE.Quaternion().copy(boneData.restQ).slerp(target.q, w);
-        bone.quaternion.copy(boneData.restQ).slerp(blended, target.weight || 0.08);
+        // Single slerp: blend from rest toward target by envelope × weight
+        const totalWeight = w * (target.weight || 0.08);
+        bone.quaternion.copy(boneData.restQ).slerp(target.q, totalWeight);
       }
       if (target.p) {
-        bone.position.lerp(target.p, (target.weight || 0.08) * w);
+        // Position: lerp from rest toward target
+        bone.position.copy(boneData.restP).lerp(target.p, w * (target.weight || 0.08));
       }
     }
   }
@@ -460,8 +469,10 @@ export class SceneManager {
 
         // Arms come up toward face
         const armLift = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.3));
-        if (this._bone('LForeArm')) this._boneTargets['LForeArm'] = { q: armLift, p: null, weight: 0.08 };
-        if (this._bone('RForeArm')) this._boneTargets['RForeArm'] = { q: armLift, p: null, weight: 0.08 };
+        const lArm = this._boneAny('LArm', 'LForeArm');
+        const rArm = this._boneAny('RArm', 'RForeArm');
+        if (lArm) this._boneTargets[lArm.bone.name] = { q: armLift, p: null, weight: 0.08 };
+        if (rArm) this._boneTargets[rArm.bone.name] = { q: armLift, p: null, weight: 0.08 };
 
         // Happy tail
         if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.2)), p: null, weight: 0.1 };
@@ -485,6 +496,13 @@ export class SceneManager {
       }
       case 'hatch': {
         // Wobble + scale burst
+        const wobble = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.08, 0, 0.06));
+        this._boneTargets['Head'] = { q: wobble, p: null, weight: 0.15 };
+        // Subtle tail curl
+        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.15)), p: null, weight: 0.12 };
+        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.2)), p: null, weight: 0.1 };
+        // Whole model: separate spin is done in update() for heals
+        // Scale burst is handled by the tween fallback
         break;
       }
       case 'celebrate': {
@@ -498,8 +516,10 @@ export class SceneManager {
 
         // Arms up
         const armUp = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.3, 0, 0.2));
-        if (this._bone('LForeArm')) this._boneTargets['LForeArm'] = { q: armUp, p: null, weight: 0.08 };
-        if (this._bone('RForeArm')) this._boneTargets['RForeArm'] = { q: armUp, p: null, weight: 0.08 };
+        const lArmC = this._boneAny('LArm', 'LForeArm');
+        const rArmC = this._boneAny('RArm', 'RForeArm');
+        if (lArmC) this._boneTargets[lArmC.bone.name] = { q: armUp, p: null, weight: 0.08 };
+        if (rArmC) this._boneTargets[rArmC.bone.name] = { q: armUp, p: null, weight: 0.08 };
 
         // Tail high
         if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.3)), p: null, weight: 0.1 };
@@ -600,7 +620,7 @@ export class SceneManager {
   update(dt) {
     if (!this.initialized || !this.scene || !this.renderer) return;
     
-    if (this.mixer) this.mixer.update(dt);
+    // No built-in mixer — we handle all animation via _updateBoneIdle / _playBoneAnimation
 
     if (this._activeAnim) {
       const a = this._activeAnim;
@@ -759,13 +779,19 @@ export class SceneManager {
       this._earFlickTimer = 0;
       this._earFlickInterval = 3 + Math.random() * 5;
       
-      // Quick ear flick
+      // Quick ear flick (both ears)
       if (this._bone('LEar1')) {
         const flick = (Math.random() > 0.5 ? 1 : -1) * 0.2;
         this._bone('LEar1').bone.rotation.z += flick;
-        // Return after ~0.1s (next frame will slerp back via _applyBoneTargets not running in idle)
         setTimeout(() => {
           if (this._bone('LEar1')) this._bone('LEar1').bone.rotation.z = 0;
+        }, 100);
+      }
+      if (this._bone('REar1')) {
+        const flickR = (Math.random() > 0.5 ? 1 : -1) * 0.15;
+        this._bone('REar1').bone.rotation.z += flickR;
+        setTimeout(() => {
+          if (this._bone('REar1')) this._bone('REar1').bone.rotation.z = 0;
         }, 100);
       }
     }
@@ -776,10 +802,11 @@ export class SceneManager {
       this._bone('Head').bone.rotation.y = headTurn;
     }
 
-    // === BREATHING (body scale pulse) ===
-    const breath = 1 + Math.sin(now * 0.002) * 0.003;
-    this.model.scale.x = breath;
-    this.model.scale.z = breath;
+    // === BREATHING (subtle body scale pulse, preserving initial scale) ===
+    const baseScale = 1.2;
+    const breathOffset = Math.sin(now * 0.002) * 0.003;
+    this.model.scale.x = baseScale + breathOffset;
+    this.model.scale.z = baseScale + breathOffset;
 
     // === FLOAT BOB ===
     const targetBob = Math.sin(now * 0.003) * 0.03;
