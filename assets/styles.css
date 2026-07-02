@@ -388,14 +388,38 @@ body {
 .pet-card .name { font-size: 1.5rem; font-weight: 900; position: relative; }
 .pet-card .species { font-size: 0.7rem; color: var(--text-dim); position: relative; }
 
-/* Canvas wrap */
+/* Canvas wrap — enhanced with halo, ring glow, and depth */
 .pet-canvas-wrap {
   width: 160px; height: 160px; margin: 4px auto; position: relative;
   background: radial-gradient(ellipse at center, var(--accent-dim), transparent 70%);
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  transition: transform 0.3s;
+  transition: transform 0.3s, box-shadow 0.5s ease;
   overflow: hidden;
+  box-shadow:
+    0 0 20px var(--accent-glow),
+    0 0 60px rgba(0,0,0,0.25),
+    inset 0 0 40px rgba(0,0,0,0.15);
+}
+/* Halo / vignette ring inside the canvas wrap — glowing accent ring */
+.pet-canvas-wrap::before {
+  content: '';
+  position: absolute; inset: -2px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  opacity: 0.15;
+  z-index: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+/* Inner vignette — darkens the edges behind the sprite for depth */
+.pet-canvas-wrap::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.35) 100%);
+  z-index: 0;
+  pointer-events: none;
 }
 .pet-canvas-wrap.bounce { animation: petBounce 0.4s ease; }
 .pet-canvas-wrap.wiggle { animation: petWiggle 0.3s ease; }
@@ -420,7 +444,7 @@ body {
   100% { filter: brightness(1)    drop-shadow(0 0 0 transparent);                transform: scale(1)   rotate(0deg); }
 }
 
-/* 3D container for Three.js */
+/* 3D container for Three.js — with sprite drop-shadow depth */
 #pet3dContainer {
   width: 100%; height: 100%;
   position: relative; z-index: 2;
@@ -428,6 +452,14 @@ body {
   background-position: center 55% !important;
   background-repeat: no-repeat !important;
   image-rendering: auto;
+  /* Sprite depth: drop-shadow follows sprite alpha, with subtle brightness boost */
+  filter:
+    drop-shadow(0 6px 12px rgba(0,0,0,0.5))
+    drop-shadow(0 0 8px var(--accent-glow))
+    brightness(1.08)
+    contrast(1.05) !important;
+  /* Smooth transition when sprites change — background-image, filter, opacity */
+  transition: background-image 0.6s ease, filter 0.5s ease, opacity 0.5s ease;
 }
 /* When sprite fallback is active, prevent
    the 3D canvas from blocking the background */
@@ -438,6 +470,18 @@ body {
   background-size: contain !important;
   background-position: center 55% !important;
   background-repeat: no-repeat !important;
+  /* Gentle floating idle animation for sprite-only mode */
+  animation: spriteFloat 4s ease-in-out infinite;
+}
+
+/* Sprite float animation — gentle levitation with background shift */
+@keyframes spriteFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 /* Egg wobble / idle bob on canvas wrap */
