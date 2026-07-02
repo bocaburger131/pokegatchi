@@ -123,7 +123,6 @@ export class SceneManager {
     // Build absolute URL for GitHub Pages
     const base = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
     const url = `${base}/assets/models_v2/${filename}`;
-    const texBase = `${base}/assets/models_v2/`;
 
     const loader = new THREE.GLTFLoader();
     let timedOut = false;
@@ -149,33 +148,12 @@ export class SceneManager {
       this.model.position.sub(center);
       this.model.position.y = -0.2;
 
-      // Clone materials and fix textures
-      const texLoader = new THREE.TextureLoader();
+      // Clone materials (textures are already embedded in the GLB)
       this.model.traverse(c => {
         if (c.isMesh) {
           c.material = c.material.clone();
           c.material.envMapIntensity = 0.3;
-          
-          // Fix textures: load correct PNG from models_v2/
-          const matName = c.material.name || '';
-          const species = filename.replace('_v2.glb', '');
-          
-          // BodyA material -> BodyA1 texture
-          if (matName.includes('BodyA') || matName === 'BodyA00') {
-            const texUrl = texBase + species + '_bodyA.png';
-            texLoader.load(texUrl, tex => {
-              c.material.map = tex;
-              c.material.needsUpdate = true;
-            });
-          }
-          // BodyB material -> BodyB1 texture
-          else if (matName.includes('BodyB')) {
-            const texUrl = texBase + species + '_bodyB.png';
-            texLoader.load(texUrl, tex => {
-              c.material.map = tex;
-              c.material.needsUpdate = true;
-            });
-          }
+          c.material.needsUpdate = true;
         }
       });
 
