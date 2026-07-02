@@ -51,6 +51,18 @@ export const MODEL_IDS = {
   eeveelutions: { ids:[0, 133, 134, 136, 196], cats:['','regular','regular','regular','regular'] },
 };
 
+// V2 rigged model filenames (PokeMiners — has bones/skeleton)
+// Maps evolution line -> [egg, baby, teen, adult, mega]
+// Only the ones we have converted so far
+export const V2_MODELS = {
+  eevee:       [null, 'eevee_v2.glb', null, null, null],
+  charmander:  [null, 'charmander_v2.glb', null, null, null],
+  pikachu:     [null, 'pichu_v2.glb', 'pikachu_v2.glb', null, null],
+  bulbasaur:   [null, 'bulbasaur_v2.glb', null, null, null],
+  squirtle:    [null, 'squirtle_v2.glb', null, null, null],
+  eeveelutions:[null, 'eevee_v2.glb', null, null, null],
+};
+
 export const FACE_DATA = {
   eevee: { ex:.49, ey:.32, ew:.30, eh:.22, mx:.49, my:.52, mw:.22, mh:.10 },
   jolteon: { ex:.49, ey:.28, ew:.28, eh:.20, mx:.49, my:.50, mw:.20, mh:.10 },

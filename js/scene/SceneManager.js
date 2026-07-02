@@ -1,4 +1,4 @@
-// js/scene/SceneManager.js
+// js/scene/SceneManager.js — V2 with Bone Animation
 export class SceneManager {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
@@ -17,16 +17,31 @@ export class SceneManager {
     this._idleBobOffset = 0;
     this._armature = null;
 
+    // === BONE ANIMATION SYSTEM ===
+    this.bones = {};          // { name: { bone, restQ, restP } }
+    this.hasBones = false;    // true if skeleton found
+    this.useV2 = false;       // true if using local rigged GLB
+
+    // Bone animation targets (set by playAnimation)
+    this._boneTargets = {};   // { name: { q: Quat|null, p: Vec3|null, weight: 0.05 } }
+    this._boneAnimWeight = 0; // 0-1, ramps up/down during animations
+
     // Idle state machine
     this._idleState = 'FLOAT';
     this._idleTimer = 0;
     this._idleNextSwitch = this._randomIdleInterval();
-    this._idleAnimProgress = 0; // 0-1 progress for LOOK_LEFT/RIGHT/BOUNCE transitions
+    this._idleAnimProgress = 0;
     this._idleFromRotY = 0;
     this._idleTargetRotY = 0;
     this._idleFromPosY = 0;
     this._idleTargetPosY = 0;
     this._idlePaused = false;
+
+    // Tail wag phase
+    this._tailPhase = 0;
+    // Ear flick timer
+    this._earFlickTimer = 0;
+    this._earFlickInterval = 0;
   }
 
   _randomIdleInterval() {
@@ -80,19 +95,128 @@ export class SceneManager {
     return true;
   }
 
-  setFallbackCallback(cb) {
-    this._fallbackCallback = cb;
-  }
+  setFallbackCallback(cb) { this._fallbackCallback = cb; }
+  setSuccessCallback(cb) { this._successCallback = cb; }
 
-  setSuccessCallback(cb) {
-    this._successCallback = cb;
-  }
-
-  async loadModel(pokedexId, category) {
-    // Remove old model
+  /**
+   * Load a V2 rigged GLB from local assets/models_v2/
+   * @param {string} filename - e.g. 'pikachu_v2.glb'
+   */
+  async loadV2Model(filename) {
     this._clearModel();
+    this.useV2 = false;
+    this.hasBones = false;
+    this.bones = {};
 
-    // Reset idle state machine
+    // Reset idle state
+    this._idleState = 'FLOAT';
+    this._idleTimer = 0;
+    this._idleNextSwitch = this._randomIdleInterval();
+    this._idleAnimProgress = 0;
+    this._idlePaused = false;
+
+    if (this._loadingTimeout) {
+      clearTimeout(this._loadingTimeout);
+      this._loadingTimeout = null;
+    }
+
+    // Build absolute URL for GitHub Pages
+    const base = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
+    const url = `${base}/assets/models_v2/${filename}`;
+
+    const loader = new THREE.GLTFLoader();
+    let timedOut = false;
+    this._loadingTimeout = setTimeout(() => {
+      timedOut = true;
+      console.warn('V2 model load timed out for', filename);
+      this._clearModel();
+      if (this._fallbackCallback) this._fallbackCallback(filename);
+    }, 15000);
+
+    try {
+      const gltf = await loader.loadAsync(url);
+      if (timedOut) return;
+      clearTimeout(this._loadingTimeout);
+      this._loadingTimeout = null;
+
+      this.model = gltf.scene;
+      this.model.scale.set(1.2, 1.2, 1.2);
+
+      // Center model
+      const box = new THREE.Box3().setFromObject(this.model);
+      const center = box.getCenter(new THREE.Vector3());
+      this.model.position.sub(center);
+      this.model.position.y = -0.2;
+
+      // Clone materials
+      this.model.traverse(c => {
+        if (c.isMesh) {
+          c.material = c.material.clone();
+          c.material.envMapIntensity = 0.3;
+        }
+      });
+
+      this.scene.add(this.model);
+
+      // Built-in animations (if any)
+      if (gltf.animations && gltf.animations.length > 0) {
+        this.mixer = new THREE.AnimationMixer(this.model);
+        this.mixer.clipAction(gltf.animations[0]).play();
+      }
+
+      // === SCAN FOR BONES ===
+      this._scanBones();
+      this.useV2 = true;
+
+      if (this._successCallback) this._successCallback(filename);
+      console.log(`V2 model loaded: ${filename}, bones: ${Object.keys(this.bones).length}`);
+
+    } catch (err) {
+      if (timedOut) return;
+      clearTimeout(this._loadingTimeout);
+      this._loadingTimeout = null;
+      console.warn('V2 model load failed:', err);
+      if (this._fallbackCallback) this._fallbackCallback(filename);
+    }
+  }
+
+  /**
+   * Scan the loaded model for bones and cache them
+   */
+  _scanBones() {
+    this.bones = {};
+    this.hasBones = false;
+
+    if (!this.model) return;
+
+    this.model.traverse(c => {
+      if (c.isBone) {
+        this.bones[c.name] = {
+          bone: c,
+          restQ: c.quaternion.clone(),
+          restP: c.position.clone(),
+        };
+      }
+    });
+
+    this.hasBones = Object.keys(this.bones).length > 0;
+    if (this.hasBones) {
+      console.log('Bones found:', Object.keys(this.bones).join(', '));
+    }
+  }
+
+  /**
+   * Legacy model loader — loads from Pokemon3D API CDN (static, no bones)
+   */
+  async loadModel(pokedexId, category) {
+    // If we have a V2 model loaded, we don't need legacy models
+    if (this.model && this.useV2) return;
+
+    this._clearModel();
+    this.useV2 = false;
+    this.hasBones = false;
+    this.bones = {};
+
     this._idleState = 'FLOAT';
     this._idleTimer = 0;
     this._idleNextSwitch = this._randomIdleInterval();
@@ -100,7 +224,6 @@ export class SceneManager {
     this._idlePaused = false;
     this._armature = null;
 
-    // Clear any pending timeout
     if (this._loadingTimeout) {
       clearTimeout(this._loadingTimeout);
       this._loadingTimeout = null;
@@ -114,7 +237,6 @@ export class SceneManager {
     const url = `https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/${category}/${pokedexId}.glb`;
     const loader = new THREE.GLTFLoader();
     
-    // Set a 15-second timeout
     let timedOut = false;
     this._loadingTimeout = setTimeout(() => {
       timedOut = true;
@@ -126,7 +248,7 @@ export class SceneManager {
 
     try {
       const gltf = await loader.loadAsync(url);
-      if (timedOut) return; // Already fell back
+      if (timedOut) return;
       clearTimeout(this._loadingTimeout);
       this._loadingTimeout = null;
       if (this._successCallback) this._successCallback(pokedexId);
@@ -134,13 +256,11 @@ export class SceneManager {
       this.model = gltf.scene;
       this.model.scale.set(1.2, 1.2, 1.2);
       
-      // Center model
       const box = new THREE.Box3().setFromObject(this.model);
       const center = box.getCenter(new THREE.Vector3());
       this.model.position.sub(center);
       this.model.position.y = -0.2;
 
-      // Clone materials for independent tweaking
       this.model.traverse(c => {
         if (c.isMesh) {
           c.material = c.material.clone();
@@ -150,21 +270,18 @@ export class SceneManager {
 
       this.scene.add(this.model);
 
-      // Animations
       if (gltf.animations && gltf.animations.length > 0) {
         this.mixer = new THREE.AnimationMixer(this.model);
         this.mixer.clipAction(gltf.animations[0]).play();
       }
 
-      // === ARMATURE / SKELETON CHECK ===
+      // Legacy armature check
       this._armature = null;
       this.model.traverse(c => {
-        // THREE.Bone is the standard bone class; also check for isBone or Armature naming
         if (c.isBone || c instanceof THREE.Bone || c.type === 'Bone') {
           this._armature = c;
         }
       });
-      // If no direct Bone found, check for Skeleton/Armature objects
       if (!this._armature) {
         this.model.traverse(c => {
           if (c.type === 'Skeleton' || c.type === 'Armature' || c.isArmature) {
@@ -172,7 +289,7 @@ export class SceneManager {
           }
         });
       }
-      console.log('Skeleton found:', !!this._armature);
+      console.log('Legacy model loaded, skeleton found:', !!this._armature);
 
     } catch (err) {
       if (timedOut) return;
@@ -213,7 +330,6 @@ export class SceneManager {
     this.scene.add(egg);
     this.model = egg;
     
-    // Glow ring
     const ringGeo = new THREE.TorusGeometry(0.55, 0.02, 16, 32);
     const ringMat = new THREE.MeshStandardMaterial({
       color: 0x6c63ff, emissive: 0x6c63ff, emissiveIntensity: 0.3,
@@ -244,6 +360,9 @@ export class SceneManager {
     this.model = null;
     this.mixer = null;
     this._armature = null;
+    this.bones = {};
+    this.hasBones = false;
+    this.useV2 = false;
   }
 
   _disposeScene() {
@@ -260,15 +379,167 @@ export class SceneManager {
     this.initialized = false;
   }
 
+  // ══════════════════════════════════════════════════════════
+  //  BONE ANIMATION API
+  // ══════════════════════════════════════════════════════════
+
   /**
-   * Play a buddy-style interaction animation on the loaded 3D model.
-   * Uses a simple tween system with lerp interpolation in the update() loop.
-   * @param {'feed'|'pet'|'heal'|'hatch'|'celebrate'|'bounce'} type
+   * Helper: get bone by name (cached)
+   */
+  _bone(name) {
+    return this.bones[name];
+  }
+
+  /**
+   * Set a target quaternion for a bone (will slerp toward it)
+   */
+  _setBoneTarget(name, q, weight) {
+    this._boneTargets[name] = { q, p: null, weight: weight || 0.05 };
+  }
+
+  /**
+   * Clear all bone targets (return to rest pose)
+   */
+  _clearBoneTargets() {
+    this._boneTargets = {};
+  }
+
+  /**
+   * Apply bone targets via slerp — called every frame
+   */
+  _applyBoneTargets(blendWeight) {
+    const w = blendWeight || 1;
+    for (const [name, target] of Object.entries(this._boneTargets)) {
+      const boneData = this.bones[name];
+      if (!boneData) continue;
+      const bone = boneData.bone;
+      if (target.q) {
+        // Blend from rest toward target
+        const blended = new THREE.Quaternion().copy(boneData.restQ).slerp(target.q, w);
+        bone.quaternion.copy(boneData.restQ).slerp(blended, target.weight || 0.08);
+      }
+      if (target.p) {
+        bone.position.lerp(target.p, (target.weight || 0.08) * w);
+      }
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  BONE-BASED ANIMATIONS (replaces tween system)
+  // ══════════════════════════════════════════════════════════
+
+  /**
+   * Play a buddy-style animation using bone targets (V2 models)
+   * Falls back to tween animation for legacy models.
    */
   playAnimation(type) {
     if (!this.model || this.model.userData.ring) return; // No animations on egg
-    if (this._activeAnim) return; // Don't stack — let current finish
 
+    if (this.hasBones && this.useV2) {
+      this._playBoneAnimation(type);
+    } else {
+      this._playLegacyTween(type);
+    }
+  }
+
+  /**
+   * Bone-based animation — set targets, let update() slerp toward them
+   */
+  _playBoneAnimation(type) {
+    if (this._activeAnim) return; // Let current finish
+
+    const duration = this._getAnimDuration(type);
+    this._clearBoneTargets();
+
+    switch (type) {
+      case 'feed': {
+        // Head tilts down, ears relax, tail wags
+        const headDown = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.15, 0, 0));
+        this._boneTargets['Head'] = { q: headDown, p: null, weight: 0.08 };
+
+        // Arms come up toward face
+        const armLift = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.3));
+        if (this._bone('LForeArm')) this._boneTargets['LForeArm'] = { q: armLift, p: null, weight: 0.08 };
+        if (this._bone('RForeArm')) this._boneTargets['RForeArm'] = { q: armLift, p: null, weight: 0.08 };
+
+        // Happy tail
+        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.2)), p: null, weight: 0.1 };
+        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.3)), p: null, weight: 0.1 };
+        if (this._bone('Tail3')) this._boneTargets['Tail3'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.4)), p: null, weight: 0.1 };
+        break;
+      }
+      case 'pet': {
+        // Head leans toward camera (Z tilt)
+        const headLean = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -0.1, 0.15));
+        this._boneTargets['Head'] = { q: headLean, p: null, weight: 0.06 };
+
+        // Ears go slightly back (content)
+        if (this._bone('LEar1')) this._boneTargets['LEar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0.08, 0)), p: null, weight: 0.06 };
+        if (this._bone('REar1')) this._boneTargets['REar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -0.08, 0)), p: null, weight: 0.06 };
+        break;
+      }
+      case 'heal': {
+        // Full spin — handled by tween fallback even on V2 (spin is whole-model)
+        break;
+      }
+      case 'hatch': {
+        // Wobble + scale burst
+        break;
+      }
+      case 'celebrate': {
+        // Head up, ears perked, arms up, tail high
+        const headUp = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.1, 0, 0));
+        this._boneTargets['Head'] = { q: headUp, p: null, weight: 0.08 };
+
+        // Ears perk up
+        if (this._bone('LEar1')) this._boneTargets['LEar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -0.1)), p: null, weight: 0.08 };
+        if (this._bone('REar1')) this._boneTargets['REar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.1)), p: null, weight: 0.08 };
+
+        // Arms up
+        const armUp = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.3, 0, 0.2));
+        if (this._bone('LForeArm')) this._boneTargets['LForeArm'] = { q: armUp, p: null, weight: 0.08 };
+        if (this._bone('RForeArm')) this._boneTargets['RForeArm'] = { q: armUp, p: null, weight: 0.08 };
+
+        // Tail high
+        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.3)), p: null, weight: 0.1 };
+        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.4)), p: null, weight: 0.1 };
+        if (this._bone('Tail3')) this._boneTargets['Tail3'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.5)), p: null, weight: 0.1 };
+        break;
+      }
+      case 'bounce': {
+        // Just use tween fallback for whole-body hop
+        break;
+      }
+    }
+
+    this._activeAnim = {
+      type, startTime: Date.now(), duration,
+      useBones: true,
+    };
+    this._idlePaused = true;
+  }
+
+  _getAnimDuration(type) {
+    switch (type) {
+      case 'feed': return 0.7;
+      case 'pet': return 0.7;
+      case 'heal': return 1.0;
+      case 'hatch': return 0.8;
+      case 'celebrate': return 0.8;
+      case 'bounce': return 0.5;
+      default: return 0.6;
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  LEGACY TWEEN SYSTEM (for non-V2 models)
+  // ══════════════════════════════════════════════════════════
+
+  _playLegacyTween(type) {
+    if (this._activeAnim) return;
+    if (!this.model || this.model.userData.ring) return;
+
+    const duration = this._getAnimDuration(type);
     const s = this.model.scale;
     const r = this.model.rotation;
     const p = this.model.position;
@@ -277,50 +548,39 @@ export class SceneManager {
     const fromR = { x: r.x, y: r.y, z: r.z };
     const fromP = { x: p.x, y: p.y, z: p.z };
 
-    let peakS, peakR, peakP, duration;
+    let peakS, peakR, peakP;
 
     switch (type) {
       case 'feed':
-        duration = 0.7;
         peakS = { x: fromS.x * 1.15, y: fromS.y * 1.15, z: fromS.z * 1.15 };
-        peakR = { x: fromR.x, y: fromR.y + 0.26, z: fromR.z }; // +15° Y
-        peakP = { x: fromP.x, y: fromP.y + 0.05, z: fromP.z }; // subtle Y hop
+        peakR = { x: fromR.x, y: fromR.y + 0.26, z: fromR.z };
+        peakP = { x: fromP.x, y: fromP.y + 0.05, z: fromP.z };
         break;
       case 'pet':
-        duration = 0.7;
         peakS = { ...fromS };
-        // Lean Z ±5° (pick random sign) + brief rotation toward camera (~-10° Y)
-        peakR = {
-          x: fromR.x,
-          y: fromR.y - 0.17, // ~-10° toward camera
-          z: fromR.z + (Math.random() > 0.5 ? 0.087 : -0.087) // ±5° Z lean
-        };
+        peakR = { x: fromR.x, y: fromR.y - 0.17, z: fromR.z + (Math.random() > 0.5 ? 0.087 : -0.087) };
         peakP = { ...fromP };
         break;
       case 'heal':
-        duration = 1.0;
         peakS = { x: fromS.x * 1.2, y: fromS.y * 1.2, z: fromS.z * 1.2 };
-        peakR = { x: fromR.x, y: fromR.y + Math.PI * 2, z: fromR.z }; // Full 360° spin
+        peakR = { x: fromR.x, y: fromR.y + Math.PI * 2, z: fromR.z };
         peakP = { ...fromP };
-        this._animFlashBrightness = true; // trigger brightness flash
+        this._animFlashBrightness = true;
         break;
       case 'hatch':
-        duration = 0.8;
         peakS = { x: fromS.x * 1.3, y: fromS.y * 1.3, z: fromS.z * 1.3 };
-        peakR = { x: fromR.x, y: fromR.y, z: fromR.z + 0.175 }; // ±10° Z wobble
+        peakR = { x: fromR.x, y: fromR.y, z: fromR.z + 0.175 };
         peakP = { x: fromP.x, y: fromP.y + 0.05, z: fromP.z };
         break;
       case 'celebrate':
-        duration = 0.8;
         peakS = { x: fromS.x * 1.25, y: fromS.y * 1.25, z: fromS.z * 1.25 };
-        peakR = { x: fromR.x, y: fromR.y + Math.PI * 2, z: fromR.z }; // Full 360° spin
-        peakP = { x: fromP.x, y: fromP.y + 0.3, z: fromP.z }; // Hop up 0.3 units
+        peakR = { x: fromR.x, y: fromR.y + Math.PI * 2, z: fromR.z };
+        peakP = { x: fromP.x, y: fromP.y + 0.3, z: fromP.z };
         break;
       case 'bounce':
-        duration = 0.5;
         peakS = { ...fromS };
         peakR = { ...fromR };
-        peakP = { x: fromP.x, y: fromP.y + 0.1, z: fromP.z }; // Hop up 0.1 units
+        peakP = { x: fromP.x, y: fromP.y + 0.1, z: fromP.z };
         break;
       default:
         return;
@@ -329,111 +589,143 @@ export class SceneManager {
     this._activeAnim = {
       type, startTime: Date.now(), duration,
       fromS, fromR, fromP, peakS, peakR, peakP,
+      useBones: false,
     };
-
-    // Pause idle state machine while animation plays
     this._idlePaused = true;
   }
 
-  /**
-   * Helper: lerp a single numeric property
-   */
-  _lerp(a, b, t) {
-    return a + (b - a) * t;
-  }
+  _lerp(a, b, t) { return a + (b - a) * t; }
 
   update(dt) {
     if (!this.initialized || !this.scene || !this.renderer) return;
     
     if (this.mixer) this.mixer.update(dt);
 
-    // Process active animation via lerp tween
     if (this._activeAnim) {
       const a = this._activeAnim;
       const elapsed = (Date.now() - a.startTime) / 1000;
       const t = Math.min(elapsed / a.duration, 1);
 
-      // Triangle wave: 0 → 1 → 0 (out and back)
-      let f;
-      if (a.type === 'heal' || a.type === 'celebrate') {
-        // Full spin: rotation smoothly completes full 360°, scale/pos use triangle wave
-        const half = a.duration / 2;
-        f = elapsed < half ? elapsed / half : 2 - elapsed / half;
-        const rT = Math.min(elapsed / a.duration, 1);
-        this.model.rotation.set(
-          this._lerp(a.fromR.x, a.peakR.x, rT),
-          this._lerp(a.fromR.y, a.peakR.y, rT),
-          this._lerp(a.fromR.z, a.peakR.z, rT)
-        );
-      } else {
-        f = t < 0.5 ? t * 2 : 2 - t * 2; // 0→1→0
-        this.model.rotation.set(
-          this._lerp(a.fromR.x, a.peakR.x, f),
-          this._lerp(a.fromR.y, a.peakR.y, f),
-          this._lerp(a.fromR.z, a.peakR.z, f)
-        );
-      }
+      if (a.useBones && this.hasBones) {
+        // Bone animation: triangle wave 0→1→0 for blending
+        const f = t < 0.5 ? t * 2 : 2 - t * 2;
+        this._applyBoneTargets(f);
 
-      // Scale — always triangle wave (out and back)
-      this.model.scale.set(
-        this._lerp(a.fromS.x, a.peakS.x, f),
-        this._lerp(a.fromS.y, a.peakS.y, f),
-        this._lerp(a.fromS.z, a.peakS.z, f)
-      );
+        // Heal/celebrate spin on whole model (can't spin individual bones)
+        if (a.type === 'heal' || a.type === 'celebrate') {
+          if (this.model) {
+            const rT = t;
+            this.model.rotation.y = rT * Math.PI * 2;
+          }
+        }
 
-      // Position — always triangle wave (out and back)
-      this.model.position.set(
-        this._lerp(a.fromP.x, a.peakP.x, f),
-        this._lerp(a.fromP.y, a.peakP.y, f),
-        this._lerp(a.fromP.z, a.peakP.z, f)
-      );
-
-      // Brightness flash for heal
-      if (a.type === 'heal' && this._animFlashBrightness) {
-        // Flash at peak (t ~0.5)
-        const flashIntensity = Math.sin(t * Math.PI);
-        if (this.model.traverse) {
+        // Brightness flash for heal
+        if (a.type === 'heal' && this._animFlashBrightness) {
+          const flashIntensity = Math.sin(t * Math.PI);
           this.model.traverse(c => {
             if (c.isMesh && c.material) {
               c.material.emissiveIntensity = flashIntensity * 0.5;
             }
           });
         }
-      }
+      } else {
+        // Legacy tween animation
+        let f;
+        if (a.type === 'heal' || a.type === 'celebrate') {
+          const half = a.duration / 2;
+          f = elapsed < half ? elapsed / half : 2 - elapsed / half;
+          const rT = Math.min(elapsed / a.duration, 1);
+          if (this.model) {
+            this.model.rotation.set(
+              this._lerp(a.fromR.x, a.peakR.x, rT),
+              this._lerp(a.fromR.y, a.peakR.y, rT),
+              this._lerp(a.fromR.z, a.peakR.z, rT)
+            );
+          }
+        } else {
+          f = t < 0.5 ? t * 2 : 2 - t * 2;
+          if (this.model) {
+            this.model.rotation.set(
+              this._lerp(a.fromR.x, a.peakR.x, f),
+              this._lerp(a.fromR.y, a.peakR.y, f),
+              this._lerp(a.fromR.z, a.peakR.z, f)
+            );
+          }
+        }
 
-      // Animation complete — restore base transforms
-      if (t >= 1) {
-        this.model.scale.set(a.fromS.x, a.fromS.y, a.fromS.z);
-        this.model.position.set(a.fromP.x, a.fromP.y, a.fromP.z);
-        if (a.type !== 'heal' && a.type !== 'celebrate') {
-          this.model.rotation.set(a.fromR.x, a.fromR.y, a.fromR.z);
-        } // heal/celebrate leave rotation at full spin (net zero from Euler wrap)
-        
-        // Reset emissive flash
-        if (this._animFlashBrightness) {
-          this._animFlashBrightness = false;
-          if (this.model.traverse) {
+        if (this.model) {
+          this.model.scale.set(
+            this._lerp(a.fromS.x, a.peakS.x, f),
+            this._lerp(a.fromS.y, a.peakS.y, f),
+            this._lerp(a.fromS.z, a.peakS.z, f)
+          );
+          this.model.position.set(
+            this._lerp(a.fromP.x, a.peakP.x, f),
+            this._lerp(a.fromP.y, a.peakP.y, f),
+            this._lerp(a.fromP.z, a.peakP.z, f)
+          );
+        }
+
+        if (a.type === 'heal' && this._animFlashBrightness) {
+          const flashIntensity = Math.sin(t * Math.PI);
+          if (this.model && this.model.traverse) {
             this.model.traverse(c => {
               if (c.isMesh && c.material) {
-                c.material.emissiveIntensity = 0;
+                c.material.emissiveIntensity = flashIntensity * 0.5;
               }
             });
           }
         }
+      }
 
+      // Animation complete
+      if (t >= 1) {
+        if (a.useBones && this.hasBones) {
+          this._clearBoneTargets();
+          if (this.model) {
+            this.model.rotation.y = 0; // Reset spin
+          }
+          // Reset emissive flash
+          if (this._animFlashBrightness) {
+            this._animFlashBrightness = false;
+            if (this.model && this.model.traverse) {
+              this.model.traverse(c => {
+                if (c.isMesh && c.material) {
+                  c.material.emissiveIntensity = 0;
+                }
+              });
+            }
+          }
+        } else {
+          if (this.model) {
+            this.model.scale.set(a.fromS.x, a.fromS.y, a.fromS.z);
+            this.model.position.set(a.fromP.x, a.fromP.y, a.fromP.z);
+            if (a.type !== 'heal' && a.type !== 'celebrate') {
+              this.model.rotation.set(a.fromR.x, a.fromR.y, a.fromR.z);
+            }
+          }
+          if (this._animFlashBrightness) {
+            this._animFlashBrightness = false;
+            if (this.model && this.model.traverse) {
+              this.model.traverse(c => {
+                if (c.isMesh && c.material) c.material.emissiveIntensity = 0;
+              });
+            }
+          }
+        }
         this._activeAnim = null;
-        // Resume idle state machine
         this._idlePaused = false;
       }
-      // Skip idle while animating
     } else if (this.model) {
       // === IDLE STATE MACHINE ===
-      if (this.model.userData.ring) {
-        // Egg wobble — NO auto Y rotation, just wobble Z + ring pulse
+      if (this.model.userData && this.model.userData.ring) {
         this.model.rotation.z = Math.sin(Date.now() * 0.003) * 0.08;
         if (this.model.userData.ring) {
           this.model.userData.ring.scale.setScalar(1 + Math.sin(Date.now() * 0.002) * 0.05);
         }
+      } else if (this.hasBones) {
+        // === V2 BONE-BASED IDLE ===
+        this._updateBoneIdle(dt);
       } else {
         this._updateIdle(dt);
       }
@@ -442,125 +734,132 @@ export class SceneManager {
     this.renderer.render(this.scene, this.camera);
   }
 
+  /**
+   * V2 bone-based idle animations
+   * Animates bones directly: tail wag, ear flick, breathing, head look
+   */
+  _updateBoneIdle(dt) {
+    if (this._idlePaused) return;
+
+    const now = Date.now();
+
+    // === TAIL WAG (independent sine wave) ===
+    if (this._bone('Tail1')) {
+      this._tailPhase += dt * 0.8; // slow speed
+      const wag = Math.sin(now * 0.003) * 0.15;
+      this._bone('Tail1').bone.rotation.z = wag;
+      if (this._bone('Tail2')) this._bone('Tail2').bone.rotation.z = Math.sin(now * 0.0035 + 0.5) * 0.2;
+      if (this._bone('Tail3')) this._bone('Tail3').bone.rotation.z = Math.sin(now * 0.004 + 1.0) * 0.25;
+    }
+
+    // === EAR FLICK (random intervals) ===
+    this._earFlickTimer += dt;
+    if (this._earFlickTimer >= (this._earFlickInterval || 4)) {
+      this._earFlickTimer = 0;
+      this._earFlickInterval = 3 + Math.random() * 5;
+      
+      // Quick ear flick
+      if (this._bone('LEar1')) {
+        const flick = (Math.random() > 0.5 ? 1 : -1) * 0.2;
+        this._bone('LEar1').bone.rotation.z += flick;
+        // Return after ~0.1s (next frame will slerp back via _applyBoneTargets not running in idle)
+        setTimeout(() => {
+          if (this._bone('LEar1')) this._bone('LEar1').bone.rotation.z = 0;
+        }, 100);
+      }
+    }
+
+    // === HEAD SINE (gentle look-around) ===
+    if (this._bone('Head')) {
+      const headTurn = Math.sin(now * 0.0005) * 0.05; // very slow, subtle
+      this._bone('Head').bone.rotation.y = headTurn;
+    }
+
+    // === BREATHING (body scale pulse) ===
+    const breath = 1 + Math.sin(now * 0.002) * 0.003;
+    this.model.scale.x = breath;
+    this.model.scale.z = breath;
+
+    // === FLOAT BOB ===
+    const targetBob = Math.sin(now * 0.003) * 0.03;
+    const deltaBob = targetBob - this._idleBobOffset;
+    this.model.position.y += deltaBob;
+    this._idleBobOffset = targetBob;
+  }
+
   _updateIdle(dt) {
     if (this._idlePaused) return;
 
     this._idleTimer += dt;
-
     const now = Date.now();
 
     if (this._idleState === 'FLOAT') {
-      // More pronounced Y-position sine bob
       const targetBob = Math.sin(now * 0.003) * 0.03;
       const deltaBob = targetBob - this._idleBobOffset;
       this.model.position.y += deltaBob;
       this._idleBobOffset = targetBob;
-
-      // Gradually return rotation to neutral
       this.model.rotation.y += (0 - this.model.rotation.y) * 0.02;
     }
 
-    // Check if it's time to switch to a new idle state
     if (this._idleTimer >= this._idleNextSwitch) {
       this._idleTimer = 0;
       this._idleNextSwitch = this._randomIdleInterval();
-
-      // Pick a new random state (not FLOAT if we were already in FLOAT at least once)
       const states = ['LOOK_LEFT', 'LOOK_RIGHT', 'BOUNCE', 'FLOAT', 'FLOAT'];
       const newState = states[Math.floor(Math.random() * states.length)];
       
-      // Save current values as starting point for transition
       this._idleFromRotY = this.model.rotation.y;
       this._idleFromPosY = this.model.position.y;
       this._idleAnimProgress = 0;
-
       this._idleState = newState;
 
       switch (newState) {
-        case 'LOOK_LEFT':
-          this._idleTargetRotY = -0.35; // ~-20°
-          break;
-        case 'LOOK_RIGHT':
-          this._idleTargetRotY = 0.35; // ~20°
-          break;
-        case 'BOUNCE':
-          this._idleTargetPosY = this._idleFromPosY + 0.1; // hop up 0.1
-          break;
-        case 'FLOAT':
-        default:
-          // FLOAT just continues naturally
-          break;
+        case 'LOOK_LEFT': this._idleTargetRotY = -0.35; break;
+        case 'LOOK_RIGHT': this._idleTargetRotY = 0.35; break;
+        case 'BOUNCE': this._idleTargetPosY = this._idleFromPosY + 0.1; break;
       }
     }
 
-    // Process active idle transitions
-    const speed = 0.016; // ~60fps step for smooth transitions
     const turnSpeed = 0.02;
-
     switch (this._idleState) {
       case 'LOOK_LEFT':
       case 'LOOK_RIGHT': {
-        // Smooth rotate to target over ~1s, hold ~1s, return
         this._idleAnimProgress += dt;
-        const lookDuration = 2.5; // 1s to turn, 0.5s hold, 1s to return
+        const lookDuration = 2.5;
         const progress = Math.min(this._idleAnimProgress / lookDuration, 1);
-
         if (progress < 0.4) {
-          // Turning toward target
           const p = progress / 0.4;
           this.model.rotation.y = this._idleFromRotY + (this._idleTargetRotY - this._idleFromRotY) * this._smoothstep(p);
         } else if (progress < 0.6) {
-          // Hold at target
           this.model.rotation.y = this._idleTargetRotY;
         } else {
-          // Return to neutral
           const p = (progress - 0.6) / 0.4;
           this.model.rotation.y = this._idleTargetRotY + (0 - this._idleTargetRotY) * this._smoothstep(p);
         }
-
-        if (progress >= 1) {
-          this._idleState = 'FLOAT';
-          this._idleTimer = 0;
-        }
+        if (progress >= 1) { this._idleState = 'FLOAT'; this._idleTimer = 0; }
         break;
       }
       case 'BOUNCE': {
-        // Quick Y hop up 0.1 units then back
         this._idleAnimProgress += dt;
         const bounceDuration = 0.4;
         const progress = Math.min(this._idleAnimProgress / bounceDuration, 1);
-
         if (progress < 0.5) {
-          // Going up
           const p = progress / 0.5;
           this.model.position.y = this._idleFromPosY + 0.1 * this._smoothstep(p);
         } else {
-          // Coming down
           const p = (progress - 0.5) / 0.5;
           this.model.position.y = this._idleFromPosY + 0.1 * (1 - this._smoothstep(p));
         }
-
-        if (progress >= 1) {
-          this.model.position.y = this._idleFromPosY;
-          this._idleState = 'FLOAT';
-          this._idleTimer = 0;
-        }
+        if (progress >= 1) { this.model.position.y = this._idleFromPosY; this._idleState = 'FLOAT'; this._idleTimer = 0; }
         break;
       }
       case 'FLOAT':
       default:
-        // Already handled above (continuous bob), but also gently
-        // drift Y rotation back to 0 (facing forward)
         this.model.rotation.y += (0 - this.model.rotation.y) * turnSpeed;
         break;
     }
   }
 
-  _smoothstep(t) {
-    return t * t * (3 - 2 * t);
-  }
+  _smoothstep(t) { return t * t * (3 - 2 * t); }
 
-  get canvas() {
-    return this.renderer?.domElement;
-  }
+  get canvas() { return this.renderer?.domElement; }
 }

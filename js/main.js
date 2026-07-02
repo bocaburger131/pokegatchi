@@ -2,7 +2,7 @@
 import { store } from './core/Store.js';
 import { GameLoop } from './core/GameLoop.js';
 import { 
-  EVO_LINES, MODEL_IDS, SPRITES, STAGES, FACE_DATA,
+  EVO_LINES, MODEL_IDS, V2_MODELS, SPRITES, STAGES, FACE_DATA,
   TEAMS, STAT_META, MOODS, MINIGAMES, ACHIEVEMENTS,
   getSpriteName
 } from './data/Pokedex.js';
@@ -149,7 +149,16 @@ function renderPetView() {
   if (modelInfo && (stageChanged || lineChanged)) {
     _lastLoadedStage = s;
     _lastLoadedLine = store.state.activeLine;
-    sceneMan.loadModel(modelInfo.ids[s], modelInfo.cats[s]);
+
+    // Try V2 rigged model first (has bones/skeleton)
+    const v2Models = V2_MODELS[store.state.activeLine];
+    const v2Filename = v2Models ? v2Models[s] : null;
+    if (v2Filename) {
+      sceneMan.loadV2Model(v2Filename);
+    } else {
+      // Fall back to legacy Pokemon3D API CDN model
+      sceneMan.loadModel(modelInfo.ids[s], modelInfo.cats[s]);
+    }
   }
 
   const spriteName = spritePath?.split('/').pop().replace('.png', '') || 'eevee';
