@@ -164,6 +164,74 @@ export class SceneManager {
 
       this.scene.add(this.model);
 
+      // === BAKE SKINNING INTO GEOMETRY ===
+      // PokeMiners GLBs store bind-pose geometry with skeleton at origin.
+      // THREE.js skinning doesn't render these correctly — manually bake.
+      this.model.updateMatrixWorld(true);
+      this.model.traverse(c => {
+        if (c.isSkinnedMesh && c.skeleton && c.geometry) {
+          const pos = c.geometry.attributes.position;
+          const skinIndex = c.geometry.attributes.skinIndex;
+          const skinWeight = c.geometry.attributes.skinWeight;
+          if (!pos || !skinIndex || !skinWeight) return;
+          
+          const bakedPos = new Float32Array(pos.count * 3);
+          const tempVec = new THREE.Vector3();
+          const skinVec = new THREE.Vector3();
+          const mat4 = new THREE.Matrix4();
+          
+          for (let i = 0; i < pos.count; i++) {
+            tempVec.fromBufferAttribute(pos, i);
+            skinVec.set(0, 0, 0);
+            
+            const w = [skinWeight.getX(i), skinWeight.getY(i), skinWeight.getZ(i), skinWeight.getW(i)];
+            const idx = [skinIndex.getX(i), skinIndex.getY(i), skinIndex.getZ(i), skinIndex.getW(i)];
+            
+            for (let j = 0; j < 4; j++) {
+              if (w[j] > 0) {
+                const bone = c.skeleton.bones[idx[j]];
+                if (bone) {
+                  const inv = c.skeleton.boneInverses[idx[j]];
+                  // Final matrix: bone.worldMatrix * inverseBindMatrix
+                  mat4.multiplyMatrices(bone.matrixWorld, inv);
+                  const transformed = tempVec.clone().applyMatrix4(mat4);
+                  skinVec.x += transformed.x * w[j];
+                  skinVec.y += transformed.y * w[j];
+                  skinVec.z += transformed.z * w[j];
+                }
+              }
+            }
+            
+            bakedPos[i * 3] = skinVec.x;
+            bakedPos[i * 3 + 1] = skinVec.y;
+            bakedPos[i * 3 + 2] = skinVec.z;
+          }
+          
+          // Replace geometry with baked positions
+          const newGeo = new THREE.BufferGeometry();
+          newGeo.setAttribute('position', new THREE.BufferAttribute(bakedPos, 3));
+          if (c.geometry.attributes.normal) newGeo.setAttribute('normal', c.geometry.attributes.normal);
+          if (c.geometry.attributes.uv) newGeo.setAttribute('uv', c.geometry.attributes.uv);
+          if (c.geometry.attributes.color) newGeo.setAttribute('color', c.geometry.attributes.color);
+          newGeo.setIndex(c.geometry.index);
+          
+          // Create regular mesh in place of skinned mesh
+          const newMesh = new THREE.Mesh(newGeo, c.material);
+          newMesh.position.copy(c.position);
+          newMesh.quaternion.copy(c.quaternion);
+          newMesh.scale.copy(c.scale);
+          newMesh.name = c.name + '_baked';
+          
+          if (c.parent) c.parent.add(newMesh);
+          c.parent.remove(c);
+          
+          // Dispose old geometry
+          c.geometry.dispose();
+          
+          console.log(`Baked skin for ${c.name}: ${pos.count} verts`);
+        }
+      });
+
       // === DEBUG: expose for inspection ===
       window.__debugScene = this.scene;
       window.__debugModel = this.model;
