@@ -34,17 +34,8 @@
 </div>
 
 <!-- ─── SCENE ─── -->
-<div class="scene-wrap" id="sceneWrap" data-time="morning" data-weather="clear">
+<div class="scene-wrap" id="sceneWrap">
   <div class="sky-layer" id="skyLayer"></div>
-  <div class="time-tint"></div>
-  <div class="scene-sun"></div>
-  <div class="scene-moon"></div>
-  <div class="night-stars-container" id="nightStarsContainer"></div>
-  <div class="weather-overlay-rain" id="rainOverlay"></div>
-  <div class="weather-overlay-snow" id="snowOverlay"></div>
-  <div class="weather-fog-layer"></div>
-  <div class="weather-cloudy-particles" id="cloudyParticles"></div>
-  <div class="weather-overlay" id="weather-overlay"></div>
   <div class="ground-layer"></div>
   <div class="scene-path"></div>
   <div class="scene-mountain" style="left:5%;border-bottom-color:rgba(50,40,70,0.2);"></div>
@@ -93,14 +84,10 @@
     🤖 Auto: <span id="autoCatchCount">0</span> caught · <span id="autoSpinCount">0</span> spun
   </div>
 
-  <!-- TIME & WEATHER -->
-  <div class="tw-indicator" id="twIndicator">☀️ Morning · Clear</div>
-
   <!-- MODE TOGGLE -->
   <div class="mode-toggle">
     <button class="mode-btn active" onclick="window.setMode('play')">🎮 Play</button>
     <button class="mode-btn" onclick="window.setMode('auto')">🤖 Auto</button>
-    <button class="mode-btn" onclick="window.setMode('scene')">🌄 Scenes</button>
   </div>
 
   <!-- EVOLUTION LINE PICKER -->
@@ -186,27 +173,6 @@
     <div class="evo-track" id="evoTrack"></div>
   </div>
 
-  <!-- SCENE CONTROLS (weather/times — moved to bottom after evo track) -->
-  <div id="sceneControls">
-    <div class="sc-row">
-      <button onclick="window.setTime(0)">🌅 Dawn</button>
-      <button onclick="window.setTime(1)">☀️ Morning</button>
-      <button onclick="window.setTime(2)">🌤️ Afternoon</button>
-      <button onclick="window.setTime(3)">🌆 Evening</button>
-      <button onclick="window.setTime(4)">🌙 Night</button>
-    </div>
-    <div class="sc-row">
-      <button onclick="window.setWeather(0)">☀️ Clear</button>
-      <button onclick="window.setWeather(1)">☁️ Cloudy</button>
-      <button onclick="window.setWeather(2)">🌧️ Rain</button>
-      <button onclick="window.setWeather(3)">❄️ Snow</button>
-      <button onclick="window.setWeather(4)">🌫️ Fog</button>
-    </div>
-    <div class="sc-row" style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);">
-      <button id="btnToggleBgStyle" data-bg-active="false" onclick="window.toggleBgStyle()">🌲 Forest</button>
-    </div>
-  </div>
-
   <!-- MINIGAMES -->
   <div class="evo-section">
     <h3>🎮 Mini-Games</h3>
@@ -219,7 +185,7 @@
     <div id="achPanel" style="display:block;"></div>
   </div>
 
-  <div class="footer">Pokégatchi · Press <kbd>C</kbd> catch · <kbd>S</kbd> +100 steps · <kbd>1-5</kbd> time · <kbd>Shift+1-5</kbd> weather</div>
+  <div class="footer">Pokégatchi · Press <kbd>C</kbd> catch · <kbd>S</kbd> +100 steps</div>
 </div>
 
 <!-- ─── MISC ─── -->

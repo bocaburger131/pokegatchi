@@ -3,8 +3,7 @@ import { store } from './core/Store.js';
 import { GameLoop } from './core/GameLoop.js';
 import { 
   EVO_LINES, MODEL_IDS, SPRITES, STAGES, FACE_DATA,
-  TEAMS, STAT_META, MOODS, BG_IMAGES, MINIGAMES, ACHIEVEMENTS,
-  TIMES, TIMES_LABEL, WEATHERS, WEATHER_LABEL,
+  TEAMS, STAT_META, MOODS, MINIGAMES, ACHIEVEMENTS,
   getSpriteName
 } from './data/Pokedex.js';
 import { SceneManager } from './scene/SceneManager.js';
@@ -15,9 +14,6 @@ import {
   toast, showMilestone, closeMilestone, toggleAchievements, 
   checkAchievements, autoMoodCheck as uiAutoMoodCheck, petAnim
 } from './ui/UIRenderer.js';
-
-// === CONSTANTS ===
-const WEATHER_TYPES = ['clear', 'cloudy', 'rain', 'snow', 'fog'];
 
 // === INIT ===
 store.load(); // Restore saved state
@@ -257,102 +253,6 @@ function checkEvolution() {
   }
 }
 
-// Track current background style: 'forest' (default) or 'encounter' (Pokémon GO catch-screen gradient)
-let _bgStyle = 'forest';
-
-// Team-colored encounter gradients (Pokémon GO catch-screen style)
-const ENCOUNTER_SKY = {
-  valor: 'radial-gradient(ellipse at 50% 0%, #4a0a0a 0%, #8B1A1A 25%, #CC3333 45%, #FF5555 65%, #FF8877 80%, #FFDDCC 100%)',
-  mystic: 'radial-gradient(ellipse at 50% 0%, #0a0a3a 0%, #1A2A6B 25%, #3366CC 45%, #5588FF 65%, #77AAFF 80%, #CCDDFF 100%)',
-  instinct: 'radial-gradient(ellipse at 50% 0%, #3a3000 0%, #6B5A00 25%, #AA8800 45%, #FFD700 65%, #FFE680 80%, #FFF5CC 100%)',
-};
-const ENCOUNTER_GROUND = {
-  valor: 'linear-gradient(0deg, rgba(10,2,2,0.98), rgba(60,12,12,0.8) 40%, rgba(100,22,16,0.5) 70%, rgba(140,40,30,0.2))',
-  mystic: 'linear-gradient(0deg, rgba(2,2,10,0.98), rgba(10,20,60,0.8) 40%, rgba(15,40,100,0.5) 70%, rgba(30,60,140,0.2))',
-  instinct: 'linear-gradient(0deg, rgba(15,12,2,0.98), rgba(60,50,8,0.8) 40%, rgba(100,85,12,0.5) 70%, rgba(140,120,30,0.2))',
-};
-
-// === SCENE / WEATHER ===
-function applyScene() {
-  const timeIdx = store.state.time.timeIdx;
-  const weatherIdx = store.state.time.weatherIdx;
-  
-  const sceneWrap = document.getElementById('sceneWrap');
-  if (!sceneWrap) return;
-  
-  // Set data attributes for CSS weather/time selectors
-  const timeName = timeIdx >= 0 && timeIdx < TIMES.length ? TIMES[timeIdx] : 'morning';
-  const weatherName = weatherIdx >= 0 && weatherIdx < WEATHERS.length ? WEATHERS[weatherIdx] : 'clear';
-  sceneWrap.dataset.time = timeName;
-  sceneWrap.dataset.weather = weatherName;
-  sceneWrap.dataset.bgStyle = _bgStyle;
-  
-  // Update time/weather indicator text
-  const twEl = document.getElementById('twIndicator');
-  if (twEl) {
-    twEl.textContent = `${TIMES_LABEL[timeName]} · ${WEATHER_LABEL[weatherName]}${timeIdx < 0 ? ' (auto)' : ''}`;
-  }
-  
-  const bgContainer = document.getElementById('skyLayer');
-  if (!bgContainer) return;
-  
-  if (_bgStyle === 'encounter') {
-    // Pokémon GO encounter mode: team-colored gradient instead of forest images
-    const team = store.state.team || 'mystic';
-    const skyGrad = ENCOUNTER_SKY[team] || ENCOUNTER_SKY.mystic;
-    const groundGrad = ENCOUNTER_GROUND[team] || ENCOUNTER_GROUND.mystic;
-    bgContainer.style.backgroundImage = skyGrad;
-    sceneWrap.style.setProperty('--encounter-ground', groundGrad);
-  } else {
-    // Forest mode: use BG_IMAGES
-    sceneWrap.style.removeProperty('--encounter-ground');
-    if (timeIdx >= 0 && timeIdx < BG_IMAGES.length) {
-      bgContainer.style.backgroundImage = `url(${BG_IMAGES[timeIdx]})`;
-    } else {
-      bgContainer.style.backgroundImage = '';
-    }
-  }
-  
-  const weatherEl = document.getElementById('weather-overlay');
-  if (!weatherEl) return;
-  weatherEl.className = 'weather-overlay';
-  if (weatherIdx >= 0 && weatherIdx < WEATHERS.length) {
-    weatherEl.classList.add(WEATHERS[weatherIdx]);
-  }
-}
-
-function initParticles() {
-  const scene3d = document.getElementById('pet3dContainer');
-  if (!scene3d) return;
-  
-  // Stars
-  let starsEl = document.getElementById('star-particles');
-  if (!starsEl) {
-    starsEl = document.createElement('div');
-    starsEl.id = 'star-particles';
-    starsEl.className = 'particle-layer stars';
-    scene3d.appendChild(starsEl);
-  }
-  
-  // Rain
-  let rainEl = document.getElementById('rain-particles');
-  if (!rainEl) {
-    rainEl = document.createElement('div');
-    rainEl.id = 'rain-particles';
-    rainEl.className = 'particle-layer rain';
-    scene3d.appendChild(rainEl);
-  }
-  
-  // Snow
-  let snowEl = document.getElementById('snow-particles');
-  if (!snowEl) {
-    snowEl = document.createElement('div');
-    snowEl.id = 'snow-particles';
-    snowEl.className = 'particle-layer snow';
-    scene3d.appendChild(snowEl);
-  }
-}
-
 // === WINDOW ACTIONS ===
 
 /**
@@ -428,7 +328,7 @@ window.healPet = function() {
 };
 
 /**
- * window.addCatch() — increment catches/streak, +2 Bond, -1 Energy, 20% random weather
+ * window.addCatch() — increment catches/streak, +2 Bond, -1 Energy
  */
 window.addCatch = function() {
   const p = store.state.pet;
@@ -437,14 +337,7 @@ window.addCatch = function() {
   store.state.streak = (store.state.streak || 0) + 1;
   p.stats.boredom = Math.max(0, p.stats.boredom - 0.02);
   p.stats.cleanliness = Math.max(0, p.stats.cleanliness - 0.01);
-  
-  // 20% random weather change
-  if (Math.random() < 0.2) {
-    const wi = Math.floor(Math.random() * WEATHERS.length);
-    store.state.time.weatherIdx = wi;
-    applyScene();
-  }
-  
+
   toast(`🏆 Caught! Streak: ${store.state.streak}`);
   checkAchievements();
   tick();
@@ -703,11 +596,6 @@ window.updateAutoDisplay = function() {
 window.setMode = function(m) {
   store.state.mode = m;
   
-  const sceneControls = document.getElementById('sceneControls');
-  if (sceneControls) {
-    sceneControls.style.display = (m === 'scene') ? 'flex' : 'none';
-  }
-  
   // Auto status display
   const autoStatus = document.getElementById('autoStatus');
   
@@ -721,20 +609,6 @@ window.setMode = function(m) {
     // Show auto status bar
     if (autoStatus) autoStatus.style.display = 'block';
     
-    if (!store._autoWeatherInterval) {
-      store._autoWeatherInterval = setInterval(() => {
-        store.state.time.weatherIdx = (store.state.time.weatherIdx + 1) % WEATHERS.length;
-        applyScene();
-        renderAll();
-      }, 15000);
-    }
-    if (!store._autoTimeInterval) {
-      store._autoTimeInterval = setInterval(() => {
-        store.state.time.timeIdx = (store.state.time.timeIdx + 1) % TIMES.length;
-        applyScene();
-        renderAll();
-      }, 10000);
-    }
     if (!store._autoCatchInterval) {
       store._autoCatchInterval = setInterval(() => {
         window.addCatch();
@@ -753,14 +627,6 @@ window.setMode = function(m) {
     // Hide auto status bar
     if (autoStatus) autoStatus.style.display = 'none';
     
-    if (store._autoWeatherInterval) {
-      clearInterval(store._autoWeatherInterval);
-      store._autoWeatherInterval = null;
-    }
-    if (store._autoTimeInterval) {
-      clearInterval(store._autoTimeInterval);
-      store._autoTimeInterval = null;
-    }
     if (store._autoCatchInterval) {
       clearInterval(store._autoCatchInterval);
       store._autoCatchInterval = null;
@@ -774,47 +640,6 @@ window.setMode = function(m) {
 };
 
 /**
- * window.setTime(i) — set time-of-day index, apply scene
- */
-window.setTime = function(i) {
-  store.state.time.timeIdx = i;
-  applyScene();
-};
-
-/**
- * window.setWeather(i) — set weather index, apply scene
- */
-window.setWeather = function(i) {
-  store.state.time.weatherIdx = i;
-  applyScene();
-};
-
-/**
- * window.setBgStyle(type) — toggle between 'forest' and 'encounter' backgrounds
- * Forest: uses cats-soup nature images
- * Encounter: team-colored gradient like Pokémon GO catch screen
- */
-window.setBgStyle = function(type) {
-  if (type !== 'forest' && type !== 'encounter') return;
-  _bgStyle = type;
-  applyScene();
-  // Update button state
-  const btn = document.getElementById('btnToggleBgStyle');
-  if (btn) {
-    const isEncounter = type === 'encounter';
-    btn.dataset.bgActive = isEncounter.toString();
-    btn.textContent = isEncounter ? '⚡ Encounter' : '🌲 Forest';
-  }
-};
-
-/**
- * window.toggleBgStyle() — toggle between forest and encounter
- */
-window.toggleBgStyle = function() {
-  window.setBgStyle(_bgStyle === 'forest' ? 'encounter' : 'forest');
-};
-
-/**
  * window.selectTeam(team) — hide team overlay, set team, save
  */
 window.selectTeam = function(team) {
@@ -823,7 +648,6 @@ window.selectTeam = function(team) {
   store.state.team = team;
   store.save();
   renderAll();
-  applyScene();
 };
 
 /**
@@ -864,24 +688,12 @@ window.dismissLedger = dismissLedger;
 
 // === KEYBOARD SHORTCUTS ===
 document.addEventListener('keydown', (e) => {
-  // Shift+1-5 for weather
-  if (e.shiftKey && e.key >= '1' && e.key <= '5') {
-    e.preventDefault();
-    window.setWeather(parseInt(e.key) - 1);
-    return;
-  }
-  
   switch (e.key.toLowerCase()) {
     case 'c': window.addCatch(); break;
     case 's': window.addStep(100); break;
     case 'f': window.feed(); break;
     case 'p': window.petAction(); break;
     case 'h': window.healPet(); break;
-  }
-  
-  // 1-5 for time-of-day
-  if (e.key >= '1' && e.key <= '5') {
-    window.setTime(parseInt(e.key) - 1);
   }
 });
 
@@ -893,8 +705,6 @@ function initEngine() {
   updateInventory();
   renderStatus();
   renderAll();
-  initParticles();
-  applyScene();
   loop.start();
 }
 

@@ -15,11 +15,6 @@ export const TEAMS = {
   instinct: { badge:'🟡', name:'Instinct', color:'#FFD700', icon:'⚡' },
 };
 
-export const TIMES = ['dawn','morning','afternoon','evening','night'];
-export const TIMES_LABEL = { dawn:'🌅 Dawn', morning:'☀️ Morning', afternoon:'🌤️ Afternoon', evening:'🌆 Evening', night:'🌙 Night' };
-export const WEATHERS = ['clear','cloudy','rain','snow','fog'];
-export const WEATHER_LABEL = { clear:'☀️ Clear', cloudy:'☁️ Cloudy', rain:'🌧️ Rain', snow:'❄️ Snow', fog:'🌫️ Fog' };
-
 export const STAT_META = [
   { icon:'🍖', name:'Hunger', colors:['#FF6B6B','#FF8E53'] },
   { icon:'💛', name:'Bond', colors:['#FFD93D','#FF6B6B'] },
@@ -83,14 +78,6 @@ export const FACE_DATA = {
   espeon: { ex:.49, ey:.28, ew:.26, eh:.18, mx:.49, my:.48, mw:.18, mh:.10 },
 };
 
-export const BG_IMAGES = [
-  'assets/backgrounds/cats-soup/magical-forest.png',  // dawn
-  'assets/backgrounds/cats-soup/day-forest.png',      // morning
-  'assets/backgrounds/cats-soup/sunlit-forest.png',   // afternoon
-  'assets/backgrounds/cats-soup/enchanted-night.png',  // evening
-  'assets/backgrounds/cats-soup/enchanted-night.png',  // night
-];
-
 export const MINIGAMES = [
   { icon:'🐾', name:'Pet & Coo', stat:1, desc:'+5 Bond, small Energy cost' },
   { icon:'🫐', name:'Berry Catch', stat:1, desc:'Catch falling berries!' },
@@ -116,9 +103,7 @@ export const ACHIEVEMENTS = [
   { id:'streak_5', icon:'🔥', name:'On Fire!', desc:'5-catch streak', oneTime:true },
   { id:'streak_10', icon:'🔥', name:'Unstoppable!', desc:'10-catch streak', oneTime:true },
   { id:'feeder', icon:'🍖', name:'Full Belly', desc:'Feed 25 times', oneTime:true },
-  { id:'healer', icon:'💊', name:'Nurse', desc:'Heal 10 times', oneTime:true },
-  { id:'explorer', icon:'🗺️', name:'Explorer', desc:'Play in every weather', oneTime:true },
-];
+  { id:'healer', icon:'💊', name:'Nurse', desc:'Heal 10 times', oneTime:true },\n];
 
 export const MOOD_THRESHOLDS = {
   hunger: { low: 0.25, veryLow: 0.10 },

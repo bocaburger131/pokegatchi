@@ -4,8 +4,7 @@
 
 import { store } from '../core/Store.js';
 import {
-  EVO_LINES, STAGES, STAT_META, MOODS, MINIGAMES, ACHIEVEMENTS,
-  TIMES, TIMES_LABEL, WEATHERS, WEATHER_LABEL, BG_IMAGES
+  EVO_LINES, STAGES, STAT_META, MOODS, MINIGAMES, ACHIEVEMENTS
 } from '../data/Pokedex.js';
 
 // ─── Stat Array Bridge ──────────────────────────────────
@@ -296,7 +295,6 @@ export function checkAchievements() {
     'streak_10':     () => s.streak >= 10,
     'feeder':        () => s.totalFeeds >= 25,
     'healer':        () => s.totalHeals >= 10,
-    'explorer':      () => true, // Would depend on weather history
   };
 
   let newUnlock = false;
