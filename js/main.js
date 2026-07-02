@@ -19,13 +19,20 @@ function toast(msg, dur) {
   el._t = setTimeout(() => { el.style.opacity = '0'; setTimeout(() => { el.style.display = 'none'; }, 300); }, dur || 2000);
 }
 
-// === INIT ===
-(function init() {
+// === WRAPPER ===
+try {
+  console.log('Pokégatchi stripped — loading...');
+  init();
+  console.log('Pokégatchi stripped — loaded OK');
+} catch (e) {
+  console.error('Pokégatchi init failed:', e.message, e.stack);
+}
+
+function init() {
   sceneMan = new SceneManager('pet3dContainer');
   sceneMan.init();
 
   exprOverlay = new ExpressionOverlay('expressionCanvas');
-  exprOverlay.init(320, 320);
 
   // Start render loop
   const clock = new THREE.Clock();
@@ -38,7 +45,7 @@ function toast(msg, dur) {
 
   // Load default species
   selectSpecies(store.state.current || 'pikachu');
-})();
+}
 
 // === SPECIES SELECTION ===
 window.selectSpecies = function(species) {
