@@ -59,7 +59,13 @@ const exprOverlay = new ExpressionOverlay('expressionCanvas');
 // Debug overlay toggle
 window.toggleDebugOverlay = function() {
   const on = exprOverlay.toggleDebug();
-  toast(on ? '🔍 Debug overlay ON — tap D to toggle' : '🔍 Debug overlay OFF');
+  const btn = document.getElementById('debugToggle');
+  if (btn) {
+    btn.textContent = on ? '🔍 ON' : '🔍';
+    btn.style.background = on ? 'rgba(255,68,68,0.3)' : 'var(--accent-dim)';
+    btn.style.color = on ? '#ff4444' : 'var(--accent)';
+  }
+  toast(on ? '🔍 Debug ON — showing crosshairs' : '🔍 Debug OFF');
 };
 
 // === GAME LOOP ===
