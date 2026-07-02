@@ -6,10 +6,10 @@
  *  - 10 moods (0–9): happy, content, hungry, sad, excited, sleepy,
  *    surprised, mischievous, embarrassed, playful
  *  - Natural blink with random interval/duration and 15% double-blink chance
- *  - Smooth mood transitions (lerp between eye shapes over ~500ms)
- *  - Particle system: hearts 💕, sparkles ✨, music notes 🎵
+ *  - Smooth mood transitions (cross-fade eye shapes over ~800ms)
+ *  - Particle system: hearts 💕, sparkles ✨, music notes 🎵 (max 20 alive)
  *  - Blush effect (smooth fade-in/out, intensity per mood)
- *  - Tears for sad mood
+ *  - Tears for sad mood (animate downward, reset on mood change)
  *  - Eye glint / highlight (small white dot)
  *  - Eyebrow system (arched, raised, lowered, wavy per mood)
  *  - Eyelash detail on content/excited moods
@@ -35,6 +35,8 @@ export class ExpressionOverlay {
     this._blinkProgress = 0;
     this._nextBlinkAt = 0;
     this._postDoubleBlinkCooldown = false;
+    this._doubleBlinkPending = false;
+    this._wasDoubleBlink = false;
     this._scheduleNextBlink();
 
     // --- Float ---
@@ -44,7 +46,7 @@ export class ExpressionOverlay {
     this._prevMood = 0;
     this._moodProgress = 1;  // 0→1 during transition
     this._moodTransitionTimer = 0;
-    this._moodTransitionDuration = 0.5; // seconds
+    this._moodTransitionDuration = 0.8; // seconds (was 0.5)
 
     // --- Particles ---
     this.particles = [];
@@ -67,17 +69,33 @@ export class ExpressionOverlay {
   start(speciesName, mood) {
     this.speciesName = speciesName;
     this.mood = mood;
-    if (this.running || !this.ctx) return;
-    this.running = true;
+    // ── Reset all transient state on start/species-change ──
+    this.particles = [];
+    this._tears = [];
+    this.blinkTimer = 0;
+    this.isBlinking = false;
+    this._blinkDuration = 0;
+    this._blinkProgress = 0;
+    this._postDoubleBlinkCooldown = false;
+    this._doubleBlinkPending = false;
+    this._wasDoubleBlink = false;
+    this._scheduleNextBlink();
     this._prevMood = mood;
     this._moodProgress = 1;
-    this._scheduleNextBlink();
+    this._moodTransitionTimer = 0;
+    this._blushIntensity = 0;
+    this._blushTarget = 0;
+    this._smoothBlush = 0;
+
+    if (this.running || !this.ctx) return;
+    this.running = true;
     this._tick();
   }
 
   stop() {
     this.running = false;
     if (this.animFrame) cancelAnimationFrame(this.animFrame);
+    this.animFrame = null;
   }
 
   toggleDebug() {
@@ -145,7 +163,7 @@ export class ExpressionOverlay {
           this._doubleBlinkPending = false;
           // Schedule immediate second blink in ~8 frames
           this._nextBlinkAt = this.blinkTimer + 8;
-          this._postDoubleBlinkCooldown = false; // cooldown applied after second blink
+          this._postDoubleBlinkCooldown = false;
         } else {
           // Check if this was a double blink that just finished
           if (this._wasDoubleBlink) {
@@ -176,24 +194,26 @@ export class ExpressionOverlay {
   }
 
   /**
-   * Smoothstep for natural blink easing: eyes close quickly, hold briefly,
-   * then open with a slight ease.
+   * Smoothstep for natural blink easing:
+   *  - Close quickly (0→1, ease-in, first 40%)
+   *  - Hold briefly (fully closed, middle 20%)
+   *  - Open with ease-out (1→0, last 40%) — pop open fast, slow down
+   * Returns blink close amount: 0 = open, 1 = fully closed
    */
   _blinkSmoothstep(t) {
-    if (t < 0) return 0;
-    if (t > 1) return 1;
-    // Close: quick ease-in (first 40%), hold (middle 20%), open: slow ease-out (last 40%)
+    if (t <= 0) return 0;
+    if (t >= 1) return 0;
     if (t < 0.4) {
-      // Close phase
+      // Close phase: 0 → 1 (ease-in)
       const p = t / 0.4;
-      return p * p; // ease-in
+      return p * p;
     } else if (t < 0.6) {
       // Hold phase — fully closed
       return 1;
     } else {
-      // Open phase
+      // Open phase: 1 → 0 (ease-out — pops open quickly, slows)
       const p = (t - 0.6) / 0.4;
-      return 1 - (1 - p) * (1 - p); // ease-out inverse (smooth close)
+      return (1 - p) * (1 - p);
     }
   }
 
@@ -231,11 +251,16 @@ export class ExpressionOverlay {
   // ── Particle system ──────────────────────────────────────────────────────
 
   _spawnParticles(type, count) {
-    for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+    // Cap total particles at 20 to prevent memory issues
+    const remaining = 20 - this.particles.length;
+    if (remaining <= 0) return;
+    const actualCount = Math.min(count, remaining);
+
+    for (let i = 0; i < actualCount; i++) {
+      const angle = (Math.PI * 2 * i) / actualCount + (Math.random() - 0.5) * 0.5;
       const speed = 0.3 + Math.random() * 0.6;
       this.particles.push({
-        x: 0.5, // will be set relative to canvas when drawn
+        x: 0.5,
         y: 0.35,
         type: type,
         life: 0,
@@ -259,14 +284,11 @@ export class ExpressionOverlay {
         continue;
       }
       const progress = p.life / p.maxLife;
-      // Position
-      const bsX = p.x * w;
-      const bsY = p.y * h;
+      // Drift UP with wobble, fade out
       p.x += (p.speedX + Math.sin(p.wobblePhase + p.life * 3) * 0.2) * dt * 60 / w;
       p.y += p.speedY * dt * 60 / h;
-      // Rotation
       p.rotation += p.rotSpeed * dt * 60;
-      // Size fades toward end
+      // Size: grow in then fade
       p.size = (4 + 6 * (1 - progress)) * Math.min(1, progress * 3);
     }
   }
@@ -328,7 +350,7 @@ export class ExpressionOverlay {
   _drawMusicNote(ctx, size) {
     const s = size * 0.4;
     // Note head (oval)
-    ctx.fillStyle = ctx.fillStyle; // inherit
+    ctx.fillStyle = ctx.fillStyle;
     ctx.beginPath();
     ctx.ellipse(0, s * 0.3, s * 0.5, s * 0.35, -0.3, 0, Math.PI * 2);
     ctx.fill();
@@ -351,30 +373,34 @@ export class ExpressionOverlay {
     switch (effectiveMood) {
       case 0: this._blushTarget = 0.3; break;  // Happy
       case 4: this._blushTarget = 0.3; break;  // Excited
-      case 8: this._blushTarget = 0.8; break;  // Embarrassed
+      case 8: this._blushTarget = 0.8; break;  // Embarrassed — very visible
       default: this._blushTarget = 0; break;
     }
   }
 
   _drawBlush(ctx, cx, cy, cw, ch, intensity) {
     if (intensity < 0.01) return;
+    // Position blush below eyes using eye-radius formula
+    const r = Math.min(cw, ch) * 0.22;
     const spacing = cw * 0.30;
     const lx = cx - spacing;
     const rx = cx + spacing;
-    const ey = cy + ch * 0.22;
+    // blush centered at (lx/ rx, cy + r * 1.2) — below each eye
+    const blushY = cy + r * 1.2;
 
     ctx.save();
-    ctx.globalAlpha = intensity * 0.4;
+    // Make blush more visible: embarrassed (0.8 intensity) should be almost opaque
+    ctx.globalAlpha = intensity * 0.6; // was 0.4
     ctx.fillStyle = '#ff6b8a';
 
     // Left blush
     ctx.beginPath();
-    ctx.ellipse(lx, ey, cw * 0.14, ch * 0.08, 0, 0, Math.PI * 2);
+    ctx.ellipse(lx, blushY, cw * 0.14, ch * 0.08, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Right blush
     ctx.beginPath();
-    ctx.ellipse(rx, ey, cw * 0.14, ch * 0.08, 0, 0, Math.PI * 2);
+    ctx.ellipse(rx, blushY, cw * 0.14, ch * 0.08, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -395,16 +421,16 @@ export class ExpressionOverlay {
     }
 
     this._initTears();
+    const r = Math.min(cw, ch) * 0.22;
     const spacing = cw * 0.30;
     const lx = cx - spacing;
     const rx = cx + spacing;
-    const eyeR = Math.min(cw, ch) * 0.22;
 
     ctx.save();
     for (const tear of this._tears) {
       if (!tear.active) continue;
       tear.timer += dt;
-      // Tear descends slowly, resets when it goes too far
+      // Tear descends slowly; resets when it goes too far
       tear.y += dt * 50;
 
       if (tear.y > ch * 0.4) {
@@ -412,18 +438,19 @@ export class ExpressionOverlay {
         tear.timer = 0;
       }
 
+      // Fade in at top, fade out at bottom
       const alpha = tear.y < 10 ? tear.y / 10 : 1 - Math.min(1, tear.y / (ch * 0.35));
 
-      // Left tear
+      // Left tear — positioned below left eye
       ctx.fillStyle = `rgba(100, 180, 255, ${alpha * 0.7})`;
       ctx.beginPath();
-      ctx.ellipse(lx - eyeR * 0.1, cy + eyeR * 0.5 + tear.y, 1.5, 2.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(lx - r * 0.1, cy + r * 0.5 + tear.y, 1.5, 2.5, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Right tear
+      // Right tear — positioned below right eye
       ctx.fillStyle = `rgba(100, 180, 255, ${alpha * 0.7})`;
       ctx.beginPath();
-      ctx.ellipse(rx + eyeR * 0.1, cy + eyeR * 0.5 + tear.y, 1.5, 2.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(rx + r * 0.1, cy + r * 0.5 + tear.y, 1.5, 2.5, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
@@ -535,21 +562,20 @@ export class ExpressionOverlay {
     if (!hasLashes) return;
 
     ctx.save();
-    ctx.strokeStyle = '#333';
+    ctx.strokeStyle = '#888'; // subtle light gray
     ctx.lineWidth = 1.5;
     ctx.lineCap = 'round';
 
     const lashesPerEye = mood === 4 ? 3 : 2;
     const lashLen = 3 + eyeRadius * 0.2;
 
-    // Draw on upper lid of each eye
-    const eyeOffsets = [lx, rx];
-    for (const ex of eyeOffsets) {
+    for (const ex of [lx, rx]) {
       for (let i = 0; i < lashesPerEye; i++) {
-        const angleOffset = -Math.PI * 0.35 + (i / (lashesPerEye - 1 || 1)) * Math.PI * 0.7;
+        const t = lashesPerEye > 1 ? i / (lashesPerEye - 1) : 0.5;
+        const angleOffset = -Math.PI * 0.35 + t * Math.PI * 0.7;
         const lx2 = ex + Math.cos(angleOffset) * eyeRadius * 0.75;
         const ly2 = ey + Math.sin(angleOffset) * eyeRadius * 0.75;
-        const outAngle = angleOffset - Math.PI * 0.15 - (i - (lashesPerEye - 1) / 2) * 0.15;
+        const outAngle = angleOffset - Math.PI * 0.15 - (t - 0.5) * 0.3;
         ctx.beginPath();
         ctx.moveTo(lx2, ly2);
         ctx.lineTo(
@@ -613,8 +639,27 @@ export class ExpressionOverlay {
     // ── Draw eyebrows ──
     this._drawEyebrows(ctx, cx, cy, cw, ch, effMood);
 
-    // ── Draw eyes ──
-    this._drawEyes(ctx, cx, cy, cw, ch, effMood, this.isBlinking, this._blinkDuration > 0 ? this._blinkProgress / this._blinkDuration : 0);
+    // ── Draw eyes (with smooth cross-fade transition) ──
+    if (this._moodProgress < 1 && this._prevMood !== effMood) {
+      // During transition, cross-fade between previous and current mood eyes
+      // Draw previous mood eyes fading out (alpha 1→0)
+      ctx.save();
+      ctx.globalAlpha = 1 - this._moodProgress;
+      this._drawEyes(ctx, cx, cy, cw, ch, this._prevMood,
+        this.isBlinking, this._blinkDuration > 0 ? this._blinkProgress / this._blinkDuration : 0);
+      ctx.restore();
+
+      // Draw current mood eyes fading in (alpha 0→1)
+      ctx.save();
+      ctx.globalAlpha = this._moodProgress;
+      this._drawEyes(ctx, cx, cy, cw, ch, effMood,
+        this.isBlinking, this._blinkDuration > 0 ? this._blinkProgress / this._blinkDuration : 0);
+      ctx.restore();
+    } else {
+      // No transition — draw normally
+      this._drawEyes(ctx, cx, cy, cw, ch, effMood,
+        this.isBlinking, this._blinkDuration > 0 ? this._blinkProgress / this._blinkDuration : 0);
+    }
 
     // ── Tears ──
     this._updateAndDrawTears(ctx, cx, cy, cw, ch, dt, effMood);
@@ -622,7 +667,7 @@ export class ExpressionOverlay {
     // ── Draw mouth ──
     this._drawMouth(ctx, face.mx * w, face.my * h + this.floatY, face.mw * w, face.mh * h, effMood);
 
-    // ── Particles (top layer) ──
+    // ── Particles (top layer, before debug) ──
     this._drawParticles(ctx, w, h);
 
     // ── DEBUG OVERLAY ──
@@ -649,7 +694,7 @@ export class ExpressionOverlay {
     ctx.save();
     ctx.globalAlpha = 0.85;
 
-    // Eye zones (pink circles)
+    // Eye zones (pink circles) — only eyes, NOT eyebrows/tears/blush
     ctx.strokeStyle = '#ff4466';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([4, 4]);
@@ -742,13 +787,12 @@ export class ExpressionOverlay {
       return;
     }
 
-    // Determine eye shape based on current mood + transition
+    // Determine eye shape based on current mood
     const effectiveMood = this._getEffectiveMood();
 
     if (blinkAmount > 0) {
       // Partially closed — draw normal eye but clip/compress vertically
       ctx.save();
-      // Scale down the eye vertically based on blink amount (0 = open, 0.5 = half)
       const scaleY = 1 - blinkAmount * 1.8; // 0.5 blink → ~10% open
       ctx.translate(cx, cy);
       ctx.scale(1, Math.max(0.05, scaleY));
@@ -779,7 +823,6 @@ export class ExpressionOverlay {
         ctx.fillStyle = '#fff';
         ctx.beginPath(); ctx.arc(lx - r * 0.1, ey - r * 0.1, r * 0.2, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(rx - r * 0.1, ey - r * 0.1, r * 0.2, 0, Math.PI * 2); ctx.fill();
-        // Eye glint
         this._drawEyeGlint(ctx, lx, ey, r);
         this._drawEyeGlint(ctx, rx, ey, r);
         break;
@@ -810,7 +853,6 @@ export class ExpressionOverlay {
         this._drawEyeGlint(ctx, rx, ey, r);
         break;
       case 7: // Mischievous — half-lidded sly eyes
-        // Draw lower lids
         ctx.beginPath(); ctx.arc(lx, ey + r * 0.1, r * 0.8, Math.PI * 0.1, Math.PI * 0.9); ctx.stroke();
         ctx.beginPath(); ctx.arc(rx, ey + r * 0.1, r * 0.8, Math.PI * 0.1, Math.PI * 0.9); ctx.stroke();
         // Pupils — small, shifted up (sly look)
@@ -883,7 +925,7 @@ export class ExpressionOverlay {
   _drawSpiralEye(ctx, x, y, size) {
     ctx.save();
     ctx.translate(x, y);
-    ctx.scale(1, 0.85); // slight horizontal squash
+    ctx.scale(1, 0.85);
 
     ctx.fillStyle = '#333';
     ctx.beginPath();
@@ -930,11 +972,12 @@ export class ExpressionOverlay {
         ctx.lineWidth = Math.max(2, mh * 0.14);
         ctx.beginPath(); ctx.arc(mx, my - mh * 0.1, mw * 0.2, 0.2, Math.PI - 0.2); ctx.stroke();
         break;
-      case 2: // Hungry — open "om" shape
+      case 2: // Hungry — open "om" shape with tongue
         ctx.fillStyle = '#222';
         ctx.beginPath(); ctx.ellipse(mx, my, mw * 0.28, mh * 0.35, 0, 0, Math.PI * 2); ctx.fill();
+        // Tongue: full rounded ellipse (not just half) for bulbous tongue look below the mouth
         ctx.fillStyle = '#e74c3c';
-        ctx.beginPath(); ctx.ellipse(mx, my + mh * 0.1, mw * 0.15, mh * 0.12, 0, 0, Math.PI); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(mx, my + mh * 0.1, mw * 0.15, mh * 0.12, 0, 0, Math.PI * 2); ctx.fill();
         break;
       case 3: // Sad — pronounced frown
         ctx.strokeStyle = '#333';
@@ -944,11 +987,12 @@ export class ExpressionOverlay {
         ctx.quadraticCurveTo(mx, my + mh * 0.25, mx + mw * 0.25, my);
         ctx.stroke();
         break;
-      case 4: // Excited — big open happy mouth
+      case 4: // Excited — big open happy mouth with tongue
         ctx.fillStyle = '#222';
         ctx.beginPath(); ctx.arc(mx, my - mh * 0.05, mw * 0.38, 0.1, Math.PI - 0.1); ctx.fill();
+        // Tongue: full rounded ellipse for rounded bottom
         ctx.fillStyle = '#e74c3c';
-        ctx.beginPath(); ctx.ellipse(mx, my + mh * 0.08, mw * 0.2, mh * 0.12, 0, 0, Math.PI); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(mx, my + mh * 0.08, mw * 0.2, mh * 0.12, 0, 0, Math.PI * 2); ctx.fill();
         break;
       case 5: // Sleepy — tiny "o" like snoring
         ctx.fillStyle = '#555';
@@ -973,7 +1017,6 @@ export class ExpressionOverlay {
         ctx.lineWidth = Math.max(2, mh * 0.12);
         ctx.beginPath();
         ctx.moveTo(mx - mw * 0.20, my + mh * 0.05);
-        // Wavy line
         for (let i = 0; i <= 8; i++) {
           const t = i / 8;
           const px = mx - mw * 0.20 + t * mw * 0.40;
@@ -986,6 +1029,7 @@ export class ExpressionOverlay {
       case 9: // Playful — tongue out
         ctx.fillStyle = '#222';
         ctx.beginPath(); ctx.arc(mx, my - mh * 0.0, mw * 0.25, 0.1, Math.PI - 0.1); ctx.fill();
+        // Tongue: full rounded ellipse hanging below the mouth opening
         ctx.fillStyle = '#e74c3c';
         ctx.beginPath(); ctx.ellipse(mx, my + mh * 0.12, mw * 0.15, mh * 0.15, 0, 0, Math.PI * 2); ctx.fill();
         break;

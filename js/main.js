@@ -151,8 +151,13 @@ window.selectSpecies = function(species) {
   // Load V2 model
   const glbFile = V2_MODELS[species];
   if (glbFile) {
-    sceneMan.loadV2Model(glbFile);
-    toast(`✨ Loading ${species}...`);
+    try {
+      sceneMan.loadV2Model(glbFile);
+      toast(`✨ Loading ${species}...`);
+    } catch (e) {
+      console.error('Failed to load model:', e);
+      toast(`⚠ Failed to load ${species} model`, 3000);
+    }
   } else {
     toast(`⚠ No model for ${species}`, 3000);
   }
@@ -160,8 +165,12 @@ window.selectSpecies = function(species) {
   // Face data for expression overlay
   const fd = FACE_DATA[species];
   if (fd) {
-    exprOverlay._getFaceData = () => fd;
-    exprOverlay.start(species, 0);
+    try {
+      exprOverlay._getFaceData = () => fd;
+      exprOverlay.start(species, 0);
+    } catch (e) {
+      console.error('Failed to start expression overlay:', e);
+    }
   }
 };
 
@@ -194,7 +203,8 @@ window.healPet = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
   playAnimation('heal');
   store.addStat('happiness', 25);
-  store.addStat('hunger', 100 - store.state.hunger); // refill to 100
+  const hungerToAdd = 100 - store.state.hunger;
+  store.addStat('hunger', hungerToAdd); // refill to 100
   exprOverlay.showTempMood(4, 2); // excited
   toast('💊 Healing... +25 happiness, hunger restored!');
 };

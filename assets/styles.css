@@ -1081,3 +1081,12 @@ button,
   .bag-grid { grid-template-columns: 1fr 1fr; }
   .demo-btn { font-size: 0.6rem; padding: 6px 4px; }
 }
+
+@media (max-width: 380px) {
+  .bag-grid { grid-template-columns: 1fr; }
+  .demo-btn { font-size: 0.55rem; padding: 5px 3px; }
+  .pick-btn { font-size: 0.6rem; padding: 5px 3px; }
+  .stats-grid { gap: 4px; }
+  .stat-row .sn { width: 36px; font-size: 0.55rem; }
+  .stat-row .si { width: 14px; font-size: 0.65rem; }
+}

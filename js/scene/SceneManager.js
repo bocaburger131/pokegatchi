@@ -42,6 +42,10 @@ export class SceneManager {
     // Ear flick timer
     this._earFlickTimer = 0;
     this._earFlickInterval = 0;
+    // Frame-based ear flick return (replaces setTimeout race condition)
+    this._earFlickReturn = {};
+    // Bounce hop animation data
+    this._bounceAnimData = null;
   }
 
   _randomIdleInterval() {
@@ -403,7 +407,7 @@ export class SceneManager {
    * Set a target quaternion for a bone (will slerp toward it)
    */
   _setBoneTarget(name, q, weight) {
-    this._boneTargets[name] = { q, p: null, weight: weight || 0.05 };
+    this._boneTargets[name] = { q, p: null, weight: weight || 0.25 };
   }
 
   /**
@@ -423,13 +427,13 @@ export class SceneManager {
       if (!boneData) continue;
       const bone = boneData.bone;
       if (target.q) {
-        // Single slerp: blend from rest toward target by envelope × weight
-        const totalWeight = w * (target.weight || 0.08);
-        bone.quaternion.copy(boneData.restQ).slerp(target.q, totalWeight);
+        // Slerp from CURRENT bone rotation toward target (avoids restQ snap)
+        const totalWeight = w * (target.weight || 0.4) * 0.3;
+        bone.quaternion.slerp(target.q, totalWeight);
       }
       if (target.p) {
-        // Position: lerp from rest toward target
-        bone.position.copy(boneData.restP).lerp(target.p, w * (target.weight || 0.08));
+        // Lerp from CURRENT bone position toward target
+        bone.position.lerp(target.p, w * (target.weight || 0.4) * 0.3);
       }
     }
   }
@@ -465,42 +469,68 @@ export class SceneManager {
       case 'feed': {
         // Head tilts down, ears relax, tail wags
         const headDown = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.15, 0, 0));
-        this._boneTargets['Head'] = { q: headDown, p: null, weight: 0.08 };
+        this._boneTargets['Head'] = { q: headDown, p: null, weight: 0.4 };
 
         // Arms come up toward face
         const armLift = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.3));
         const lArm = this._boneAny('LArm', 'LForeArm');
         const rArm = this._boneAny('RArm', 'RForeArm');
-        if (lArm) this._boneTargets[lArm.bone.name] = { q: armLift, p: null, weight: 0.08 };
-        if (rArm) this._boneTargets[rArm.bone.name] = { q: armLift, p: null, weight: 0.08 };
+        if (lArm) this._boneTargets[lArm.bone.name] = { q: armLift, p: null, weight: 0.4 };
+        if (rArm) this._boneTargets[rArm.bone.name] = { q: armLift, p: null, weight: 0.4 };
 
         // Happy tail
-        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.2)), p: null, weight: 0.1 };
-        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.3)), p: null, weight: 0.1 };
-        if (this._bone('Tail3')) this._boneTargets['Tail3'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.4)), p: null, weight: 0.1 };
+        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.2)), p: null, weight: 0.5 };
+        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.3)), p: null, weight: 0.5 };
+        if (this._bone('Tail3')) this._boneTargets['Tail3'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.4)), p: null, weight: 0.5 };
         break;
       }
       case 'pet': {
         // Head leans toward camera (Z tilt)
         const headLean = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -0.1, 0.15));
-        this._boneTargets['Head'] = { q: headLean, p: null, weight: 0.06 };
+        this._boneTargets['Head'] = { q: headLean, p: null, weight: 0.3 };
 
         // Ears go slightly back (content)
-        if (this._bone('LEar1')) this._boneTargets['LEar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0.08, 0)), p: null, weight: 0.06 };
-        if (this._bone('REar1')) this._boneTargets['REar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -0.08, 0)), p: null, weight: 0.06 };
+        if (this._bone('LEar1')) this._boneTargets['LEar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0.08, 0)), p: null, weight: 0.3 };
+        if (this._bone('REar1')) this._boneTargets['REar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -0.08, 0)), p: null, weight: 0.3 };
         break;
       }
       case 'heal': {
-        // Full spin — handled by tween fallback even on V2 (spin is whole-model)
+        // Victory pose: head back, arms spread, ears perked, jaw open, tail high, chest puff
+        const headBack = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.15, 0, 0.05));
+        this._boneTargets['Head'] = { q: headBack, p: null, weight: 0.4 };
+
+        // Arms spread wide (victory)
+        const armSpread = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.4, 0, 0.3));
+        const lArmH = this._boneAny('LArm', 'LForeArm');
+        const rArmH = this._boneAny('RArm', 'RForeArm');
+        if (lArmH) this._boneTargets[lArmH.bone.name] = { q: armSpread, p: null, weight: 0.4 };
+        if (rArmH) this._boneTargets[rArmH.bone.name] = { q: armSpread, p: null, weight: 0.4 };
+
+        // Ears perk up
+        if (this._bone('LEar1')) this._boneTargets['LEar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -0.15)), p: null, weight: 0.4 };
+        if (this._bone('REar1')) this._boneTargets['REar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.15)), p: null, weight: 0.4 };
+
+        // Jaw open if exists
+        if (this._bone('Jaw1')) this._boneTargets['Jaw1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.2)), p: null, weight: 0.4 };
+
+        // Tail high and wags
+        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.4)), p: null, weight: 0.5 };
+        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.5)), p: null, weight: 0.5 };
+        if (this._bone('Tail3')) this._boneTargets['Tail3'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.6)), p: null, weight: 0.5 };
+
+        // Chest puff (Spine)
+        if (this._bone('Spine')) {
+          this._boneTargets['Spine'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0.1, 0, 0)), p: null, weight: 0.4 };
+        }
         break;
       }
       case 'hatch': {
         // Wobble + scale burst
         const wobble = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.08, 0, 0.06));
-        this._boneTargets['Head'] = { q: wobble, p: null, weight: 0.15 };
+        this._boneTargets['Head'] = { q: wobble, p: null, weight: 0.75 };
         // Subtle tail curl
-        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.15)), p: null, weight: 0.12 };
-        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.2)), p: null, weight: 0.1 };
+        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.15)), p: null, weight: 0.6 };
+        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.2)), p: null, weight: 0.5 };
         // Whole model: separate spin is done in update() for heals
         // Scale burst is handled by the tween fallback
         break;
@@ -508,27 +538,44 @@ export class SceneManager {
       case 'celebrate': {
         // Head up, ears perked, arms up, tail high
         const headUp = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.1, 0, 0));
-        this._boneTargets['Head'] = { q: headUp, p: null, weight: 0.08 };
+        this._boneTargets['Head'] = { q: headUp, p: null, weight: 0.4 };
 
         // Ears perk up
-        if (this._bone('LEar1')) this._boneTargets['LEar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -0.1)), p: null, weight: 0.08 };
-        if (this._bone('REar1')) this._boneTargets['REar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.1)), p: null, weight: 0.08 };
+        if (this._bone('LEar1')) this._boneTargets['LEar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -0.1)), p: null, weight: 0.4 };
+        if (this._bone('REar1')) this._boneTargets['REar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.1)), p: null, weight: 0.4 };
 
         // Arms up
         const armUp = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.3, 0, 0.2));
         const lArmC = this._boneAny('LArm', 'LForeArm');
         const rArmC = this._boneAny('RArm', 'RForeArm');
-        if (lArmC) this._boneTargets[lArmC.bone.name] = { q: armUp, p: null, weight: 0.08 };
-        if (rArmC) this._boneTargets[rArmC.bone.name] = { q: armUp, p: null, weight: 0.08 };
+        if (lArmC) this._boneTargets[lArmC.bone.name] = { q: armUp, p: null, weight: 0.4 };
+        if (rArmC) this._boneTargets[rArmC.bone.name] = { q: armUp, p: null, weight: 0.4 };
 
         // Tail high
-        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.3)), p: null, weight: 0.1 };
-        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.4)), p: null, weight: 0.1 };
-        if (this._bone('Tail3')) this._boneTargets['Tail3'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.5)), p: null, weight: 0.1 };
+        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.3)), p: null, weight: 0.5 };
+        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.4)), p: null, weight: 0.5 };
+        if (this._bone('Tail3')) this._boneTargets['Tail3'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.5)), p: null, weight: 0.5 };
         break;
       }
       case 'bounce': {
-        // Just use tween fallback for whole-body hop
+        // Head bobs down
+        const headBob = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.2, 0, 0));
+        this._boneTargets['Head'] = { q: headBob, p: null, weight: 0.4 };
+
+        // Arms lift slightly
+        const armLiftB = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.15, 0, 0.15));
+        const lArmB = this._boneAny('LArm', 'LForeArm');
+        const rArmB = this._boneAny('RArm', 'RForeArm');
+        if (lArmB) this._boneTargets[lArmB.bone.name] = { q: armLiftB, p: null, weight: 0.4 };
+        if (rArmB) this._boneTargets[rArmB.bone.name] = { q: armLiftB, p: null, weight: 0.4 };
+
+        // Tail wags fast
+        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.25)), p: null, weight: 0.5 };
+        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.35)), p: null, weight: 0.5 };
+        if (this._bone('Tail3')) this._boneTargets['Tail3'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.45)), p: null, weight: 0.5 };
+
+        // Full-body hop stored for update() via model.position.y
+        this._bounceAnimData = { startY: this.model.position.y };
         break;
       }
     }
@@ -628,8 +675,8 @@ export class SceneManager {
       const t = Math.min(elapsed / a.duration, 1);
 
       if (a.useBones && this.hasBones) {
-        // Bone animation: triangle wave 0→1→0 for blending
-        const f = t < 0.5 ? t * 2 : 2 - t * 2;
+        // Bone animation: triangle wave 0→1→0 with 20% peak hold at 1
+        const f = t < 0.4 ? t / 0.4 : t < 0.6 ? 1 : (1 - t) / 0.4;
         this._applyBoneTargets(f);
 
         // Heal/celebrate spin on whole model (can't spin individual bones)
@@ -638,6 +685,12 @@ export class SceneManager {
             const rT = t;
             this.model.rotation.y = rT * Math.PI * 2;
           }
+        }
+
+        // Bounce full-body hop via model.position.y
+        if (a.type === 'bounce' && this.model && this._bounceAnimData) {
+          const hopT = t < 0.5 ? t * 2 : 2 - t * 2;
+          this.model.position.y = this._bounceAnimData.startY + hopT * 0.15;
         }
 
         // Brightness flash for heal
@@ -703,8 +756,11 @@ export class SceneManager {
       if (t >= 1) {
         if (a.useBones && this.hasBones) {
           this._clearBoneTargets();
+          this._bounceAnimData = null;
           if (this.model) {
             this.model.rotation.y = 0; // Reset spin
+            this.model.position.y = 0; // Reset Y after bounce
+            this.model.scale.set(1.2, 1.2, 1.2); // Reset scale
           }
           // Reset emissive flash
           if (this._animFlashBrightness) {
@@ -773,26 +829,33 @@ export class SceneManager {
       if (this._bone('Tail3')) this._bone('Tail3').bone.rotation.z = Math.sin(now * 0.004 + 1.0) * 0.25;
     }
 
-    // === EAR FLICK (random intervals) ===
+    // === EAR FLICK (random intervals, frame-based return) ===
     this._earFlickTimer += dt;
     if (this._earFlickTimer >= (this._earFlickInterval || 4)) {
       this._earFlickTimer = 0;
       this._earFlickInterval = 3 + Math.random() * 5;
       
-      // Quick ear flick (both ears)
+      // Quick ear flick (both ears) — schedule return via frame counter
       if (this._bone('LEar1')) {
         const flick = (Math.random() > 0.5 ? 1 : -1) * 0.2;
         this._bone('LEar1').bone.rotation.z += flick;
-        setTimeout(() => {
-          if (this._bone('LEar1')) this._bone('LEar1').bone.rotation.z = 0;
-        }, 100);
+        this._earFlickReturn['LEar1'] = 4; // Return to 0 after 4 frames
       }
       if (this._bone('REar1')) {
         const flickR = (Math.random() > 0.5 ? 1 : -1) * 0.15;
         this._bone('REar1').bone.rotation.z += flickR;
-        setTimeout(() => {
-          if (this._bone('REar1')) this._bone('REar1').bone.rotation.z = 0;
-        }, 100);
+        this._earFlickReturn['REar1'] = 4; // Return to 0 after 4 frames
+      }
+    }
+
+    // Process frame-based ear flick returns (decrements each frame)
+    for (const earName of Object.keys(this._earFlickReturn)) {
+      this._earFlickReturn[earName]--;
+      if (this._earFlickReturn[earName] <= 0) {
+        if (this._bone(earName)) {
+          this._bone(earName).bone.rotation.z = 0;
+        }
+        delete this._earFlickReturn[earName];
       }
     }
 
