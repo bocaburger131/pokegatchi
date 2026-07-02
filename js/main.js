@@ -257,6 +257,21 @@ function checkEvolution() {
   }
 }
 
+// Track current background style: 'forest' (default) or 'encounter' (Pokémon GO catch-screen gradient)
+let _bgStyle = 'forest';
+
+// Team-colored encounter gradients (Pokémon GO catch-screen style)
+const ENCOUNTER_SKY = {
+  valor: 'radial-gradient(ellipse at 50% 0%, #4a0a0a 0%, #8B1A1A 25%, #CC3333 45%, #FF5555 65%, #FF8877 80%, #FFDDCC 100%)',
+  mystic: 'radial-gradient(ellipse at 50% 0%, #0a0a3a 0%, #1A2A6B 25%, #3366CC 45%, #5588FF 65%, #77AAFF 80%, #CCDDFF 100%)',
+  instinct: 'radial-gradient(ellipse at 50% 0%, #3a3000 0%, #6B5A00 25%, #AA8800 45%, #FFD700 65%, #FFE680 80%, #FFF5CC 100%)',
+};
+const ENCOUNTER_GROUND = {
+  valor: 'linear-gradient(0deg, rgba(10,2,2,0.98), rgba(60,12,12,0.8) 40%, rgba(100,22,16,0.5) 70%, rgba(140,40,30,0.2))',
+  mystic: 'linear-gradient(0deg, rgba(2,2,10,0.98), rgba(10,20,60,0.8) 40%, rgba(15,40,100,0.5) 70%, rgba(30,60,140,0.2))',
+  instinct: 'linear-gradient(0deg, rgba(15,12,2,0.98), rgba(60,50,8,0.8) 40%, rgba(100,85,12,0.5) 70%, rgba(140,120,30,0.2))',
+};
+
 // === SCENE / WEATHER ===
 function applyScene() {
   const timeIdx = store.state.time.timeIdx;
@@ -270,6 +285,7 @@ function applyScene() {
   const weatherName = weatherIdx >= 0 && weatherIdx < WEATHERS.length ? WEATHERS[weatherIdx] : 'clear';
   sceneWrap.dataset.time = timeName;
   sceneWrap.dataset.weather = weatherName;
+  sceneWrap.dataset.bgStyle = _bgStyle;
   
   // Update time/weather indicator text
   const twEl = document.getElementById('twIndicator');
@@ -280,10 +296,21 @@ function applyScene() {
   const bgContainer = document.getElementById('skyLayer');
   if (!bgContainer) return;
   
-  if (timeIdx >= 0 && timeIdx < BG_IMAGES.length) {
-    bgContainer.style.backgroundImage = `url(${BG_IMAGES[timeIdx]})`;
+  if (_bgStyle === 'encounter') {
+    // Pokémon GO encounter mode: team-colored gradient instead of forest images
+    const team = store.state.team || 'mystic';
+    const skyGrad = ENCOUNTER_SKY[team] || ENCOUNTER_SKY.mystic;
+    const groundGrad = ENCOUNTER_GROUND[team] || ENCOUNTER_GROUND.mystic;
+    bgContainer.style.backgroundImage = skyGrad;
+    sceneWrap.style.setProperty('--encounter-ground', groundGrad);
   } else {
-    bgContainer.style.backgroundImage = '';
+    // Forest mode: use BG_IMAGES
+    sceneWrap.style.removeProperty('--encounter-ground');
+    if (timeIdx >= 0 && timeIdx < BG_IMAGES.length) {
+      bgContainer.style.backgroundImage = `url(${BG_IMAGES[timeIdx]})`;
+    } else {
+      bgContainer.style.backgroundImage = '';
+    }
   }
   
   const weatherEl = document.getElementById('weather-overlay');
@@ -334,6 +361,8 @@ function initParticles() {
 window.hatch = function() {
   const p = store.state.pet;
   if (p.stage !== 0) return;
+  sceneMan.playAnimation('hatch');
+  exprOverlay.showTempMood(4, 1.2);
   store.set('pet.stage', 1);
   store.state.catches = 0;
   store.state.steps = 0;
@@ -351,6 +380,8 @@ window.hatch = function() {
 window.feed = function() {
   const p = store.state.pet;
   if (p.stage === 0) return;
+  sceneMan.playAnimation('feed');
+  exprOverlay.showTempMood(0, 0.6);
   p.stats.hunger = Math.min(1.0, p.stats.hunger + 0.10);
   p.stats.boredom = Math.max(0, p.stats.boredom - 0.03);
   store.state.totalFeeds = (store.state.totalFeeds || 0) + 1;
@@ -367,6 +398,8 @@ window.feed = function() {
 window.petAction = function() {
   const p = store.state.pet;
   if (p.stage === 0) return;
+  sceneMan.playAnimation('pet');
+  exprOverlay.showTempMood(0, 0.5);
   p.stats.boredom = Math.max(0, p.stats.boredom - 0.10);
   p.stats.cleanliness = Math.min(1.0, p.stats.cleanliness + 0.03);
   store.state.totalPets = (store.state.totalPets || 0) + 1;
@@ -382,6 +415,8 @@ window.petAction = function() {
 window.healPet = function() {
   const p = store.state.pet;
   if (p.stage === 0) return;
+  sceneMan.playAnimation('heal');
+  exprOverlay.showTempMood(4, 1.0);
   p.stats.hunger = Math.min(1.0, p.stats.hunger + 0.25);
   p.stats.boredom = Math.max(0, p.stats.boredom - 0.25);
   p.stats.cleanliness = Math.min(1.0, p.stats.cleanliness + 0.25);
@@ -492,6 +527,8 @@ window.evolve = function() {
     // 2) Play flash/glow/sparkle animation on pet-wrap for ~2s
     const wrap = document.getElementById('petWrap');
     petAnim('sparkle');
+    sceneMan.playAnimation('celebrate');
+    exprOverlay.showTempMood(4, 0.8);
     if (wrap) wrap.classList.add('evolving');
 
     // Store new stage & boost stats
@@ -578,6 +615,8 @@ window.playMiniGame = function(name, cardEl) {
   toast(`${game.icon} ${game.name}!`);
   // 3) More dramatic pet canvas animation
   petAnim('celebrate');
+  sceneMan.playAnimation('celebrate');
+  exprOverlay.showTempMood(4, 0.8);
   tick();
   renderAll();
 };
@@ -748,6 +787,31 @@ window.setTime = function(i) {
 window.setWeather = function(i) {
   store.state.time.weatherIdx = i;
   applyScene();
+};
+
+/**
+ * window.setBgStyle(type) — toggle between 'forest' and 'encounter' backgrounds
+ * Forest: uses cats-soup nature images
+ * Encounter: team-colored gradient like Pokémon GO catch screen
+ */
+window.setBgStyle = function(type) {
+  if (type !== 'forest' && type !== 'encounter') return;
+  _bgStyle = type;
+  applyScene();
+  // Update button state
+  const btn = document.getElementById('btnToggleBgStyle');
+  if (btn) {
+    const isEncounter = type === 'encounter';
+    btn.dataset.bgActive = isEncounter.toString();
+    btn.textContent = isEncounter ? '⚡ Encounter' : '🌲 Forest';
+  }
+};
+
+/**
+ * window.toggleBgStyle() — toggle between forest and encounter
+ */
+window.toggleBgStyle = function() {
+  window.setBgStyle(_bgStyle === 'forest' ? 'encounter' : 'forest');
 };
 
 /**

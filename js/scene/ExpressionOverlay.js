@@ -11,6 +11,8 @@ export class ExpressionOverlay {
     this.speciesName = '';
     this.mood = 0;
     this.floatY = 0;
+    this._tempMood = null;
+    this._tempMoodTimer = null;
   }
 
   start(speciesName, mood) {
@@ -52,10 +54,13 @@ export class ExpressionOverlay {
     const cw = face.ew * w;
     const ch = face.eh * h;
 
+    // Use temp mood if set (animation overrides permanent mood)
+    const effectiveMood = this._tempMood !== null ? this._tempMood : this.mood;
+
     // Draw eyes
-    this._drawEyes(ctx, cx, cy, cw, ch, this.mood, this.isBlinking);
+    this._drawEyes(ctx, cx, cy, cw, ch, effectiveMood, this.isBlinking);
     // Draw mouth
-    this._drawMouth(ctx, face.mx * w, face.my * h + this.floatY, face.mw * w, face.mh * h, this.mood);
+    this._drawMouth(ctx, face.mx * w, face.my * h + this.floatY, face.mw * w, face.mh * h, effectiveMood);
   }
 
   _getFaceData() {
@@ -65,6 +70,21 @@ export class ExpressionOverlay {
 
   setSpecies(name) { this.speciesName = name; }
   setMood(mood) { this.mood = mood; }
+
+  /**
+   * Temporarily override the expression mood for a duration (in seconds).
+   * After the duration expires, reverts to the permanent mood.
+   * @param {number} mood - Mood index (0=happy, 4=excited/star-eyes, etc.)
+   * @param {number} duration - Seconds to show the temp expression
+   */
+  showTempMood(mood, duration) {
+    this._tempMood = mood;
+    if (this._tempMoodTimer) clearTimeout(this._tempMoodTimer);
+    this._tempMoodTimer = setTimeout(() => {
+      this._tempMood = null;
+      this._tempMoodTimer = null;
+    }, duration * 1000);
+  }
 
   _drawEyes(ctx, cx, cy, w, h, mood, blink) {
     const r = Math.min(w, h) * 0.22;

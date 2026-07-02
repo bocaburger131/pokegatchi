@@ -126,38 +126,38 @@
       <span>🫐 <span id="inv-berries">0</span></span>
       <span>🧸 <span id="inv-toys">0</span></span>
     </div>
-  </div>
 
-  <!-- ACTIONS (right after pet card, before stats) -->
-  <div class="action-sections">
-    <div>
-      <div class="action-group-label">Care</div>
-      <div class="action-row">
-        <button id="btnHatch" class="primary" onclick="window.hatch()"><span class="btn-icon">🥚</span><span class="btn-label">Hatch</span></button>
-        <button onclick="window.feed()"><span class="btn-icon">🫐</span><span class="btn-label">Feed</span></button>
-        <button onclick="window.petAction()"><span class="btn-icon">🫳</span><span class="btn-label">Pet</span></button>
-        <button onclick="window.healPet()"><span class="btn-icon">💊</span><span class="btn-label">Heal</span></button>
+    <!-- ACTIONS (inside pet card — unified block) -->
+    <div class="action-sections">
+      <div>
+        <div class="action-group-label">Care</div>
+        <div class="action-row">
+          <button id="btnHatch" class="primary" onclick="window.hatch()"><span class="btn-icon">🥚</span><span class="btn-label">Hatch</span></button>
+          <button onclick="window.feed()"><span class="btn-icon">🫐</span><span class="btn-label">Feed</span></button>
+          <button onclick="window.petAction()"><span class="btn-icon">🫳</span><span class="btn-label">Pet</span></button>
+          <button onclick="window.healPet()"><span class="btn-icon">💊</span><span class="btn-label">Heal</span></button>
+        </div>
       </div>
-    </div>
-    <div>
-      <div class="action-group-label">Adventure</div>
-      <div class="action-row">
-        <button onclick="window.addCatch()" id="btnCatch"><span class="btn-icon">🏆</span><span class="btn-label">Catch!</span></button>
-        <button onclick="window.addStep(100)"><span class="btn-icon">👟</span><span class="btn-label">+100 Steps</span></button>
-        <button onclick="window.addStop()"><span class="btn-icon">🔄</span><span class="btn-label">Spin Stop</span></button>
-        <button onclick="window.walkBatch()" class="complete"><span class="btn-icon">🚶</span><span class="btn-label">Walk +1k</span></button>
+      <div>
+        <div class="action-group-label">Adventure</div>
+        <div class="action-row">
+          <button onclick="window.addCatch()" id="btnCatch"><span class="btn-icon">🏆</span><span class="btn-label">Catch!</span></button>
+          <button onclick="window.addStep(100)"><span class="btn-icon">👟</span><span class="btn-label">+100 Steps</span></button>
+          <button onclick="window.addStop()"><span class="btn-icon">🔄</span><span class="btn-label">Spin Stop</span></button>
+          <button onclick="window.walkBatch()" class="complete"><span class="btn-icon">🚶</span><span class="btn-label">Walk +1k</span></button>
+        </div>
       </div>
-    </div>
-    <div>
-      <div class="action-group-label">Evolution</div>
-      <div class="action-row">
-        <button id="btnEvolve" onclick="window.evolve()" disabled><span class="btn-icon">⬆</span><span class="btn-label">Evolve</span></button>
-        <button onclick="window.resetPet()" class="danger"><span class="btn-icon">🔄</span><span class="btn-label">Reset</span></button>
-      </div>
-      <div class="demo-controls action-row" style="margin-top:6px;">
-        <button onclick="window.boostCatches(500)" class="demo-btn" style="background:var(--accent);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;"><span class="btn-icon">⚡</span><span class="btn-label">Demo +500 Catches</span></button>
-        <button onclick="window.boostSteps(50000)" class="demo-btn" style="background:var(--accent);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;"><span class="btn-icon">⚡</span><span class="btn-label">Demo +50k Steps</span></button>
-        <button onclick="window.boostStops(50)" class="demo-btn" style="background:var(--accent);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;"><span class="btn-icon">⚡</span><span class="btn-label">Demo +50 Stops</span></button>
+      <div>
+        <div class="action-group-label">Evolution</div>
+        <div class="action-row">
+          <button id="btnEvolve" onclick="window.evolve()" disabled><span class="btn-icon">⬆</span><span class="btn-label">Evolve</span></button>
+          <button onclick="window.resetPet()" class="danger"><span class="btn-icon">🔄</span><span class="btn-label">Reset</span></button>
+        </div>
+        <div class="demo-controls action-row" style="margin-top:6px;">
+          <button onclick="window.boostCatches(500)" class="demo-btn" style="background:var(--accent);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;"><span class="btn-icon">⚡</span><span class="btn-label">Demo +500 Catches</span></button>
+          <button onclick="window.boostSteps(50000)" class="demo-btn" style="background:var(--accent);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;"><span class="btn-icon">⚡</span><span class="btn-label">Demo +50k Steps</span></button>
+          <button onclick="window.boostStops(50)" class="demo-btn" style="background:var(--accent);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;"><span class="btn-icon">⚡</span><span class="btn-label">Demo +50 Stops</span></button>
+        </div>
       </div>
     </div>
   </div>
@@ -201,6 +201,9 @@
       <button onclick="window.setWeather(2)">🌧️ Rain</button>
       <button onclick="window.setWeather(3)">❄️ Snow</button>
       <button onclick="window.setWeather(4)">🌫️ Fog</button>
+    </div>
+    <div class="sc-row" style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);">
+      <button id="btnToggleBgStyle" data-bg-active="false" onclick="window.toggleBgStyle()">🌲 Forest</button>
     </div>
   </div>
 

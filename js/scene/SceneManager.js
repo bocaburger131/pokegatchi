@@ -13,6 +13,8 @@ export class SceneManager {
     this._loadingTimeout = null;
     this._fallbackCallback = null;
     this._successCallback = null;
+    this._activeAnim = null;
+    this._idleBobOffset = 0;
   }
 
   _detectWebGL() {
@@ -217,15 +219,140 @@ export class SceneManager {
     this.initialized = false;
   }
 
+  /**
+   * Play a buddy-style interaction animation on the loaded 3D model.
+   * Uses a simple tween system with lerp interpolation in the update() loop.
+   * Each animation applies a triangle-wave curve (0→1→0) to scale/rotation/position.
+   * @param {'feed'|'pet'|'heal'|'hatch'|'celebrate'} type
+   */
+  playAnimation(type) {
+    if (!this.model || this.model.userData.ring) return; // No animations on egg
+    if (this._activeAnim) return; // Don't stack — let current finish
+
+    const s = this.model.scale;
+    const r = this.model.rotation;
+    const p = this.model.position;
+
+    const fromS = { x: s.x, y: s.y, z: s.z };
+    const fromR = { x: r.x, y: r.y, z: r.z };
+    const fromP = { x: p.x, y: p.y, z: p.z };
+
+    let peakS, peakR, peakP, duration;
+
+    switch (type) {
+      case 'feed':
+        duration = 0.5;
+        peakS = { x: fromS.x * 1.15, y: fromS.y * 1.15, z: fromS.z * 1.15 };
+        peakR = { x: fromR.x, y: fromR.y + 0.26, z: fromR.z }; // +15° Y
+        peakP = { ...fromP };
+        break;
+      case 'pet':
+        duration = 0.4;
+        peakS = { ...fromS };
+        peakR = { x: fromR.x, y: fromR.y, z: fromR.z + 0.087 }; // +5° Z lean
+        peakP = { ...fromP };
+        break;
+      case 'heal':
+        duration = 0.8;
+        peakS = { x: fromS.x * 1.2, y: fromS.y * 1.2, z: fromS.z * 1.2 };
+        peakR = { x: fromR.x, y: fromR.y + Math.PI * 2, z: fromR.z }; // Full spin
+        peakP = { ...fromP };
+        break;
+      case 'hatch':
+        duration = 1.0;
+        peakS = { x: fromS.x * 1.3, y: fromS.y * 1.3, z: fromS.z * 1.3 };
+        peakR = { x: fromR.x + 0.3, y: fromR.y, z: fromR.z + 0.3 }; // Wobble
+        peakP = { ...fromP };
+        break;
+      case 'celebrate':
+        duration = 0.6;
+        peakS = { x: fromS.x * 1.25, y: fromS.y * 1.25, z: fromS.z * 1.25 };
+        peakR = { ...fromR };
+        peakP = { x: fromP.x, y: fromP.y + 0.3, z: fromP.z }; // Bounce up
+        break;
+      default:
+        return;
+    }
+
+    this._activeAnim = {
+      type, startTime: Date.now(), duration,
+      fromS, fromR, fromP, peakS, peakR, peakP,
+    };
+  }
+
+  /**
+   * Helper: lerp a single numeric property
+   */
+  _lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
   update(dt) {
     if (!this.initialized || !this.scene || !this.renderer) return;
     
     if (this.mixer) this.mixer.update(dt);
 
-    // Rotate & float
-    if (this.model) {
+    // Process active animation via lerp tween
+    if (this._activeAnim) {
+      const a = this._activeAnim;
+      const elapsed = (Date.now() - a.startTime) / 1000;
+      const t = Math.min(elapsed / a.duration, 1);
+
+      // Triangle wave: 0 → 1 → 0 (out and back)
+      let f;
+      if (a.type === 'heal') {
+        // Heal: scale goes out-and-back, rotation smoothly completes full 360°
+        const half = a.duration / 2;
+        f = elapsed < half ? elapsed / half : 2 - elapsed / half;
+        const rT = Math.min(elapsed / a.duration, 1);
+        this.model.rotation.set(
+          this._lerp(a.fromR.x, a.peakR.x, rT),
+          this._lerp(a.fromR.y, a.peakR.y, rT),
+          this._lerp(a.fromR.z, a.peakR.z, rT)
+        );
+      } else {
+        f = t < 0.5 ? t * 2 : 2 - t * 2; // 0→1→0
+        this.model.rotation.set(
+          this._lerp(a.fromR.x, a.peakR.x, f),
+          this._lerp(a.fromR.y, a.peakR.y, f),
+          this._lerp(a.fromR.z, a.peakR.z, f)
+        );
+      }
+
+      // Scale — always triangle wave (out and back)
+      this.model.scale.set(
+        this._lerp(a.fromS.x, a.peakS.x, f),
+        this._lerp(a.fromS.y, a.peakS.y, f),
+        this._lerp(a.fromS.z, a.peakS.z, f)
+      );
+
+      // Position — always triangle wave (out and back)
+      this.model.position.set(
+        this._lerp(a.fromP.x, a.peakP.x, f),
+        this._lerp(a.fromP.y, a.peakP.y, f),
+        this._lerp(a.fromP.z, a.peakP.z, f)
+      );
+
+      // Animation complete — restore base transforms
+      if (t >= 1) {
+        this.model.scale.set(a.fromS.x, a.fromS.y, a.fromS.z);
+        this.model.position.set(a.fromP.x, a.fromP.y, a.fromP.z);
+        if (a.type !== 'heal') {
+          this.model.rotation.set(a.fromR.x, a.fromR.y, a.fromR.z);
+        } // heal leaves rotation at full spin (net zero from Euler wrap)
+        this._activeAnim = null;
+      }
+      // Skip auto-rotation and idle bob while animating
+    } else if (this.model) {
+      // Rotate & float (existing logic)
       if (!this.model.userData.ring) {
         this.model.rotation.y += dt * 0.4;
+
+        // Gentle idle bob — continuous sine wave on Y position
+        const targetBob = Math.sin(Date.now() * 0.003) * 0.005;
+        const deltaBob = targetBob - this._idleBobOffset;
+        this.model.position.y += deltaBob;
+        this._idleBobOffset = targetBob;
       } else {
         // Egg wobble
         this.model.rotation.z = Math.sin(Date.now() * 0.003) * 0.08;
