@@ -212,6 +212,8 @@ export class SceneManager {
           newGeo.setIndex(c.geometry.index);
           
           // Create regular mesh in place of skinned mesh
+          // Recompute normals from baked positions (bind-pose normals are wrong after skinning)
+          newGeo.computeVertexNormals();
           const newMesh = new THREE.Mesh(newGeo, c.material);
           newMesh.position.copy(c.position);
           newMesh.quaternion.copy(c.quaternion);
