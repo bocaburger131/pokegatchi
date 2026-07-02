@@ -248,6 +248,21 @@ function applyScene() {
   const timeIdx = store.state.time.timeIdx;
   const weatherIdx = store.state.time.weatherIdx;
   
+  const sceneWrap = document.getElementById('sceneWrap');
+  if (!sceneWrap) return;
+  
+  // Set data attributes for CSS weather/time selectors
+  const timeName = timeIdx >= 0 && timeIdx < TIMES.length ? TIMES[timeIdx] : 'morning';
+  const weatherName = weatherIdx >= 0 && weatherIdx < WEATHERS.length ? WEATHERS[weatherIdx] : 'clear';
+  sceneWrap.dataset.time = timeName;
+  sceneWrap.dataset.weather = weatherName;
+  
+  // Update time/weather indicator text
+  const twEl = document.getElementById('twIndicator');
+  if (twEl) {
+    twEl.textContent = `${TIMES_LABEL[timeName]} · ${WEATHER_LABEL[weatherName]}${timeIdx < 0 ? ' (auto)' : ''}`;
+  }
+  
   const bgContainer = document.getElementById('skyLayer');
   if (!bgContainer) return;
   
@@ -504,7 +519,7 @@ window.evolve = function() {
  * stat:1 → hunger (+0.10), stat:2 → boredom (-0.10, inverted since lower=better),
  * stat:3 → cleanliness (+0.10). Shows toast, animates, saves & re-renders.
  */
-window.playMiniGame = function(name) {
+window.playMiniGame = function(name, cardEl) {
   const p = store.state.pet;
   if (p.stage === 0) return;
 
@@ -528,8 +543,27 @@ window.playMiniGame = function(name) {
     p.stats.cleanliness = Math.min(1.0, p.stats.cleanliness + boost);
   }
 
+  // 1) Card flash animation (brief scale-up glow)
+  if (cardEl) {
+    cardEl.classList.remove('played');
+    void cardEl.offsetWidth; // force reflow to restart animation
+    cardEl.classList.add('played');
+    setTimeout(() => cardEl.classList.remove('played'), 700);
+
+    // 2) Floating '+X' stat number that rises and fades over the card
+    const statLabel = {1:'Hunger', 2:'Boredom', 3:'Cleanliness'}[statIdx] || 'Stat';
+    const sign = statIdx === 2 ? '-' : '+'; // boredom decreases
+    const floatEl = document.createElement('div');
+    floatEl.className = 'mg-float-stat';
+    floatEl.textContent = `${sign}${Math.round(boost * 100)} ${statLabel}`;
+    cardEl.appendChild(floatEl);
+    // Auto-remove after animation completes
+    setTimeout(() => floatEl.remove(), 1100);
+  }
+
   toast(`${game.icon} ${game.name}!`);
-  petAnim('bounce');
+  // 3) More dramatic pet canvas animation
+  petAnim('celebrate');
   tick();
   renderAll();
 };

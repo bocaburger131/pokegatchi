@@ -102,24 +102,6 @@
     <button class="mode-btn" onclick="window.setMode('scene')">🌄 Scenes</button>
   </div>
 
-  <!-- SCENE CONTROLS -->
-  <div id="sceneControls">
-    <div class="sc-row">
-      <button onclick="window.setTime(0)">🌅 Dawn</button>
-      <button onclick="window.setTime(1)">☀️ Morning</button>
-      <button onclick="window.setTime(2)">🌤️ Afternoon</button>
-      <button onclick="window.setTime(3)">🌆 Evening</button>
-      <button onclick="window.setTime(4)">🌙 Night</button>
-    </div>
-    <div class="sc-row">
-      <button onclick="window.setWeather(0)">☀️ Clear</button>
-      <button onclick="window.setWeather(1)">☁️ Cloudy</button>
-      <button onclick="window.setWeather(2)">🌧️ Rain</button>
-      <button onclick="window.setWeather(3)">❄️ Snow</button>
-      <button onclick="window.setWeather(4)">🌫️ Fog</button>
-    </div>
-  </div>
-
   <!-- EVOLUTION LINE PICKER -->
   <div id="linePicker" class="mode-toggle" style="margin-bottom:8px;">
     <button class="mode-btn active">Eevee Line</button>
@@ -145,25 +127,7 @@
     </div>
   </div>
 
-  <!-- STATS -->
-  <div class="stats-grid">
-    <div class="stat-panel">
-      <h3>❤️ Stats</h3>
-      <div id="statsPanel"></div>
-    </div>
-    <div class="stat-panel">
-      <h3>😊 Mood</h3>
-      <div class="mood-grid" id="moodGrid"></div>
-    </div>
-  </div>
-
-  <!-- GOALS -->
-  <div class="goal-tracker">
-    <h3>🎯 Evolution Goals</h3>
-    <div id="goalPanel"></div>
-  </div>
-
-  <!-- ACTIONS -->
+  <!-- ACTIONS (right after pet card, before stats) -->
   <div class="action-sections">
     <div>
       <div class="action-group-label">Care</div>
@@ -197,10 +161,46 @@
     </div>
   </div>
 
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-panel">
+      <h3>❤️ Stats</h3>
+      <div id="statsPanel"></div>
+    </div>
+    <div class="stat-panel">
+      <h3>😊 Mood</h3>
+      <div class="mood-grid" id="moodGrid"></div>
+    </div>
+  </div>
+
+  <!-- GOALS -->
+  <div class="goal-tracker">
+    <h3>🎯 Evolution Goals</h3>
+    <div id="goalPanel"></div>
+  </div>
+
   <!-- EVOLUTION TRACK -->
   <div class="evo-section">
     <h3>📈 Evolution Line</h3>
     <div class="evo-track" id="evoTrack"></div>
+  </div>
+
+  <!-- SCENE CONTROLS (weather/times — moved to bottom after evo track) -->
+  <div id="sceneControls">
+    <div class="sc-row">
+      <button onclick="window.setTime(0)">🌅 Dawn</button>
+      <button onclick="window.setTime(1)">☀️ Morning</button>
+      <button onclick="window.setTime(2)">🌤️ Afternoon</button>
+      <button onclick="window.setTime(3)">🌆 Evening</button>
+      <button onclick="window.setTime(4)">🌙 Night</button>
+    </div>
+    <div class="sc-row">
+      <button onclick="window.setWeather(0)">☀️ Clear</button>
+      <button onclick="window.setWeather(1)">☁️ Cloudy</button>
+      <button onclick="window.setWeather(2)">🌧️ Rain</button>
+      <button onclick="window.setWeather(3)">❄️ Snow</button>
+      <button onclick="window.setWeather(4)">🌫️ Fog</button>
+    </div>
   </div>
 
   <!-- MINIGAMES -->

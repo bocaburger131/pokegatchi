@@ -14,7 +14,7 @@ export const store = {
       pendingCatches: 0,
       highestRarity: 'common',
     },
-    time: { timeIdx: -1, weatherIdx: 0 },
+    time: { timeIdx: 0, weatherIdx: 0 },
     mode: 'play', // 'play' | 'auto' | 'scene'
     activeLine: 'eevee',
     achievements: [],

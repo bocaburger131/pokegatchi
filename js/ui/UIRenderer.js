@@ -123,7 +123,7 @@ export function renderMinigames() {
   const panel = document.getElementById('minigamePanel');
   if (!panel) return;
   panel.innerHTML = MINIGAMES.map(m =>
-    `<div class="mg-card" onclick="window.playMiniGame('${m.name}')">
+    `<div class="mg-card" onclick="window.playMiniGame('${m.name}', this)">
       <span class="mg-icon">${m.icon}</span>
       <div class="mg-name">${m.name}</div>
       <div class="mg-stat">${m.stat}</div>
@@ -348,13 +348,13 @@ export function autoMoodCheck() {
 
 /**
  * petAnim(type) — adds CSS animation class to pet canvas wrapper
- * type: 'bounce' | 'wiggle' | 'sparkle'
+ * type: 'bounce' | 'wiggle' | 'sparkle' | 'celebrate'
  */
 export function petAnim(type) {
   const wrap = document.getElementById('petWrap');
   if (!wrap) return;
-  wrap.classList.remove('bounce', 'wiggle', 'sparkle');
+  wrap.classList.remove('bounce', 'wiggle', 'sparkle', 'celebrate');
   void wrap.offsetWidth; // force reflow
   wrap.classList.add(type);
-  setTimeout(() => wrap.classList.remove(type), 600);
+  setTimeout(() => wrap.classList.remove(type), 900);
 }
