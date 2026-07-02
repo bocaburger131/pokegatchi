@@ -182,14 +182,25 @@ export class SceneManager {
       // Built-in animations — apply first frame for default pose
       // PokeMiners GLBs store bones at origin (bind pose); animations position them
       if (gltf.animations && gltf.animations.length > 0) {
+        console.log(`GLTF animations: ${gltf.animations.length} clips`);
+        gltf.animations.forEach((clip, ci) => {
+          const tracks = clip.tracks || [];
+          console.log(`  Clip ${ci}: "${clip.name}" ${tracks.length} tracks, duration ${clip.duration}s`);
+          tracks.slice(0, 5).forEach(t => {
+            const boneName = t.name.split('.')[0];
+            const prop = t.name.split('.')[1];
+            const vals = Array.isArray(t.values) ? t.values.length : (t.times ? t.times.length : '?');
+            console.log(`    "${t.name}": ${vals} keys`);
+          });
+        });
+        // Apply first frame at time 0
         const tempMixer = new THREE.AnimationMixer(this.model);
         const action = tempMixer.clipAction(gltf.animations[0]);
         action.play();
-        // Step to first frame to apply default pose
-        tempMixer.update(0.001);
-        // Stop and remove — our _updateBoneIdle takes over from here
+        tempMixer.update(0);       // Evaluate at time 0
         action.stop();
         tempMixer.uncacheClip(gltf.animations[0]);
+        console.log('Default pose applied from animation');
       }
 
       // === SCAN FOR BONES (AFTER pose applied) ===
