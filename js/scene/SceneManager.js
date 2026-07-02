@@ -10,6 +10,8 @@ export class SceneManager {
     this.clock = new THREE.Clock();
     this.initialized = false;
     this.webglAvailable = this._detectWebGL();
+    this._loadingTimeout = null;
+    this._fallbackCallback = null;
   }
 
   _detectWebGL() {
@@ -21,8 +23,14 @@ export class SceneManager {
   }
 
   init() {
-    if (this.initialized || !this.webglAvailable) return false;
     if (!this.container) return false;
+    if (!this.webglAvailable) {
+      // WebGL not available — sprite-only mode immediately
+      this.container.classList.add('sprite-only');
+      console.warn('WebGL not available — using 2D sprite fallback');
+      return false;
+    }
+    if (this.initialized) return false;
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(25, 1, 0.1, 100);
@@ -54,9 +62,19 @@ export class SceneManager {
     return true;
   }
 
+  setFallbackCallback(cb) {
+    this._fallbackCallback = cb;
+  }
+
   async loadModel(pokedexId, category) {
     // Remove old model
     this._clearModel();
+
+    // Clear any pending timeout
+    if (this._loadingTimeout) {
+      clearTimeout(this._loadingTimeout);
+      this._loadingTimeout = null;
+    }
 
     if (pokedexId === 0) {
       this._showEgg();
@@ -66,8 +84,22 @@ export class SceneManager {
     const url = `https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/${category}/${pokedexId}.glb`;
     const loader = new THREE.GLTFLoader();
     
+    // Set a 15-second timeout — if model doesn't load by then, fire fallback
+    let timedOut = false;
+    this._loadingTimeout = setTimeout(() => {
+      timedOut = true;
+      console.warn('3D model load timed out for', pokedexId);
+      this._clearModel();
+      this._showFallback(pokedexId);
+      if (this._fallbackCallback) this._fallbackCallback(pokedexId);
+    }, 15000);
+
     try {
       const gltf = await loader.loadAsync(url);
+      if (timedOut) return; // Already fell back
+      clearTimeout(this._loadingTimeout);
+      this._loadingTimeout = null;
+
       this.model = gltf.scene;
       this.model.scale.set(1.2, 1.2, 1.2);
       
@@ -77,7 +109,7 @@ export class SceneManager {
       this.model.position.sub(center);
       this.model.position.y = -0.2;
 
-      // Clone materials
+      // Clone materials for independent tweaking
       this.model.traverse(c => {
         if (c.isMesh) {
           c.material = c.material.clone();
@@ -93,9 +125,31 @@ export class SceneManager {
         this.mixer.clipAction(gltf.animations[0]).play();
       }
     } catch (err) {
+      if (timedOut) return;
+      clearTimeout(this._loadingTimeout);
+      this._loadingTimeout = null;
       console.warn('3D model load failed:', err);
       this._showFallback(pokedexId);
+      if (this._fallbackCallback) this._fallbackCallback(pokedexId);
     }
+  }
+
+  setSpriteBackground(spriteUrl) {
+    if (!this.container) return;
+    if (spriteUrl) {
+      this.container.style.backgroundImage = `url(${spriteUrl})`;
+      this.container.style.backgroundSize = 'contain';
+      this.container.style.backgroundPosition = 'center 60%';
+      this.container.style.backgroundRepeat = 'no-repeat';
+    } else {
+      this.container.style.backgroundImage = '';
+    }
+  }
+
+  showSpriteOnly(spriteUrl) {
+    // Destroy 3D scene, show just the sprite
+    this._disposeScene();
+    this.setSpriteBackground(spriteUrl);
   }
 
   _showEgg() {
@@ -124,24 +178,37 @@ export class SceneManager {
   }
 
   _showFallback(id) {
-    const hue = (id * 37) % 360;
-    const color = new THREE.Color(`hsl(${hue}, 60%, 50%)`);
-    const geo = new THREE.SphereGeometry(0.6, 16, 16);
-    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.4 });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(0, 0.5, 0);
-    this.scene.add(mesh);
-    this.model = mesh;
+    // When 3D model fails, switch to sprite-only mode
+    if (this.container) {
+      this.container.classList.add('sprite-only');
+    }
   }
 
   _clearModel() {
     if (!this.model) return;
+    if (this.container) {
+      this.container.classList.remove('sprite-only');
+    }
     this.scene.remove(this.model);
     if (this.model.traverse) {
       this.model.traverse(c => { if (c.geometry) c.geometry.dispose(); });
     }
     this.model = null;
     this.mixer = null;
+  }
+
+  _disposeScene() {
+    this._clearModel();
+    if (this.renderer) {
+      this.renderer.dispose();
+      if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+        this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+      }
+      this.renderer = null;
+    }
+    this.scene = null;
+    this.camera = null;
+    this.initialized = false;
   }
 
   update(dt) {

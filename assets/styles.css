@@ -355,11 +355,20 @@ body {
 #pet3dContainer {
   width: 100%; height: 100%;
   position: relative; z-index: 2;
+  background-size: contain !important;
+  background-position: center 55% !important;
+  background-repeat: no-repeat !important;
+  image-rendering: auto;
 }
-#pet3dContainer canvas {
-  width: 100% !important;
-  height: 100% !important;
-  display: block;
+/* When sprite fallback is active, prevent
+   the 3D canvas from blocking the background */
+#pet3dContainer.sprite-only canvas {
+  display: none;
+}
+#pet3dContainer.sprite-only {
+  background-size: contain !important;
+  background-position: center 55% !important;
+  background-repeat: no-repeat !important;
 }
 
 /* Egg wobble / idle bob on canvas wrap */

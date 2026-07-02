@@ -31,6 +31,19 @@ if (!store.state.moodSwirl) store.state.moodSwirl = false;
 const sceneMan = new SceneManager('pet3dContainer');
 sceneMan.init();
 
+// When 3D model fails after timeout, ensure sprite background stays visible
+sceneMan.setFallbackCallback((pokedexId) => {
+  // Sprite already set by renderPetView() — just make sure it's prominent
+  const container = document.getElementById('pet3dContainer');
+  if (container) {
+    container.style.opacity = '1';
+    container.style.filter = 'brightness(1.2) contrast(1.1)';
+  }
+  // Show sprite glow
+  const glow = document.getElementById('spriteGlow');
+  if (glow) glow.style.opacity = '0.6';
+});
+
 // === EXPRESSION OVERLAY ===
 const exprOverlay = new ExpressionOverlay('expressionCanvas');
 
@@ -95,6 +108,16 @@ function renderPetView() {
   document.getElementById('petName').textContent = line?.names[s] || '—';
   document.getElementById('petSpecies').textContent = STAGES[s]?.species || '—';
   document.getElementById('petLevelDisplay').textContent = STAGES[s]?.id.toUpperCase() || 'EGG';
+
+  // ALWAYS set the sprite background behind the 3D canvas
+  // If 3D model loads, it renders on top (transparent background).
+  // If 3D fails, the sprite shows through.
+  if (spritePath) {
+    // Convert relative path to absolute for GitHub Pages
+    const base = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
+    const absSpritePath = spritePath.startsWith('http') ? spritePath : base + '/' + spritePath;
+    sceneMan.setSpriteBackground(absSpritePath);
+  }
 
   if (modelInfo) {
     sceneMan.loadModel(modelInfo.ids[s], modelInfo.cats[s]);
