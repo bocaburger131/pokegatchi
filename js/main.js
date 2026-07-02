@@ -454,25 +454,89 @@ window.evolve = function() {
   const uniqueStops = s.uniqueStops || 0;
   
   if (catches >= next.needCatch && steps >= next.needSteps && uniqueStops >= next.needStops) {
-    store.set('pet.stage', p.stage + 1);
-    
+    // 1) Lock game loop during evolution animation
+    loop.lock();
+
+    // 2) Play flash/glow/sparkle animation on pet-wrap for ~2s
+    const wrap = document.getElementById('petWrap');
+    petAnim('sparkle');
+    if (wrap) wrap.classList.add('evolving');
+
+    // Store new stage & boost stats
+    const newStage = p.stage + 1;
+    store.set('pet.stage', newStage);
+
     // Boost stats +15 (0-100 scale → +0.15 on 0-1 scale)
     p.stats.hunger = Math.min(1.0, p.stats.hunger + 0.15);
     p.stats.boredom = Math.max(0, p.stats.boredom - 0.15);
     p.stats.cleanliness = Math.min(1.0, p.stats.cleanliness + 0.15);
-    
+
     s.streak = 0;
-    
+
     const line = EVO_LINES[s.activeLine];
-    const newName = line?.names[p.stage] || '???';
-    showMilestone('⬆', `Evolved to ${newName}!`, 'Stats boosted!');
-    
-    store.save();
-    renderAll();
+    const newName = line?.names[newStage] || '???';
+
+    // 3) After animation completes, load new model, show milestone, unlock
+    setTimeout(() => {
+      if (wrap) wrap.classList.remove('evolving');
+
+      store.save();
+      renderAll();  // loads new stage's 3D model via renderPetView → sceneMan.loadModel
+
+      // 4) Show the milestone
+      showMilestone('⬆', `Evolved to ${newName}!`, 'Stats boosted!');
+
+      // 5) Unlock game loop
+      loop.unlock();
+    }, 2000);
   } else {
     toast(`❌ Need ${next.needCatch}c / ${next.needSteps.toLocaleString()}👟 / ${next.needStops}🔄`);
   }
 };
+
+// ─── DEMO ONLY: quick-boost helpers for evolution testing ───
+/**
+ * DEMO ONLY: window.boostCatches(n) — add n catches, show toast
+ * Use this to quickly meet evolution catch requirements.
+ */
+window.boostCatches = function(n) {
+  if (store.state.pet.stage === 0) return;
+  store.state.catches = (store.state.catches || 0) + n;
+  toast(`⚡ DEMO: +${n} catches (Total: ${store.state.catches})`);
+  tick();
+  renderAll();
+};
+
+/**
+ * DEMO ONLY: window.boostSteps(n) — add n steps, show toast
+ * Use this to quickly meet evolution step requirements.
+ */
+window.boostSteps = function(n) {
+  if (store.state.pet.stage === 0) return;
+  store.state.steps = (store.state.steps || 0) + n;
+  toast(`⚡ DEMO: +${n.toLocaleString()} steps (Total: ${(store.state.steps || 0).toLocaleString()})`);
+  tick();
+  renderAll();
+};
+
+/**
+ * DEMO ONLY: window.boostStops(n) — add n unique stops, show toast
+ * Use this to quickly meet evolution stop requirements.
+ */
+window.boostStops = function(n) {
+  if (store.state.pet.stage === 0) return;
+  for (let i = 0; i < n; i++) {
+    const stopId = `demo_stop_${i}`;
+    if (!store.state._uniqueStopSet.includes(stopId)) {
+      store.state._uniqueStopSet.push(stopId);
+      store.state.uniqueStops = (store.state.uniqueStops || 0) + 1;
+    }
+  }
+  toast(`⚡ DEMO: +${n} unique stops (Total: ${store.state.uniqueStops})`);
+  tick();
+  renderAll();
+};
+// ─── END DEMO ONLY ───
 
 /**
  * window.resetPet() — confirm dialog, wipe everything
