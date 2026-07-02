@@ -70,8 +70,8 @@ export class SceneManager {
     if (this.initialized) return false;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(25, 1, 0.1, 100);
-    this.camera.position.set(0, 1.2, 4.5);
+    this.camera = new THREE.PerspectiveCamera(25, 1, 0.1, 200);
+    this.camera.position.set(0, 8, 18);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setSize(320, 320);
@@ -144,13 +144,14 @@ export class SceneManager {
       this._loadingTimeout = null;
 
       this.model = gltf.scene;
-      this.model.scale.set(1.2, 1.2, 1.2);
+      // PokeMiners GLBs use a tiny unit scale (~0.005 units across) —
+      // scale up dramatically for Three.js scene visibility
+      const V2_SCALE = 50;
+      this.model.scale.set(V2_SCALE, V2_SCALE, V2_SCALE);
+      this._v2Scale = V2_SCALE;
 
-      // Center model
-      const box = new THREE.Box3().setFromObject(this.model);
-      const center = box.getCenter(new THREE.Vector3());
-      this.model.position.sub(center);
-      this.model.position.y = -0.2;
+      // Center model (bounding box on skinned mesh is bind-pose; skip accurate centering)
+      this.model.position.y = -V2_SCALE * 0.04; // Rough center
 
       // Clone materials (textures are already embedded in the GLB)
       this.model.traverse(c => {
@@ -782,7 +783,7 @@ export class SceneManager {
           if (this.model) {
             this.model.rotation.y = 0; // Reset spin
             this.model.position.y = 0; // Reset Y after bounce
-            this.model.scale.set(1.2, 1.2, 1.2); // Reset scale
+            this.model.scale.set(this._v2Scale || 1.2, this._v2Scale || 1.2, this._v2Scale || 1.2); // Reset scale
           }
           // Reset emissive flash
           if (this._animFlashBrightness) {
@@ -887,14 +888,15 @@ export class SceneManager {
       this._bone('Head').bone.rotation.y = headTurn;
     }
 
-    // === BREATHING (subtle body scale pulse, preserving initial scale) ===
-    const baseScale = 1.2;
+    // === BREATHING (subtle body scale pulse, preserving V2 scale) ===
+    const baseScale = this._v2Scale || 1.2;
     const breathOffset = Math.sin(now * 0.002) * 0.003;
     this.model.scale.x = baseScale + breathOffset;
     this.model.scale.z = baseScale + breathOffset;
 
-    // === FLOAT BOB ===
-    const targetBob = Math.sin(now * 0.003) * 0.03;
+    // === FLOAT BOB (scaled for V2 unit size) ===
+    const bobAmp = (this._v2Scale || 1) * 0.03;
+    const targetBob = Math.sin(now * 0.003) * bobAmp;
     const deltaBob = targetBob - this._idleBobOffset;
     this.model.position.y += deltaBob;
     this._idleBobOffset = targetBob;
