@@ -10,32 +10,6 @@
 </head>
 <body>
 
-<!-- ─── TEAM SELECT ─── -->
-<div id="teamOverlay">
-  <h1>✦ Pokégatchi ✦</h1>
-  <p>Choose your team to begin</p>
-  <div class="team-pick">
-    <div class="team-card" data-team="valor" onclick="window.selectTeam('valor')">
-      <span class="badge">🔴</span>
-      <div class="tname" style="color:#FF4444;">Valor</div>
-      <div class="tdesc">Fire burns bright</div>
-    </div>
-    <div class="team-card" data-team="mystic" onclick="window.selectTeam('mystic')">
-      <span class="badge">🔵</span>
-      <div class="tname" style="color:#4488FF;">Mystic</div>
-      <div class="tdesc">Wisdom prevails</div>
-    </div>
-    <div class="team-card" data-team="instinct" onclick="window.selectTeam('instinct')">
-      <span class="badge">🟡</span>
-      <div class="tname" style="color:#FFD700;">Instinct</div>
-      <div class="tdesc">Trust your gut</div>
-    </div>
-  </div>
-  <div style="margin-top:20px;text-align:center;">
-    <span onclick="window.toggleDebugOverlay()" style="cursor:pointer;font-size:0.65rem;color:var(--text-dimmer);padding:4px 10px;border-radius:8px;background:rgba(255,255,255,0.03);">🔍 debug</span>
-  </div>
-</div>
-
 <!-- ─── SCENE ─── -->
 <div class="scene-wrap" id="sceneWrap">
   <div class="sky-layer" id="skyLayer"></div>
@@ -43,7 +17,6 @@
   <div class="scene-path"></div>
   <div class="scene-mountain" style="left:5%;border-bottom-color:rgba(50,40,70,0.2);"></div>
   <div class="scene-mountain" style="right:10%;border-left-width:100px;border-right-width:100px;border-bottom-width:70px;border-bottom-color:rgba(60,50,80,0.15);"></div>
-  <!-- Pokémon cameos -->
   <div class="cameo-pkmn cameo-left" style="background-image:url('assets/sprites/eevee.png');"></div>
   <div class="cameo-pkmn cameo-right" style="background-image:url('assets/sprites/pikachu.png');"></div>
   <div class="cameo-pkmn cameo-center-right" style="background-image:url('assets/sprites/bulbasaur.png');"></div>
@@ -58,165 +31,56 @@
   <div class="top-bar">
     <span class="logo">✦ PG</span>
     <span class="debug-toggle" onclick="window.toggleDebugOverlay()" id="debugToggle" title="Toggle expression debug overlay" style="cursor:pointer;font-size:0.65rem;padding:1px 5px;border-radius:6px;background:var(--accent-dim);color:var(--accent);font-weight:700;font-family:monospace;margin-left:3px;">🔍</span>
-    <span class="pet-level" id="petLevelDisplay">EGG</span>
+    <span class="pet-name" id="petNameDisplay">Pikachu</span>
     <span class="spacer"></span>
-    <span class="hud-group" id="hudStepsGroup">
-      <span class="hud-icon">👟</span>
-      <span class="hud-val" id="hudSteps">0</span>
-    </span>
-    <span class="hud-group" id="hudCatchesGroup">
-      <span class="hud-icon">🏆</span>
-      <span class="hud-val" id="hudCatches">0</span>
-    </span>
-    <span class="hud-group" id="hudStopsGroup">
-      <span class="hud-icon">🔄</span>
-      <span class="hud-val" id="hudStops">0</span>
-    </span>
-    <span class="hud-group" id="hudHungerGroup">
-      <span class="hud-icon">🍖</span>
-      <span class="hud-val" id="hud-hunger">HG: 100%</span>
-    </span>
-    <span class="hud-group" id="hudBoredomGroup">
-      <span class="hud-icon">🎯</span>
-      <span class="hud-val" id="hud-boredom">BD: 0%</span>
-    </span>
-    <span class="team-badge" id="teamBadge" title="Tap to switch team">🔴</span>
-  </div>
-
-  <!-- AUTO MODE INDICATOR -->
-  <div id="autoStatus" class="auto-status" style="display:none;">
-    🤖 Auto: <span id="autoCatchCount">0</span> caught · <span id="autoSpinCount">0</span> spun
-  </div>
-
-  <!-- MODE TOGGLE -->
-  <div class="mode-toggle">
-    <button class="mode-btn active" onclick="window.setMode('play')">🎮 Play</button>
-    <button class="mode-btn" onclick="window.setMode('auto')">🤖 Auto</button>
-  </div>
-
-  <!-- EVOLUTION LINE PICKER -->
-  <div id="linePicker" class="mode-toggle" style="margin-bottom:8px;">
-    <button class="mode-btn active">Eevee Line</button>
-    <button class="mode-btn">Charmander Line</button>
-    <button class="mode-btn">Pikachu Line</button>
   </div>
 
   <!-- PET CARD -->
   <div class="pet-card">
-    <div class="name" id="petName">—</div>
-    <div class="species" id="petSpecies">Tap Hatch to begin</div>
+    <div class="name" id="petName">Pikachu</div>
+    <div class="species" id="petSpecies">Select a Pokémon to begin</div>
     <div class="pet-canvas-wrap" id="petWrap">
       <div id="pet3dContainer"></div>
       <canvas id="expressionCanvas" width="320" height="320"></canvas>
       <div class="sprite-glow" id="spriteGlow"></div>
     </div>
-    <div class="mood-label" id="moodLabel">🥚 Waiting</div>
-    <div class="catch-streak" id="catchStreak">🔥 <span id="streakCount">0</span>-catch streak!</div>
-    <div class="hud-status" id="hud-status">• SEARCHING •</div>
-    <div class="inv-row">
-      <span>🫐 <span id="inv-berries">0</span></span>
-      <span>🧸 <span id="inv-toys">0</span></span>
+
+    <!-- POKÉMON PICKER -->
+    <div class="picker-section">
+      <div class="picker-label">Choose your Pokémon</div>
+      <div class="picker-grid" id="pickerGrid">
+        <button class="pick-btn" data-species="pikachu" onclick="window.selectSpecies('pikachu')">⚡ Pikachu</button>
+        <button class="pick-btn" data-species="eevee" onclick="window.selectSpecies('eevee')">💫 Eevee</button>
+        <button class="pick-btn" data-species="charmander" onclick="window.selectSpecies('charmander')">🔥 Charmander</button>
+        <button class="pick-btn" data-species="bulbasaur" onclick="window.selectSpecies('bulbasaur')">🌿 Bulbasaur</button>
+        <button class="pick-btn" data-species="squirtle" onclick="window.selectSpecies('squirtle')">💧 Squirtle</button>
+        <button class="pick-btn" data-species="pichu" onclick="window.selectSpecies('pichu')">⚡ Pichu</button>
+      </div>
     </div>
 
-    <!-- ACTIONS (inside pet card — unified block) -->
+    <!-- ACTIONS -->
     <div class="action-sections">
       <div>
-        <div class="action-group-label">Care</div>
+        <div class="action-group-label">Interactions</div>
         <div class="action-row">
-          <button id="btnHatch" class="primary" onclick="window.hatch()"><span class="btn-icon">🥚</span><span class="btn-label">Hatch</span></button>
           <button onclick="window.feed()"><span class="btn-icon">🫐</span><span class="btn-label">Feed</span></button>
           <button onclick="window.petAction()"><span class="btn-icon">🫳</span><span class="btn-label">Pet</span></button>
           <button onclick="window.healPet()"><span class="btn-icon">💊</span><span class="btn-label">Heal</span></button>
-        </div>
-      </div>
-      <div>
-        <div class="action-group-label">Adventure</div>
-        <div class="action-row">
-          <button onclick="window.addCatch()" id="btnCatch"><span class="btn-icon">🏆</span><span class="btn-label">Catch!</span></button>
-          <button onclick="window.addStep(100)"><span class="btn-icon">👟</span><span class="btn-label">+100 Steps</span></button>
-          <button onclick="window.addStop()"><span class="btn-icon">🔄</span><span class="btn-label">Spin Stop</span></button>
-          <button onclick="window.walkBatch()" class="complete"><span class="btn-icon">🚶</span><span class="btn-label">Walk +1k</span></button>
-        </div>
-      </div>
-      <div>
-        <div class="action-group-label">Evolution</div>
-        <div class="action-row">
-          <button id="btnEvolve" onclick="window.evolve()" disabled><span class="btn-icon">⬆</span><span class="btn-label">Evolve</span></button>
-          <button onclick="window.resetPet()" class="danger"><span class="btn-icon">🔄</span><span class="btn-label">Reset</span></button>
-        </div>
-        <div class="demo-controls action-row" style="margin-top:6px;">
-          <button onclick="window.boostCatches(500)" class="demo-btn" style="background:var(--accent);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;"><span class="btn-icon">⚡</span><span class="btn-label">Demo +500 Catches</span></button>
-          <button onclick="window.boostSteps(50000)" class="demo-btn" style="background:var(--accent);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;"><span class="btn-icon">⚡</span><span class="btn-label">Demo +50k Steps</span></button>
-          <button onclick="window.boostStops(50)" class="demo-btn" style="background:var(--accent);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;"><span class="btn-icon">⚡</span><span class="btn-label">Demo +50 Stops</span></button>
+          <button onclick="window.bounce()" class="primary"><span class="btn-icon">🌟</span><span class="btn-label">Bounce</span></button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- STATS -->
-  <div class="stats-grid">
-    <div class="stat-panel">
-      <h3>❤️ Stats</h3>
-      <div id="statsPanel"></div>
-    </div>
-    <div class="stat-panel">
-      <h3>😊 Mood</h3>
-      <div class="mood-grid" id="moodGrid"></div>
-    </div>
-  </div>
-
-  <!-- GOALS -->
-  <div class="goal-tracker">
-    <h3>🎯 Evolution Goals</h3>
-    <div id="goalPanel"></div>
-  </div>
-
-  <!-- EVOLUTION TRACK -->
-  <div class="evo-section">
-    <h3>📈 Evolution Line</h3>
-    <div class="evo-track" id="evoTrack"></div>
-  </div>
-
-  <!-- MINIGAMES -->
-  <div class="evo-section">
-    <h3>🎮 Mini-Games</h3>
-    <div class="minigames" id="minigamePanel"></div>
-  </div>
-
-  <!-- ACHIEVEMENTS (collapsible, shown by default) -->
-  <div class="evo-section" style="cursor:pointer;" onclick="window.toggleAchievements()">
-    <h3>🏅 Achievements <span id="achChevron" class="ach-chevron open">▼</span><span id="achBadge" style="margin-left:auto;font-size:0.7rem;color:var(--accent);"></span></h3>
-    <div id="achPanel" style="display:block;"></div>
-  </div>
-
-  <div class="footer">Pokégatchi · <kbd>C</kbd> catch · <kbd>S</kbd> +100 steps · <kbd>D</kbd> debug</div>
+  <div class="footer">Pokégatchi · <kbd>D</kbd> debug</div>
 </div>
 
-<!-- ─── MISC ─── -->
+<!-- ─── TOAST ─── -->
 <div class="toast" id="toast"></div>
-<div class="milestone-popup" id="milestonePopup">
-  <span class="mp-icon" id="mpIcon">🎉</span>
-  <div class="mp-title" id="mpTitle">Milestone!</div>
-  <div class="mp-desc" id="mpDesc">You reached a goal!</div>
-  <button class="mp-btn" onclick="window.closeMilestone()">Awesome!</button>
-</div>
-
-<!-- ─── WAKE-UP LEDGER OVERLAY ─── -->
-<div id="ledger-overlay" class="interactive">
-  <h3 style="color:var(--accent);margin-bottom:8px;font-weight:900;">⚡ CATCHER SYNC</h3>
-  <p style="font-size:11px;color:var(--text-dim);">Catcher data detected from last session</p>
-  <div class="ledger-box">
-    <div id="ledger-spins">STOPS DETECTED: 0</div>
-    <div id="ledger-catches">CAPTURES SUCCESS: 0</div>
-    <hr style="border-color:rgba(255,255,255,0.06);margin:8px 0;">
-    <div id="ledger-rewards" class="ledger-rewards">UNLOCKED: None</div>
-  </div>
-  <button class="btn-action" onclick="window.dismissLedger()">⬡ SYNC DATA</button>
-</div>
 
 <!-- ─── LOADING SPINNER ─── -->
 <div id="loading-spinner"></div>
 
-<script type="module" src="js/main.js?v=2"></script>
+<script type="module" src="js/main.js?v=3"></script>
 </body>
 </html>

@@ -847,3 +847,51 @@ button,
 .mood-pill {
   min-width: 44px;
 }
+
+/* ─── STRIPPED VERSION: Picker Grid ─── */
+.picker-section {
+  margin: 12px 0;
+}
+.picker-label {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.pick-btn {
+  flex: 1 0 calc(33.33% - 4px);
+  min-width: 0;
+  padding: 6px 4px;
+  font-size: 0.7rem;
+  border: 1px solid var(--accent-dim);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.pick-btn:hover {
+  background: var(--accent-dim);
+}
+.pick-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* Spacer in top bar */
+.top-bar .spacer {
+  flex: 1;
+}
+.top-bar .pet-name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-left: 6px;
+}
