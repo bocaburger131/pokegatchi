@@ -1,4 +1,7 @@
 // js/scene/SceneManager.js — V2 with Bone Animation
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
 export class SceneManager {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
@@ -95,6 +98,7 @@ export class SceneManager {
     this.scene.add(back);
 
     this.scene.fog = new THREE.Fog(0x0f0e1a, 6, 12);
+    this.scene.background = new THREE.Color(0x1a1a2e); // Solid background so we can see the model
     this.initialized = true;
     return true;
   }
@@ -128,7 +132,7 @@ export class SceneManager {
     const base = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
     const url = `${base}/assets/models_v2/${filename}`;
 
-    const loader = new THREE.GLTFLoader();
+    const loader = new GLTFLoader();
     let timedOut = false;
     this._loadingTimeout = setTimeout(() => {
       timedOut = true;
@@ -148,10 +152,15 @@ export class SceneManager {
       this._v2Scale = 1;
       this.model.scale.set(1, 1, 1);
       this.model.position.y = 0.8; // Move up so Pikachu is visible (body at y~-1.8, shift up)
+      // Save rest values for animation reset
+      this._modelRestPos = this.model.position.clone();
+      this._modelRestRot = this.model.rotation.clone();
+      this._modelRestScale = this.model.scale.clone();
 
       // Clone materials (textures are already embedded in the GLB)
       this.model.traverse(c => {
         if (c.isMesh) {
+          c.frustumCulled = false; // Prevent incorrect culling on skinned meshes
           c.material = c.material.clone();
           c.material.envMapIntensity = 0.3;
           c.material.needsUpdate = true;
@@ -160,76 +169,35 @@ export class SceneManager {
 
       this.scene.add(this.model);
 
-      // === BAKE SKINNING INTO GEOMETRY ===
+      // Force matrix update so bones have their world transforms
       this.model.updateMatrixWorld(true);
-      this.model.traverse(c => {
-        if (c.isSkinnedMesh && c.skeleton && c.geometry) {
-          const pos = c.geometry.attributes.position;
-          const skinIndex = c.geometry.attributes.skinIndex;
-          const skinWeight = c.geometry.attributes.skinWeight;
-          if (!pos || !skinIndex || !skinWeight) return;
 
-          const bakedPos = new Float32Array(pos.count * 3);
-          const tempVec = new THREE.Vector3();
-          const skinVec = new THREE.Vector3();
-          const mat4 = new THREE.Matrix4();
-          const modelPos = new THREE.Vector3();
-          this.model.getWorldPosition(modelPos);
+      // Scan and cache bones (strips _NN suffixes for compatibility)
+      this._scanBones();
 
-          for (let i = 0; i < pos.count; i++) {
-            tempVec.fromBufferAttribute(pos, i);
-            skinVec.set(0, 0, 0);
+      if (this.hasBones) {
+        this.useV2 = true;
+        console.log('V2 bone animation system activated');
+      }
 
-            const w = [skinWeight.getX(i), skinWeight.getY(i), skinWeight.getZ(i), skinWeight.getW(i)];
-            const idx = [skinIndex.getX(i), skinIndex.getY(i), skinIndex.getZ(i), skinIndex.getW(i)];
+      // Center the model using bounding box
+      const box = new THREE.Box3().setFromObject(this.model);
+      const center = box.getCenter(new THREE.Vector3());
+      this.model.position.sub(center);
+      this.model.position.y = -0.2;
 
-            for (let j = 0; j < 4; j++) {
-              if (w[j] > 0) {
-                const bone = c.skeleton.bones[idx[j]];
-                if (bone) {
-                  const inv = c.skeleton.boneInverses[idx[j]];
-                  mat4.multiplyMatrices(bone.matrixWorld, inv);
-                  const transformed = tempVec.clone().applyMatrix4(mat4);
-                  skinVec.x += transformed.x * w[j];
-                  skinVec.y += transformed.y * w[j];
-                  skinVec.z += transformed.z * w[j];
-                }
-              }
-            }
+      // Recompute matrix world after position change
+      this.model.updateMatrixWorld(true);
 
-            // Subtract model world position so final vertex positions are
-            // relative to model root (model.position will be applied by the scene graph)
-            bakedPos[i * 3] = skinVec.x - modelPos.x;
-            bakedPos[i * 3 + 1] = skinVec.y - modelPos.y;
-            bakedPos[i * 3 + 2] = skinVec.z - modelPos.z;
-          }
-          
-          // Replace geometry with baked positions
-          const newGeo = new THREE.BufferGeometry();
-          newGeo.setAttribute('position', new THREE.BufferAttribute(bakedPos, 3));
-          if (c.geometry.attributes.normal) newGeo.setAttribute('normal', c.geometry.attributes.normal);
-          if (c.geometry.attributes.uv) newGeo.setAttribute('uv', c.geometry.attributes.uv);
-          if (c.geometry.attributes.color) newGeo.setAttribute('color', c.geometry.attributes.color);
-          newGeo.setIndex(c.geometry.index);
-          
-          // Create regular mesh in place of skinned mesh
-          // Recompute normals from baked positions (bind-pose normals are wrong after skinning)
-          newGeo.computeVertexNormals();
-          const newMesh = new THREE.Mesh(newGeo, c.material);
-          newMesh.position.copy(c.position);
-          newMesh.quaternion.copy(c.quaternion);
-          newMesh.scale.copy(c.scale);
-          newMesh.name = c.name + '_baked';
-          
-          if (c.parent) c.parent.add(newMesh);
-          c.parent.remove(c);
-          
-          // Dispose old geometry
-          c.geometry.dispose();
-          
-          console.log(`Baked skin for ${c.name}: ${pos.count} verts`);
-        }
-      });
+      // Point camera at model
+      this.camera.lookAt(0, 0, 0);
+
+      // Update saved rest position after centering
+      this._modelRestPos.copy(this.model.position);
+      this._modelRestRot.copy(this.model.rotation);
+      this._modelRestScale.copy(this.model.scale);
+
+      console.log('V2 model loaded successfully:', filename);
 
       // === DEBUG: expose for inspection ===
       window.__debugScene = this.scene;
@@ -297,17 +265,20 @@ export class SceneManager {
 
     this.model.traverse(c => {
       if (c.isBone) {
-        this.bones[c.name] = {
+        // Strip _NN suffix from Pokemon3D API bones (e.g. Tail1_30 → Tail1)
+        const cleanName = c.name.replace(/_\d+$/, '');
+        this.bones[cleanName] = {
           bone: c,
           restQ: c.quaternion.clone(),
           restP: c.position.clone(),
+          originalName: c.name,
         };
       }
     });
 
     this.hasBones = Object.keys(this.bones).length > 0;
     if (this.hasBones) {
-      console.log('Bones found:', Object.keys(this.bones).join(', '));
+      console.log('Bones found (' + Object.keys(this.bones).length + '):', Object.keys(this.bones).join(', '));
     }
   }
 
@@ -341,7 +312,7 @@ export class SceneManager {
     }
 
     const url = `https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/${category}/${pokedexId}.glb`;
-    const loader = new THREE.GLTFLoader();
+    const loader = new GLTFLoader();
     
     let timedOut = false;
     this._loadingTimeout = setTimeout(() => {
@@ -367,6 +338,11 @@ export class SceneManager {
       this.model.position.sub(center);
       this.model.position.y = -0.2;
 
+      // Save the model's initial position/rotation for animation reset
+      this._modelRestPos = this.model.position.clone();
+      this._modelRestRot = this.model.rotation.clone();
+      this._modelRestScale = this.model.scale.clone();
+
       this.model.traverse(c => {
         if (c.isMesh) {
           c.material = c.material.clone();
@@ -374,28 +350,24 @@ export class SceneManager {
         }
       });
 
+      // The model has built-in animations (e.g. Impactrueno)
+      // We won't play them via mixer — the V2 bone animation system handles idle
+      // Instead, note the animation count for potential use later
+      console.log('Model has', gltf.animations.length, 'built-in animations');
+
+      // Add the model to the scene BEFORE scanning bones
       this.scene.add(this.model);
 
-      if (gltf.animations && gltf.animations.length > 0) {
-        this.mixer = new THREE.AnimationMixer(this.model);
-        this.mixer.clipAction(gltf.animations[0]).play();
-      }
+      // Force matrix update so bones have their world transforms
+      this.model.updateMatrixWorld(true);
 
-      // Legacy armature check
-      this._armature = null;
-      this.model.traverse(c => {
-        if (c.isBone || c instanceof THREE.Bone || c.type === 'Bone') {
-          this._armature = c;
-        }
-      });
-      if (!this._armature) {
-        this.model.traverse(c => {
-          if (c.type === 'Skeleton' || c.type === 'Armature' || c.isArmature) {
-            this._armature = c;
-          }
-        });
+      // Scan and cache bones (strips _NN suffixes for compatibility)
+      this._scanBones();
+
+      if (this.hasBones) {
+        this.useV2 = true;
+        console.log('V2 bone animation system activated');
       }
-      console.log('Legacy model loaded, skeleton found:', !!this._armature);
 
     } catch (err) {
       if (timedOut) return;
@@ -859,9 +831,9 @@ export class SceneManager {
           this._clearBoneTargets();
           this._bounceAnimData = null;
           if (this.model) {
-            this.model.rotation.y = 0; // Reset spin
-            this.model.position.y = 0; // Reset Y after bounce
-            this.model.scale.set(1, 1, 1); // Reset scale
+            this.model.rotation.y = this._modelRestRot?.y || 0; // Reset spin
+            this.model.position.y = this._modelRestPos?.y || 0; // Reset Y after bounce
+            this.model.scale.copy(this._modelRestScale || new THREE.Vector3(1, 1, 1)); // Reset scale
           }
           // Reset emissive flash
           if (this._animFlashBrightness) {
