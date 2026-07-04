@@ -13,6 +13,21 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@gltf-transform/cli": "^4.4.1",
     "fbx2gltf": "^0.9.7-p1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bocaburger131/pokegatchi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bocaburger131/pokegatchi/issues"
+  },
+  "homepage": "https://github.com/bocaburger131/pokegatchi#readme",
+  "devDependencies": {
+    "@gltf-transform/core": "^4.4.1",
+    "@gltf-transform/extensions": "^4.4.1",
+    "@gltf-transform/functions": "^4.4.1",
+    "draco3d": "^1.5.7"
   }
 }

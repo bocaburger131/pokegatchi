@@ -16,6 +16,8 @@ export const store = {
     toys: 3,
     potions: 2,
     candy: 10,
+    // === JOURNAL ===
+    journal: [],
   },
 
   set(key, value) {
@@ -54,5 +56,10 @@ export const store = {
     this.state[name] = current + delta;
     if (window._onStoreChange) window._onStoreChange(name, this.state[name]);
     return this.state[name];
+  },
+
+  logEvent(type, label, icon) {
+    this.state.journal.unshift({ ts: Date.now(), type, label, icon });
+    if (this.state.journal.length > 200) this.state.journal.length = 200;
   },
 };

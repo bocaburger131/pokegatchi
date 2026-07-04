@@ -186,6 +186,7 @@ window.feed = function() {
   store.addStat('hunger', 15);
   store.addStat('happiness', -5);
   exprOverlay.showTempMood(0, 2); // happy
+  store.logEvent('feed', 'Fed', '🍽');
   toast('🍽 Feeding... +15 hunger, -5 happiness');
 };
 
@@ -195,6 +196,7 @@ window.petAction = function() {
   store.addStat('affection', 10);
   store.addStat('happiness', 5);
   exprOverlay.showTempMood(0, 1.5); // happy
+  store.logEvent('pet', 'Petted', '🫳');
   toast('🫳 Petting... +10 affection, +5 happiness');
 };
 
@@ -205,6 +207,7 @@ window.healPet = function() {
   const hungerToAdd = 100 - store.state.hunger;
   store.addStat('hunger', hungerToAdd); // refill to 100
   exprOverlay.showTempMood(4, 2); // excited
+  store.logEvent('heal', 'Healed', '💊');
   toast('💊 Healing... +25 happiness, hunger restored!');
 };
 
@@ -213,6 +216,7 @@ window.bounce = function() {
   playAnimation('bounce');
   store.addStat('happiness', 10);
   exprOverlay.showTempMood(4, 1.5); // excited
+  store.logEvent('bounce', 'Bounced', '⭐');
   toast('🌟 Bounce! +10 happiness');
 };
 
@@ -261,12 +265,14 @@ window.useItem = function(itemName) {
       store.addStat('hunger', 20);
       store.addItem('berries', -1);
       playAnimation('feed');
+      store.logEvent('item', 'Used Berry', '🫐');
       toast('🍇 Used a Berry! +20 hunger');
       break;
     case 'toys':
       store.addStat('happiness', 15);
       store.addItem('toys', -1);
       playAnimation('bounce');
+      store.logEvent('item', 'Used Toy', '🧸');
       toast('🧸 Played with a Toy! +15 happiness');
       break;
     case 'potions':
@@ -274,6 +280,7 @@ window.useItem = function(itemName) {
       store.addStat('affection', 15);
       store.addItem('potions', -1);
       playAnimation('heal');
+      store.logEvent('item', 'Used Potion', '💊');
       toast('💖 Used a Potion! +20 happiness, +15 affection');
       break;
     case 'candy':
@@ -281,6 +288,7 @@ window.useItem = function(itemName) {
       store.addItem('candy', -1);
       playAnimation('feed');
       exprOverlay.showTempMood(4, 1.5); // excited special animation
+      store.logEvent('item', 'Used Candy', '🍬');
       toast('🍬 Gave Candy! +10 happiness');
       break;
     default:
@@ -346,11 +354,16 @@ window.demoBoostSteps = function() {
 
 window.demoBoostCaught = function() {
   store.addHud('pokemonCaught', 1);
+  store.logEvent('catch', 'Caught', '🟢');
+  window.triggerCatchAnim();
   toast('⚡ Demo boost: +1 Pokémon caught');
 };
 
 window.demoBoostSpin = function() {
   store.addHud('pokestopSpins', 1);
+  store.addItem('berries', 1);
+  store.logEvent('spin', 'Spun Stop', '💠');
+  window.triggerSpinAnim();
   toast('⚡ Demo boost: +1 Pokéstop spin');
 };
 
@@ -396,7 +409,686 @@ window.toggleDebugOverlay = function() {
   toast(on ? '🔍 Debug ON' : '🔍 Debug OFF');
 };
 
+// =====================================================================
+// === FEATURE 1: CATCH & SPIN CELEBRATION OVERLAYS ====================
+// =====================================================================
+
+// Inject CSS keyframes for catch + spin animations
+(function injectAnimStyles() {
+  if (document.getElementById('pgAnimStyles')) return;
+  const s = document.createElement('style');
+  s.id = 'pgAnimStyles';
+  s.textContent = `
+    @keyframes pgBallBurst {
+      0%   { transform: translate(-50%,-50%) translate(0,0) scale(1); opacity: 1; }
+      100% { transform: translate(-50%,-50%) translate(var(--tx),var(--ty)) scale(0.3); opacity: 0; }
+    }
+    @keyframes pgSparkleUp {
+      0%   { transform: translate(var(--sx),var(--sy)) scale(1); opacity: 1; }
+      100% { transform: translate(var(--ex),var(--ey)) scale(0); opacity: 0; }
+    }
+    @keyframes pgCaughtText {
+      0%   { transform: translateX(-50%) translateY(0); opacity: 1; }
+      60%  { transform: translateX(-50%) translateY(-40px); opacity: 1; }
+      100% { transform: translateX(-50%) translateY(-60px); opacity: 0; }
+    }
+    @keyframes pgCanvasFlash {
+      0%   { opacity: 0.85; }
+      50%  { opacity: 0.4; }
+      100% { opacity: 0; }
+    }
+    @keyframes pgDiamondSpin {
+      0%   { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    @keyframes pgItemPop {
+      0%   { transform: translate(-50%,-50%) scale(0.5); opacity: 0; }
+      30%  { transform: translate(-50%,-50%) scale(1.3); opacity: 1; }
+      70%  { transform: translate(-30%,-80%) scale(1); opacity: 1; }
+      100% { transform: translate(20%,-120%) scale(0.7); opacity: 0; }
+    }
+    @keyframes pgRingPulse {
+      0%   { opacity: 0.9; transform: translate(-50%,-50%) scale(0.5); }
+      60%  { opacity: 0.5; transform: translate(-50%,-50%) scale(1.05); }
+      100% { opacity: 0;   transform: translate(-50%,-50%) scale(1.35); }
+    }
+  `;
+  document.head.appendChild(s);
+})();
+
+window.triggerCatchAnim = function() {
+  const wrap = document.querySelector('.pet-canvas-wrap');
+  if (!wrap) return;
+  const rect = wrap.getBoundingClientRect();
+
+  const ov = document.createElement('div');
+  ov.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;pointer-events:none;z-index:10;overflow:visible;border-radius:50%;`;
+  document.body.appendChild(ov);
+
+  // Flash layer
+  const flash = document.createElement('div');
+  flash.style.cssText = `position:absolute;inset:0;border-radius:50%;background:white;animation:pgCanvasFlash 0.4s ease-out forwards;`;
+  ov.appendChild(flash);
+
+  // 8 Pokéball particles
+  const colors = ['#E3350D','#ffffff','#E3350D','#ffffff','#E3350D','#ffffff','#E3350D','#ffffff'];
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const dist = 60 + Math.random() * 30;
+    const tx = Math.round(Math.cos(angle) * dist);
+    const ty = Math.round(Math.sin(angle) * dist);
+    const p = document.createElement('div');
+    p.style.cssText = `position:absolute;left:50%;top:50%;width:12px;height:12px;border-radius:50%;background:${colors[i]};border:2px solid ${i%2===0?'#fff':'#E3350D'};--tx:${tx}px;--ty:${ty}px;animation:pgBallBurst 0.9s ease-out ${i*0.04}s forwards;`;
+    ov.appendChild(p);
+  }
+
+  // 12 green sparkles
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2 + 0.2;
+    const s0 = 10 + Math.random() * 10, s1 = 55 + Math.random() * 40;
+    const sx = Math.round(Math.cos(angle) * s0 - 2.5);
+    const sy = Math.round(Math.sin(angle) * s0 - 2.5);
+    const ex = Math.round(Math.cos(angle) * s1 - 2.5);
+    const ey = Math.round(Math.sin(angle) * s1 - 2.5);
+    const sp = document.createElement('div');
+    sp.style.cssText = `position:absolute;left:50%;top:50%;width:5px;height:5px;border-radius:50%;background:#39FF14;box-shadow:0 0 6px #39FF14;--sx:${sx}px;--sy:${sy}px;--ex:${ex}px;--ey:${ey}px;transform:translate(${sx}px,${sy}px);animation:pgSparkleUp 1s ease-out ${i*0.03}s forwards;`;
+    ov.appendChild(sp);
+  }
+
+  // "✨ Caught!" text
+  const txt = document.createElement('div');
+  txt.textContent = '✨ Caught!';
+  txt.style.cssText = `position:absolute;left:50%;bottom:20%;font-size:1rem;font-weight:900;color:#fff;text-shadow:0 0 8px #39FF14,0 2px 4px rgba(0,0,0,0.8);white-space:nowrap;pointer-events:none;animation:pgCaughtText 1s ease-out 0.1s forwards;opacity:1;`;
+  ov.appendChild(txt);
+
+  setTimeout(() => ov.remove(), 1300);
+};
+
+window.triggerSpinAnim = function() {
+  const wrap = document.querySelector('.pet-canvas-wrap');
+  if (!wrap) return;
+  const rect = wrap.getBoundingClientRect();
+
+  const ov = document.createElement('div');
+  ov.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;pointer-events:none;z-index:10;overflow:visible;border-radius:50%;`;
+  document.body.appendChild(ov);
+
+  // Blue ring pulse
+  const ring = document.createElement('div');
+  ring.style.cssText = `position:absolute;left:50%;top:50%;width:140px;height:140px;border-radius:50%;border:3px solid #60A5FA;box-shadow:0 0 12px #60A5FA;animation:pgRingPulse 0.8s ease-out forwards;`;
+  ov.appendChild(ring);
+
+  // 6 blue diamonds orbiting
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2;
+    const orbit = 45;
+    const startX = Math.round(Math.cos(angle) * orbit) - 5;
+    const startY = Math.round(Math.sin(angle) * orbit) - 5;
+    const endX   = Math.round(Math.cos(angle) * orbit * 1.9) - 5;
+    const endY   = Math.round(Math.sin(angle) * orbit * 1.9) - 5;
+    const d = document.createElement('div');
+    d.style.cssText = `position:absolute;left:50%;top:50%;width:10px;height:10px;background:#60A5FA;box-shadow:0 0 6px #3B82F6;clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);transform:translate(${startX}px,${startY}px);animation:pgDiamondSpin 0.9s ease-out ${i*0.05}s forwards;`;
+    // Animate manually using extra style
+    const dur = 0.9;
+    const delay = i * 0.05;
+    d.animate([
+      { transform: `translate(${startX}px,${startY}px) rotate(0deg) scale(1)`, opacity: 1 },
+      { transform: `translate(${endX}px,${endY}px) rotate(360deg) scale(0.2)`, opacity: 0 },
+    ], { duration: dur * 1000, delay: delay * 1000, fill: 'forwards', easing: 'ease-out' });
+    ov.appendChild(d);
+  }
+
+  // 💠 +Berry item pop
+  const pop = document.createElement('div');
+  pop.innerHTML = '💠 <span style="font-size:0.75rem;font-weight:800;color:#fff">+Berry</span>';
+  pop.style.cssText = `position:absolute;left:50%;top:50%;font-size:1.2rem;white-space:nowrap;text-shadow:0 0 8px #60A5FA,0 2px 4px rgba(0,0,0,0.8);animation:pgItemPop 0.9s ease-out 0.1s forwards;opacity:0;`;
+  ov.appendChild(pop);
+
+  setTimeout(() => ov.remove(), 1100);
+};
+
+// =====================================================================
+// === FEATURE 2: SETTINGS PANEL =======================================
+// =====================================================================
+
+function _pgSettingGet(key, def) {
+  const v = localStorage.getItem(key);
+  return v === null ? def : v === 'true';
+}
+function _pgSettingSet(key, val) {
+  localStorage.setItem(key, String(val));
+}
+function _pgApplySetting(key, val) {
+  if (key === 'pg_show_cameos') {
+    document.querySelectorAll('.cameo-pkmn').forEach(el => { el.style.display = val ? '' : 'none'; });
+  }
+  if (key === 'pg_bone_anim') {
+    window._pgBoneAnimEnabled = val;
+  }
+}
+
+window.openSettings = function() {
+  _pgRenderSettings();
+  const p = document.getElementById('settingsPanel');
+  const bd = document.getElementById('pgBackdrop');
+  if (!p) return;
+  p.classList.add('open');
+  if (bd) bd.classList.add('open');
+};
+window.closeSettings = function() {
+  const p = document.getElementById('settingsPanel');
+  const bd = document.getElementById('pgBackdrop');
+  if (p) p.classList.remove('open');
+  if (bd) bd.classList.remove('open');
+};
+
+function _pgRenderSettings() {
+  const body = document.getElementById('settingsBody');
+  if (!body) return;
+
+  const settings = [
+    { group: '🔊 Sound', items: [
+      { key: 'pg_sound',       label: 'Master Sound',  def: true },
+      { key: 'pg_sound_catch', label: 'Catch Sound',   def: true },
+      { key: 'pg_sound_spin',  label: 'Spin Sound',    def: true },
+    ]},
+    { group: '🎮 Game', items: [
+      { key: 'pg_auto_catch',  label: 'Auto Catch',       def: true },
+      { key: 'pg_show_cameos', label: 'Show Cameos',      def: true },
+      { key: 'pg_bone_anim',   label: 'Bone Animations',  def: true },
+    ]},
+  ];
+
+  let html = `<div class="pg-settings-section">
+    <div class="pg-settings-section-title">🎨 Team</div>
+    <button class="pg-settings-team-btn" onclick="window.closeSettings();const to=document.getElementById('teamOverlay');if(to)to.style.display='flex';">Change Team</button>
+  </div>`;
+
+  settings.forEach(({ group, items }) => {
+    html += `<div class="pg-settings-section"><div class="pg-settings-section-title">${group}</div>`;
+    items.forEach(({ key, label, def }) => {
+      const on = _pgSettingGet(key, def);
+      html += `<label class="pg-toggle-row">
+        <span class="pg-toggle-label">${label}</span>
+        <span class="pg-toggle-wrap">
+          <input type="checkbox" class="pg-toggle-inp" data-key="${key}" ${on?'checked':''} onchange="window._pgToggleChange(this)">
+          <span class="pg-toggle-pill"></span>
+        </span>
+      </label>`;
+    });
+    html += `</div>`;
+  });
+
+  html += `<div class="pg-settings-section">
+    <div class="pg-settings-section-title">📊 Stats Reset</div>
+    <button class="pg-reset-btn" id="pgResetBtn"
+      onmousedown="window._pgResetHold(this)" onmouseup="window._pgResetCancel()" onmouseleave="window._pgResetCancel()"
+      ontouchstart="window._pgResetHold(this)" ontouchend="window._pgResetCancel()">
+      🗑 Reset Progress (hold 3s)
+    </button>
+  </div>`;
+
+  body.innerHTML = html;
+  ['pg_show_cameos','pg_bone_anim'].forEach(k => _pgApplySetting(k, _pgSettingGet(k, true)));
+}
+
+window._pgToggleChange = function(inp) {
+  const key = inp.dataset.key;
+  _pgSettingSet(key, inp.checked);
+  _pgApplySetting(key, inp.checked);
+};
+
+let _pgResetTimer = null;
+window._pgResetHold = function(btn) {
+  let elapsed = 0;
+  btn.textContent = '🗑 Hold... 3.0s';
+  _pgResetTimer = setInterval(() => {
+    elapsed += 0.1;
+    const left = Math.max(0, 3 - elapsed).toFixed(1);
+    btn.textContent = `🗑 Hold... ${left}s`;
+    if (elapsed >= 3) {
+      clearInterval(_pgResetTimer); _pgResetTimer = null;
+      store.state.hunger=80; store.state.happiness=60; store.state.affection=50;
+      store.state.steps=0; store.state.pokemonCaught=0; store.state.pokestopSpins=0;
+      store.state.badges=0; store.state.berries=0; store.state.toys=0;
+      store.state.potions=0; store.state.candy=0; store.state.journal=[];
+      syncAllHUD();
+      window.closeSettings();
+      toast('🗑 Progress reset!', 2500);
+    }
+  }, 100);
+};
+window._pgResetCancel = function() {
+  if (_pgResetTimer) { clearInterval(_pgResetTimer); _pgResetTimer = null; }
+  const btn = document.getElementById('pgResetBtn');
+  if (btn) btn.textContent = '🗑 Reset Progress (hold 3s)';
+};
+
+// =====================================================================
+// === FEATURE 3: ACTIVITY JOURNAL PANEL ===============================
+// =====================================================================
+
+let _journalTab = 'log';
+
+window.openJournal = function() {
+  _journalTab = 'log';
+  _pgRenderJournal();
+  const p = document.getElementById('journalPanel');
+  const bd = document.getElementById('pgBackdrop');
+  if (!p) return;
+  p.classList.add('open');
+  if (bd) bd.classList.add('open');
+};
+window.closeJournal = function() {
+  const p = document.getElementById('journalPanel');
+  const bd = document.getElementById('pgBackdrop');
+  if (p) p.classList.remove('open');
+  if (bd) bd.classList.remove('open');
+};
+window.clearJournal = function() {
+  store.state.journal = [];
+  _pgRenderJournal();
+};
+window.switchJournalTab = function(tab) {
+  _journalTab = tab;
+  _pgRenderJournal();
+};
+
+function _pgTimeAgo(ts) {
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  return `${Math.floor(diff/86400)}d ago`;
+}
+
+const _journalMilestones = [
+  { label:'First Catch',  sub:'Caught your first Pokémon',    icon:'🟢', req:j=>j.filter(e=>e.type==='catch').length>=1 },
+  { label:'10 Catches',   sub:'Caught 10 Pokémon',             icon:'⚡', req:j=>j.filter(e=>e.type==='catch').length>=10 },
+  { label:'50 Catches',   sub:'Caught 50 Pokémon',             icon:'🎯', req:j=>j.filter(e=>e.type==='catch').length>=50 },
+  { label:'100 Catches',  sub:'Caught 100 Pokémon',            icon:'🏆', req:j=>j.filter(e=>e.type==='catch').length>=100 },
+  { label:'First Spin',   sub:'Spun your first PokéStop',      icon:'💠', req:j=>j.filter(e=>e.type==='spin').length>=1 },
+  { label:'10 Spins',     sub:'Spun 10 PokéStops',             icon:'🌀', req:j=>j.filter(e=>e.type==='spin').length>=10 },
+  { label:'50 Spins',     sub:'Spun 50 PokéStops',             icon:'💫', req:j=>j.filter(e=>e.type==='spin').length>=50 },
+  { label:'First Feed',   sub:'Fed your Pokémon',              icon:'🍽', req:j=>j.filter(e=>e.type==='feed').length>=1 },
+  { label:'Pet x10',      sub:'Petted your Pokémon 10 times',  icon:'🫳', req:j=>j.filter(e=>e.type==='pet').length>=10 },
+  { label:'Full Bond',    sub:'Reached 100 affection',         icon:'💕', req:()=>store.state.affection>=100 },
+];
+
+function _pgRenderJournal() {
+  const body = document.getElementById('journalBody');
+  if (!body) return;
+  const jrn = store.state.journal || [];
+
+  const tabs = ['log','today','milestones'];
+  const tabLabels = { log:'📋 Log', today:'📊 Today', milestones:'🏆 Milestones' };
+  let html = `<div class="pg-journal-tabs">`;
+  tabs.forEach(t => {
+    html += `<button class="pg-journal-tab${_journalTab===t?' active':''}" onclick="window.switchJournalTab('${t}')">${tabLabels[t]}</button>`;
+  });
+  html += `</div>`;
+
+  if (_journalTab === 'log') {
+    if (jrn.length === 0) {
+      html += `<div class="pg-journal-empty">No activity yet</div>`;
+    } else {
+      const colorMap = { catch:'#4ade80', fled:'#f87171', spin:'#60a5fa', item:'#a78bfa', feed:'#fbbf24', pet:'#f472b6', heal:'#34d399', bounce:'#fcd34d' };
+      html += `<div class="pg-journal-list">`;
+      jrn.forEach(e => {
+        const color = colorMap[e.type] || '#ccc';
+        html += `<div class="pg-journal-row" style="border-left:3px solid ${color};">${e.icon} <span class="pg-journal-lbl">${e.label}</span> · <span class="pg-journal-time">${_pgTimeAgo(e.ts)}</span></div>`;
+      });
+      html += `</div>`;
+    }
+  } else if (_journalTab === 'today') {
+    const caught = jrn.filter(e=>e.type==='catch').length;
+    const fled   = jrn.filter(e=>e.type==='fled').length;
+    const spins  = jrn.filter(e=>e.type==='spin').length;
+    const feeds  = jrn.filter(e=>e.type==='feed').length;
+    const items  = jrn.filter(e=>e.type==='item').length;
+    const total  = caught + fled;
+    const rate   = total > 0 ? Math.round(caught/total*100) : 0;
+    const stats = [
+      {icon:'🟢', label:'Caught',    val:caught},
+      {icon:'🔴', label:'Fled',       val:fled},
+      {icon:'📊', label:'Catch Rate', val:rate+'%'},
+      {icon:'💠', label:'Spins',       val:spins},
+      {icon:'🍽', label:'Feeds',       val:feeds},
+      {icon:'🎒', label:'Items Used',  val:items},
+    ];
+    html += `<div class="pg-journal-stats-grid">`;
+    stats.forEach(s => {
+      html += `<div class="pg-journal-stat-cell"><span class="pg-journal-stat-icon">${s.icon}</span><span class="pg-journal-stat-val">${s.val}</span><span class="pg-journal-stat-lbl">${s.label}</span></div>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<div class="pg-journal-milestones">`;
+    _journalMilestones.forEach(m => {
+      const unlocked = m.req(jrn);
+      html += `<div class="pg-milestone-badge${unlocked?' unlocked':''}">
+        <span class="pg-milestone-icon">${unlocked?m.icon:'🔒'}</span>
+        <span class="pg-milestone-text">
+          <span class="pg-milestone-name">${m.label}</span>
+          <span class="pg-milestone-sub">${m.sub}</span>
+        </span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  body.innerHTML = html;
+}
+
 // Load default species (deferred — all window exports must be defined first)
 Promise.resolve().then(() => {
   window.selectSpecies(store.state.current || 'pikachu');
 });
+
+// ══════════════════════════════════════════════════════════════
+// CATCH ANIMATION
+// ══════════════════════════════════════════════════════════════
+window.triggerCatchAnim = function() {
+  const petWrap = document.getElementById('petWrap');
+  if (!petWrap) return;
+  const rect = petWrap.getBoundingClientRect();
+  const cx = rect.left + rect.width  / 2;
+  const cy = rect.top  + rect.height / 2;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'catch-anim-overlay';
+  document.body.appendChild(overlay);
+
+  // Flash ring on pet wrap
+  petWrap.classList.remove('catch-flash');
+  void petWrap.offsetWidth;
+  petWrap.classList.add('catch-flash');
+
+  // 8 Pokéball burst particles
+  const ballColors = ['#ef4444','#fff','#ef4444','#fff','#ef4444','#fff','#ef4444','#fff'];
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const dist  = 55 + Math.random() * 30;
+    const p = document.createElement('div');
+    p.className = 'catch-particle';
+    p.style.cssText = `
+      left:${cx}px; top:${cy}px;
+      background:${ballColors[i]};
+      box-shadow: 0 0 8px ${ballColors[i]};
+      --tx:${Math.cos(angle)*dist}px; --ty:${Math.sin(angle)*dist}px;
+    `;
+    p.animate([
+      { transform:'translate(-50%,-50%) scale(1)',   opacity:1 },
+      { transform:`translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px)) scale(0.3)`, opacity:0 }
+    ], { duration:1100, easing:'ease-out', fill:'forwards' });
+    overlay.appendChild(p);
+  }
+
+  // 12 green sparkle dots
+  for (let i = 0; i < 12; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = 40 + Math.random() * 50;
+    const s = document.createElement('div');
+    s.className = 'catch-sparkle';
+    s.style.cssText = `left:${cx}px; top:${cy}px;
+      --sx:${Math.cos(angle)*dist}px; --sy:${Math.sin(angle)*dist - 20}px;
+      animation-delay:${Math.random()*200}ms;`;
+    overlay.appendChild(s);
+  }
+
+  // "✨ Caught!" floating label
+  const lbl = document.createElement('div');
+  lbl.className = 'catch-label';
+  lbl.textContent = '✨ Caught!';
+  lbl.style.cssText = `left:${cx}px; top:${cy}px;`;
+  overlay.appendChild(lbl);
+
+  setTimeout(() => overlay.remove(), 1400);
+  setTimeout(() => petWrap.classList.remove('catch-flash'), 1100);
+};
+
+// ══════════════════════════════════════════════════════════════
+// SPIN ANIMATION
+// ══════════════════════════════════════════════════════════════
+window.triggerSpinAnim = function() {
+  const petWrap = document.getElementById('petWrap');
+  if (!petWrap) return;
+  const rect = petWrap.getBoundingClientRect();
+  const cx = rect.left + rect.width  / 2;
+  const cy = rect.top  + rect.height / 2;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'catch-anim-overlay';
+  document.body.appendChild(overlay);
+
+  // Flash ring blue
+  petWrap.classList.remove('spin-flash');
+  void petWrap.offsetWidth;
+  petWrap.classList.add('spin-flash');
+
+  // 6 blue diamond particles in expanding circle
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2;
+    const dist  = 50 + Math.random() * 25;
+    const p = document.createElement('div');
+    p.className = 'spin-particle';
+    p.style.cssText = `left:${cx}px; top:${cy}px;
+      --dx:${Math.cos(angle)*dist}px; --dy:${Math.sin(angle)*dist}px;
+      animation-delay:${i*60}ms;`;
+    overlay.appendChild(p);
+  }
+
+  // Item reward label
+  const lbl = document.createElement('div');
+  lbl.className = 'spin-reward';
+  lbl.textContent = '💠 +Berry';
+  lbl.style.cssText = `left:${cx}px; top:${cy}px;`;
+  overlay.appendChild(lbl);
+
+  setTimeout(() => overlay.remove(), 1300);
+  setTimeout(() => petWrap.classList.remove('spin-flash'), 1100);
+};
+
+// ══════════════════════════════════════════════════════════════
+// WIRE ANIMATIONS INTO DEMO BOOST
+// ══════════════════════════════════════════════════════════════
+const _origBoostCaught = window.demoBoostCaught;
+window.demoBoostCaught = function() {
+  _origBoostCaught();
+  window.triggerCatchAnim();
+  store.logEvent('caught', 'Pokémon caught (demo)', '🟢');
+};
+
+const _origBoostSpin = window.demoBoostSpin;
+window.demoBoostSpin = function() {
+  _origBoostSpin();
+  window.triggerSpinAnim();
+  store.logEvent('spin', 'Pokéstop spun (demo)', '💠');
+};
+
+// Wire logging into existing actions
+const _origFeed = window.feed;
+window.feed = function() { _origFeed(); store.logEvent('feed','Fed Pokémon','🍽'); };
+const _origPet = window.petAction;
+window.petAction = function() { _origPet(); store.logEvent('pet','Petted Pokémon','🫳'); };
+const _origHeal = window.healPet;
+window.healPet = function() { _origHeal(); store.logEvent('heal','Healed Pokémon','💊'); };
+const _origBounce = window.bounce;
+window.bounce = function() { _origBounce(); store.logEvent('bounce','Bounce!','⭐'); };
+
+// ══════════════════════════════════════════════════════════════
+// SETTINGS PANEL
+// ══════════════════════════════════════════════════════════════
+window.openSettings = function() {
+  document.getElementById('settingsPanel').classList.add('open');
+  document.getElementById('settingsPanel').setAttribute('aria-hidden','false');
+  document.getElementById('pgBackdrop').classList.add('open');
+  // load saved toggles
+  ['pg_sound','pg_sound_catch','pg_sound_spin','pg_auto_catch_anim'].forEach(k => {
+    const idMap = { pg_sound:'togSound', pg_sound_catch:'togCatchSound', pg_sound_spin:'togSpinSound', pg_auto_catch_anim:'togAutoCatch' };
+    const el = document.getElementById(idMap[k]);
+    if (el) el.checked = localStorage.getItem(k) !== 'false';
+  });
+  const cameos = localStorage.getItem('pg_cameos');
+  const togCam = document.getElementById('togCameos');
+  if (togCam) togCam.checked = cameos !== 'false';
+  const togBone = document.getElementById('togBoneAnim');
+  if (togBone) togBone.checked = localStorage.getItem('pg_bone_anim') !== 'false';
+};
+window.closeSettings = function() {
+  document.getElementById('settingsPanel').classList.remove('open');
+  document.getElementById('settingsPanel').setAttribute('aria-hidden','true');
+  if (!document.getElementById('journalPanel').classList.contains('open')) {
+    document.getElementById('pgBackdrop').classList.remove('open');
+  }
+};
+window.saveSetting = function(key, val) {
+  localStorage.setItem(key, val);
+};
+window.toggleCameos = function(on) {
+  localStorage.setItem('pg_cameos', on);
+  document.querySelectorAll('.cameo-pkmn').forEach(el => { el.style.display = on ? '' : 'none'; });
+};
+window.toggleBoneAnim = function(on) {
+  localStorage.setItem('pg_bone_anim', on);
+  if (sceneMan) sceneMan._pauseAnim = !on;
+};
+
+// Reset with hold
+let _resetTimer = null, _resetStart = null;
+window.startReset = function() {
+  _resetStart = Date.now();
+  const fill = document.getElementById('resetBarFill');
+  function tick() {
+    const pct = Math.min(100, ((Date.now() - _resetStart) / 3000) * 100);
+    if (fill) fill.style.width = pct + '%';
+    if (pct >= 100) {
+      if (fill) fill.style.width = '0%';
+      store.state.hunger = 80; store.state.happiness = 60; store.state.affection = 50;
+      store.state.pokemonCaught = 0; store.state.pokestopSpins = 0; store.state.steps = 0;
+      store.state.berries = 5; store.state.toys = 3; store.state.potions = 2; store.state.candy = 10;
+      store.state.journal = [];
+      syncAllHUD();
+      toast('🔄 Progress reset!', 3000);
+      window.closeSettings();
+      return;
+    }
+    _resetTimer = requestAnimationFrame(tick);
+  }
+  _resetTimer = requestAnimationFrame(tick);
+};
+window.cancelReset = function() {
+  if (_resetTimer) cancelAnimationFrame(_resetTimer);
+  const fill = document.getElementById('resetBarFill');
+  if (fill) fill.style.width = '0%';
+};
+
+// ══════════════════════════════════════════════════════════════
+// JOURNAL PANEL
+// ══════════════════════════════════════════════════════════════
+let _currentJTab = 'log';
+
+window.openJournal = function() {
+  document.getElementById('journalPanel').classList.add('open');
+  document.getElementById('journalPanel').setAttribute('aria-hidden','false');
+  document.getElementById('pgBackdrop').classList.add('open');
+  window.renderJTab(_currentJTab);
+};
+window.closeJournal = function() {
+  document.getElementById('journalPanel').classList.remove('open');
+  document.getElementById('journalPanel').setAttribute('aria-hidden','true');
+  if (!document.getElementById('settingsPanel').classList.contains('open')) {
+    document.getElementById('pgBackdrop').classList.remove('open');
+  }
+};
+window.switchJTab = function(tab) {
+  _currentJTab = tab;
+  document.querySelectorAll('.pg-jtab').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('jtab-' + tab);
+  if (btn) btn.classList.add('active');
+  window.renderJTab(tab);
+};
+window.clearJournal = function() {
+  store.state.journal = [];
+  window.renderJTab(_currentJTab);
+  toast('📓 Journal cleared');
+};
+
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60)  return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+
+window.renderJTab = function(tab) {
+  const body = document.getElementById('journalBody');
+  if (!body) return;
+  const j = store.state.journal;
+
+  if (tab === 'log') {
+    if (!j.length) {
+      body.innerHTML = '<div class="jlog-empty">🌙 No activity yet.<br>Play to see your log here.</div>';
+      return;
+    }
+    const rows = j.slice(0, 80).map(e => `
+      <div class="jlog-row type-${e.type}">
+        <span class="jlog-icon">${e.icon}</span>
+        <span class="jlog-label">${e.label}</span>
+        <span class="jlog-time">${timeAgo(e.ts)}</span>
+      </div>`).join('');
+    body.innerHTML = `<div class="jlog-list">${rows}</div>`;
+  }
+
+  if (tab === 'today') {
+    const caught  = j.filter(e=>e.type==='caught').length;
+    const fled    = j.filter(e=>e.type==='fled').length;
+    const spins   = j.filter(e=>e.type==='spin').length;
+    const feeds   = j.filter(e=>e.type==='feed').length;
+    const items   = j.filter(e=>e.type==='item').length;
+    const pets    = j.filter(e=>e.type==='pet').length;
+    const rate    = caught+fled > 0 ? Math.round((caught/(caught+fled))*100) : 0;
+    body.innerHTML = `
+      <div class="jtoday-grid">
+        <div class="jtoday-card"><div class="jtoday-icon">🟢</div><div class="jtoday-val">${caught}</div><div class="jtoday-name">Caught</div></div>
+        <div class="jtoday-card"><div class="jtoday-icon">🔴</div><div class="jtoday-val">${fled}</div><div class="jtoday-name">Fled</div></div>
+        <div class="jtoday-card"><div class="jtoday-icon">💠</div><div class="jtoday-val">${spins}</div><div class="jtoday-name">Spins</div></div>
+        <div class="jtoday-card"><div class="jtoday-icon">🍽</div><div class="jtoday-val">${feeds}</div><div class="jtoday-name">Feeds</div></div>
+        <div class="jtoday-card"><div class="jtoday-icon">🧸</div><div class="jtoday-val">${items}</div><div class="jtoday-name">Items Used</div></div>
+        <div class="jtoday-card"><div class="jtoday-icon">🫳</div><div class="jtoday-val">${pets}</div><div class="jtoday-name">Pets</div></div>
+        <div class="jtoday-rate">
+          <div class="jtoday-rate-val">${rate}%</div>
+          <div class="jtoday-rate-lbl">Catch Rate this session</div>
+        </div>
+      </div>`;
+  }
+
+  if (tab === 'milestones') {
+    const caught  = store.state.pokemonCaught;
+    const spins   = store.state.pokestopSpins;
+    const feeds   = j.filter(e=>e.type==='feed').length;
+    const pets    = j.filter(e=>e.type==='pet').length;
+    const milestones = [
+      { icon:'🎯', name:'First Catch',   sub:'Catch your first Pokémon',    unlocked: caught >= 1 },
+      { icon:'⚡', name:'10 Catches',    sub:'Catch 10 Pokémon',            unlocked: caught >= 10 },
+      { icon:'💫', name:'50 Catches',    sub:'Catch 50 Pokémon',            unlocked: caught >= 50 },
+      { icon:'🏆', name:'100 Catches',   sub:'Catch 100 Pokémon',           unlocked: caught >= 100 },
+      { icon:'💠', name:'First Spin',    sub:'Spin your first PokéStop',    unlocked: spins >= 1 },
+      { icon:'🔵', name:'10 Spins',      sub:'Spin 10 PokéStops',           unlocked: spins >= 10 },
+      { icon:'🌀', name:'50 Spins',      sub:'Spin 50 PokéStops',           unlocked: spins >= 50 },
+      { icon:'🍽', name:'First Feed',    sub:'Feed your Pokémon once',      unlocked: feeds >= 1 },
+      { icon:'🫳', name:'Loving Care',   sub:'Pet your Pokémon 10 times',   unlocked: pets >= 10 },
+      { icon:'💖', name:'Full Bond',     sub:'Reach 100 affection',         unlocked: store.state.affection >= 100 },
+    ];
+    const rows = milestones.map(m => `
+      <div class="jmilestone ${m.unlocked?'unlocked':'locked'}">
+        <div class="jmilestone-icon">${m.icon}</div>
+        <div class="jmilestone-info">
+          <div class="jmilestone-name">${m.name}</div>
+          <div class="jmilestone-sub">${m.sub}</div>
+        </div>
+        ${m.unlocked ? '<span style="color:var(--accent);font-size:1rem;">✓</span>' : '<span class="jmilestone-lock">🔒</span>'}
+      </div>`).join('');
+    body.innerHTML = `<div class="jmilestone-list">${rows}</div>`;
+  }
+};

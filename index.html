@@ -36,7 +36,9 @@
   <!-- ─── TOP BAR ─── -->
   <div class="top-bar">
     <span class="logo">✦ PG</span>
-    <span class="debug-toggle" onclick="window.toggleDebugOverlay()" id="debugToggle" title="Toggle expression debug overlay" style="cursor:pointer;font-size:0.65rem;padding:1px 5px;border-radius:6px;background:var(--accent-dim);color:var(--accent);font-weight:700;font-family:monospace;margin-left:3px;">🔍</span>
+    <span class="top-icon-btn" onclick="window.toggleDebugOverlay()" id="debugToggle" title="Debug overlay">🔍</span>
+    <span class="top-icon-btn" onclick="window.openJournal()" title="Activity Journal">📓</span>
+    <span class="top-icon-btn" onclick="window.openSettings()" title="Settings">⚙️</span>
     <span class="pet-name" id="petNameDisplay">Pikachu</span>
     <span class="spacer">
       <!-- HUD COUNTERS -->
@@ -187,7 +189,8 @@
   </div>
 
   <div class="footer">Pokégatchi · <kbd>D</kbd> debug</div>
-</div>
+
+</div><!-- end .ui-layer -->
 
 <!-- ─── TOAST ─── -->
 <div class="toast" id="toast"></div>
@@ -195,6 +198,68 @@
 <!-- ─── LOADING SPINNER ─── -->
 <div id="loading-spinner"></div>
 
-<script type="module" src="js/main.js?v=6"></script>
+<!-- ─── SHARED BACKDROP ─── -->
+<div id="pgBackdrop" class="pg-backdrop" onclick="window.closeSettings();window.closeJournal();"></div>
+
+<!-- ─── SETTINGS PANEL ─── -->
+<div id="settingsPanel" class="pg-sheet" aria-hidden="true">
+  <div class="pg-sheet-handle"></div>
+  <div class="pg-sheet-header">
+    <span class="pg-sheet-title">⚙️ Settings</span>
+    <button class="pg-sheet-close" onclick="window.closeSettings()">✕</button>
+  </div>
+  <div class="pg-sheet-body">
+
+    <div class="sett-section">
+      <div class="sett-title">🎨 Team</div>
+      <button class="sett-action-btn" onclick="window.closeSettings();document.getElementById('teamOverlay').classList.remove('hidden');">Change Team Color</button>
+    </div>
+
+    <div class="sett-section">
+      <div class="sett-title">🔊 Sound</div>
+      <label class="tog-row"><span class="tog-label">Master Sound</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togSound" checked onchange="window.saveSetting('pg_sound',this.checked)"><span class="tog-pill"></span></span></label>
+      <label class="tog-row"><span class="tog-label">Catch Sound</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togCatchSound" checked onchange="window.saveSetting('pg_sound_catch',this.checked)"><span class="tog-pill"></span></span></label>
+      <label class="tog-row"><span class="tog-label">Spin Sound</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togSpinSound" checked onchange="window.saveSetting('pg_sound_spin',this.checked)"><span class="tog-pill"></span></span></label>
+    </div>
+
+    <div class="sett-section">
+      <div class="sett-title">🎮 Game</div>
+      <label class="tog-row"><span class="tog-label">Catch Animations</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togAutoCatch" checked onchange="window.saveSetting('pg_auto_catch_anim',this.checked)"><span class="tog-pill"></span></span></label>
+      <label class="tog-row"><span class="tog-label">Show Cameos</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togCameos" checked onchange="window.toggleCameos(this.checked)"><span class="tog-pill"></span></span></label>
+      <label class="tog-row"><span class="tog-label">Bone Animations</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togBoneAnim" checked onchange="window.toggleBoneAnim(this.checked)"><span class="tog-pill"></span></span></label>
+    </div>
+
+    <div class="sett-section">
+      <div class="sett-title">⚠️ Reset</div>
+      <button class="sett-reset-btn" id="resetBtn"
+        onpointerdown="window.startReset()"
+        onpointerup="window.cancelReset()"
+        onpointerleave="window.cancelReset()">Hold 3s to Reset Progress</button>
+      <div class="sett-reset-bar"><div class="sett-reset-fill" id="resetBarFill"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── JOURNAL PANEL ─── -->
+<div id="journalPanel" class="pg-sheet" aria-hidden="true">
+  <div class="pg-sheet-handle"></div>
+  <div class="pg-sheet-header">
+    <span class="pg-sheet-title">📓 Journal</span>
+    <span style="display:flex;gap:6px;align-items:center;">
+      <button class="pg-sheet-clear" onclick="window.clearJournal()">Clear</button>
+      <button class="pg-sheet-close" onclick="window.closeJournal()">✕</button>
+    </span>
+  </div>
+  <div class="pg-jtabs">
+    <button class="pg-jtab active" id="jtab-log"        onclick="window.switchJTab('log')">📋 Log</button>
+    <button class="pg-jtab"        id="jtab-today"      onclick="window.switchJTab('today')">📊 Today</button>
+    <button class="pg-jtab"        id="jtab-milestones" onclick="window.switchJTab('milestones')">🏆 Goals</button>
+  </div>
+  <div class="pg-sheet-body" id="journalBody">
+    <!-- rendered by JS -->
+  </div>
+</div>
+
+<script type="module" src="js/main.js?v=7"></script>
 </body>
 </html>
