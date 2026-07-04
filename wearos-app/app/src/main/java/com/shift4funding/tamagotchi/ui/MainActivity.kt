@@ -1,9 +1,14 @@
 package com.shift4funding.tamagotchi.ui
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import com.shift4funding.tamagotchi.ble.BleGattServerService
 import com.shift4funding.tamagotchi.tamagotchi.*
 import com.shift4funding.tamagotchi.ui.screens.MainScreen
@@ -15,9 +20,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         // Start the BLE GATT server (auto-catcher)
-        // Intent(this, BleGattServerService::class.java).also { intent ->
-        //     startForegroundService(intent)
-        // }
+        Intent(this, BleGattServerService::class.java).also { intent ->
+            startForegroundService(intent)
+        }
 
         setContent {
             TamaGoApp()
@@ -27,9 +32,29 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun TamaGoApp() {
-    // Initialize state — seeded from account data on first launch
     val seed = remember { SeedGenerator.generate() }
     var state by remember { mutableStateOf(createInitialState(seed)) }
+    val context = LocalContext.current
+
+    // BLE event receiver — fires when PGP/Go-tcha catches or spins
+    DisposableEffect(Unit) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: Intent) {
+                val eventType = intent.getStringExtra(BleGattServerService.EXTRA_EVENT_TYPE)
+                when (eventType) {
+                    BleGattServerService.EVENT_CAUGHT ->
+                        state = tamagotchiReducer(state, TamagotchiAction.PokemonCaught(isShiny = false))
+                    BleGattServerService.EVENT_FLED ->
+                        state = tamagotchiReducer(state, TamagotchiAction.PokemonFled)
+                    BleGattServerService.EVENT_SPUN ->
+                        state = tamagotchiReducer(state, TamagotchiAction.PokeStopSpun)
+                }
+            }
+        }
+        val filter = IntentFilter(BleGattServerService.ACTION_BLE_EVENT)
+        context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        onDispose { context.unregisterReceiver(receiver) }
+    }
 
     // Tick timer — advances game state every 60 seconds
     LaunchedEffect(Unit) {

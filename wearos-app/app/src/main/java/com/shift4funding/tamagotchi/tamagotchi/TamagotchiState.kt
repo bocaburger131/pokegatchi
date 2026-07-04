@@ -21,7 +21,8 @@ enum class Mood {
     HUNGRY,
     SAD,
     EXCITED,
-    SLEEPY
+    SLEEPY,
+    DIRTY
 }
 
 // ─── Personality Traits (seeded at birth) ───────────────────────────
@@ -88,6 +89,10 @@ data class TamagotchiState(
     val autoSpinEnabled: Boolean = true,
     val consecutiveCatches: Int = 0,
     val streakDays: Int = 0,
+    val cleanliness: Int = 100,       // 0-100, decays over time
+    val level: Int = 1,               // permanent rank, earned via XP
+    val xp: Int = 0,                  // XP toward next level
+    val lastBathTime: Long = System.currentTimeMillis(),
 )
 
 // ─── Actions ────────────────────────────────────────────────────────
@@ -100,6 +105,7 @@ sealed class TamagotchiAction {
     data object PokemonFled : TamagotchiAction()
     data object PokeStopSpun : TamagotchiAction()
     data class TrainMiniGame(val result: MiniGameResult) : TamagotchiAction()
+    data object Bath : TamagotchiAction()
 }
 
 data class MiniGameResult(
@@ -121,6 +127,7 @@ fun tamagotchiReducer(state: TamagotchiState, action: TamagotchiAction): Tamagot
         is TamagotchiAction.PokemonFled -> handleFlee(state)
         is TamagotchiAction.PokeStopSpun -> handleSpin(state)
         is TamagotchiAction.TrainMiniGame -> handleTrain(state, action.result)
+        is TamagotchiAction.Bath -> handleBath(state)
     }
 }
 
@@ -139,6 +146,11 @@ private fun handleTick(state: TamagotchiState): TamagotchiState {
     val newHappiness = (state.happiness - happinessDecay).coerceIn(0, 100)
     val newEnergy = (state.energy + energyGain).coerceIn(0, 100)
 
+    // Cleanliness decays ~10 points per hour
+    val hoursSinceLastBath = (now - state.lastBathTime) / 3600000f
+    val cleanlinessDecay = (hoursSinceLastBath * 0.17f).toInt().coerceIn(0, 50)
+    val newCleanliness = (state.cleanliness - cleanlinessDecay).coerceIn(0, 100)
+
     // Egg hatching
     val newEggProgress = if (state.stage == EvolutionStage.EGG) {
         (state.eggHatchProgress + 0.05f).coerceAtMost(1.0f)
@@ -149,6 +161,7 @@ private fun handleTick(state: TamagotchiState): TamagotchiState {
 
     // Derive mood
     val newMood = when {
+        newCleanliness < 20 -> Mood.DIRTY
         newHunger < 20 -> Mood.HUNGRY
         newHappiness < 20 -> Mood.SAD
         newEnergy < 20 -> Mood.SLEEPY
@@ -163,7 +176,8 @@ private fun handleTick(state: TamagotchiState): TamagotchiState {
         energy = (state.energy + energyGain).coerceIn(0, 100),
         mood = newMood,
         eggHatchProgress = newEggProgress,
-        stage = newStage
+        stage = newStage,
+        cleanliness = newCleanliness,
     )
 }
 
@@ -201,6 +215,13 @@ private fun handleCatch(state: TamagotchiState, isShiny: Boolean): TamagotchiSta
     val progress = calcEvolutionProgress(newTotal, state.stage)
     val evolvedStage = checkEvolution(newTotal, state.stage)
 
+    val xpGain = if (isShiny) 15 else 5
+    val newXp = state.xp + xpGain
+    val xpNeeded = state.level * 100  // each level needs level*100 XP
+    val didLevelUp = newXp >= xpNeeded
+    val finalXp = if (didLevelUp) newXp - xpNeeded else newXp
+    val newLevel = if (didLevelUp) state.level + 1 else state.level
+
     return state.copy(
         totalCatches = newTotal,
         happiness = (state.happiness + 8).coerceAtMost(100),
@@ -209,7 +230,9 @@ private fun handleCatch(state: TamagotchiState, isShiny: Boolean): TamagotchiSta
         evolutionProgress = progress,
         stage = evolvedStage,
         mood = if (isShiny) Mood.EXCITED else Mood.HAPPY,
-        lastCaughtTime = System.currentTimeMillis()
+        lastCaughtTime = System.currentTimeMillis(),
+        level = newLevel,
+        xp = finalXp,
     )
 }
 
@@ -223,9 +246,17 @@ private fun handleFlee(state: TamagotchiState): TamagotchiState {
 }
 
 private fun handleSpin(state: TamagotchiState): TamagotchiState {
+    val newXp = state.xp + 2
+    val xpNeeded = state.level * 100
+    val didLevelUp = newXp >= xpNeeded
+    val finalXp = if (didLevelUp) newXp - xpNeeded else newXp
+    val newLevel = if (didLevelUp) state.level + 1 else state.level
+
     return state.copy(
         totalSpins = state.totalSpins + 1,
-        hunger = (state.hunger + 3).coerceAtMost(100)
+        hunger = (state.hunger + 3).coerceAtMost(100),
+        level = newLevel,
+        xp = finalXp,
     )
 }
 
@@ -241,6 +272,15 @@ private fun handleTrain(state: TamagotchiState, result: MiniGameResult): Tamagot
         StatType.BOND -> state.copy(bond = (state.bond + gain).coerceAtMost(100))
         StatType.WEIGHT -> state.copy(weight = (state.weight - gain).coerceAtLeast(1).coerceAtMost(100))
     }
+}
+
+private fun handleBath(state: TamagotchiState): TamagotchiState {
+    return state.copy(
+        cleanliness = 100,
+        happiness = (state.happiness + 5).coerceAtMost(100),
+        lastBathTime = System.currentTimeMillis(),
+        mood = if (state.mood == Mood.DIRTY) Mood.HAPPY else state.mood
+    )
 }
 
 private fun calcEvolutionProgress(catches: Int, stage: EvolutionStage): Float {

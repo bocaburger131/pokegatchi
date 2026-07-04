@@ -47,20 +47,23 @@ fun MainScreen(
                 state = state,
                 infiniteTransition = infiniteTransition,
                 onFeed = { onAction(TamagotchiAction.Feed("berry")) },
-                onPet = { onAction(TamagotchiAction.Pet) }
+                onPet = { onAction(TamagotchiAction.Pet) },
+                onBath = { onAction(TamagotchiAction.Bath) }
             )
             EvolutionStage.TEEN -> TeenScreen(
                 state = state,
                 infiniteTransition = infiniteTransition,
                 onFeed = { onAction(TamagotchiAction.Feed("berry")) },
-                onPet = { onAction(TamagotchiAction.Pet) }
+                onPet = { onAction(TamagotchiAction.Pet) },
+                onBath = { onAction(TamagotchiAction.Bath) }
             )
             EvolutionStage.ADULT,
             EvolutionStage.MEGA -> AdultScreen(
                 state = state,
                 infiniteTransition = infiniteTransition,
                 onFeed = { onAction(TamagotchiAction.Feed("berry")) },
-                onPet = { onAction(TamagotchiAction.Pet) }
+                onPet = { onAction(TamagotchiAction.Pet) },
+                onBath = { onAction(TamagotchiAction.Bath) }
             )
         }
 
@@ -75,6 +78,7 @@ fun MainScreen(
                 Mood.SAD -> "😢"
                 Mood.EXCITED -> "🎉"
                 Mood.SLEEPY -> "😴"
+                Mood.DIRTY -> "🛁"
             },
             fontSize = 14.sp
         )
@@ -85,7 +89,8 @@ fun MainScreen(
             StatsBar(
                 hunger = state.hunger,
                 happiness = state.happiness,
-                energy = state.energy
+                energy = state.energy,
+                cleanliness = state.cleanliness
             )
         }
 
@@ -93,7 +98,7 @@ fun MainScreen(
         if (state.stage != EvolutionStage.EGG) {
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "${state.stage.displayName}  •  ${state.totalCatches} catches",
+                text = "Lv.${state.level}  •  ${state.stage.displayName}  •  ${state.totalCatches} catches",
                 fontSize = 10.sp,
                 color = Color.Gray,
                 textAlign = TextAlign.Center
@@ -200,7 +205,8 @@ fun BabyScreen(
     state: TamagotchiState,
     infiniteTransition: InfiniteTransition,
     onFeed: () -> Unit,
-    onPet: () -> Unit
+    onPet: () -> Unit,
+    onBath: () -> Unit
 ) {
     val bounce by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -222,7 +228,7 @@ fun BabyScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Canvas(modifier = Modifier.size(90.dp)) {
-            drawBabyPet(bounce, state.mood, state.color)
+            drawBabyPet(bounce, state.mood, state.color, state.cleanliness)
         }
 
         Text(
@@ -230,10 +236,17 @@ fun BabyScreen(
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
+
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "🛁",
+            fontSize = 16.sp,
+            modifier = Modifier.pointerInput(Unit) { detectTapGestures { onBath() } }
+        )
     }
 }
 
-private fun DrawScope.drawBabyPet(bounce: Float, mood: Mood, petColor: Int) {
+private fun DrawScope.drawBabyPet(bounce: Float, mood: Mood, petColor: Int, cleanliness: Int) {
     val cx = size.width / 2
     val cy = size.height / 2 + bounce
     val r = size.width * 0.25f
@@ -293,6 +306,22 @@ private fun DrawScope.drawBabyPet(bounce: Float, mood: Mood, petColor: Int) {
     val footY = cy + r * 0.7f
     drawCircle(color = color.copy(alpha = 0.7f), radius = r * 0.15f, center = Offset(cx - r * 0.3f, footY))
     drawCircle(color = color.copy(alpha = 0.7f), radius = r * 0.15f, center = Offset(cx + r * 0.3f, footY))
+
+    // Dirty tint overlay
+    if (cleanliness < 40) {
+        val dirtyAlpha = ((40 - cleanliness) / 40f) * 0.45f
+        drawCircle(
+            color = Color(0xFF6B4226).copy(alpha = dirtyAlpha),
+            radius = r * 1.1f,
+            center = Offset(cx, cy)
+        )
+        // Dirt specks
+        if (cleanliness < 20) {
+            drawCircle(color = Color(0xFF4A2F1A).copy(alpha = 0.6f), radius = r * 0.06f, center = Offset(cx - r * 0.4f, cy - r * 0.3f))
+            drawCircle(color = Color(0xFF4A2F1A).copy(alpha = 0.5f), radius = r * 0.04f, center = Offset(cx + r * 0.5f, cy + r * 0.1f))
+            drawCircle(color = Color(0xFF4A2F1A).copy(alpha = 0.4f), radius = r * 0.05f, center = Offset(cx + r * 0.2f, cy - r * 0.6f))
+        }
+    }
 }
 
 // ─── Teen Pet Screen ────────────────────────────────────────────────
@@ -302,7 +331,8 @@ fun TeenScreen(
     state: TamagotchiState,
     infiniteTransition: InfiniteTransition,
     onFeed: () -> Unit,
-    onPet: () -> Unit
+    onPet: () -> Unit,
+    onBath: () -> Unit
 ) {
     val bounce by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -324,7 +354,7 @@ fun TeenScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Canvas(modifier = Modifier.size(100.dp)) {
-            drawTeenPet(bounce, state.mood, state.color)
+            drawTeenPet(bounce, state.mood, state.color, state.cleanliness)
         }
 
         Text(
@@ -332,10 +362,17 @@ fun TeenScreen(
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
+
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "🛁",
+            fontSize = 16.sp,
+            modifier = Modifier.pointerInput(Unit) { detectTapGestures { onBath() } }
+        )
     }
 }
 
-private fun DrawScope.drawTeenPet(bounce: Float, mood: Mood, petColor: Int) {
+private fun DrawScope.drawTeenPet(bounce: Float, mood: Mood, petColor: Int, cleanliness: Int) {
     val cx = size.width / 2
     val cy = size.height / 2 + bounce
     val r = size.width * 0.28f
@@ -394,6 +431,22 @@ private fun DrawScope.drawTeenPet(bounce: Float, mood: Mood, petColor: Int) {
     val footY = cy + r * 0.8f
     drawCircle(color = color.copy(alpha = 0.7f), radius = r * 0.18f, center = Offset(cx - r * 0.35f, footY))
     drawCircle(color = color.copy(alpha = 0.7f), radius = r * 0.18f, center = Offset(cx + r * 0.35f, footY))
+
+    // Dirty tint overlay
+    if (cleanliness < 40) {
+        val dirtyAlpha = ((40 - cleanliness) / 40f) * 0.45f
+        drawCircle(
+            color = Color(0xFF6B4226).copy(alpha = dirtyAlpha),
+            radius = r * 1.1f,
+            center = Offset(cx, cy)
+        )
+        // Dirt specks
+        if (cleanliness < 20) {
+            drawCircle(color = Color(0xFF4A2F1A).copy(alpha = 0.6f), radius = r * 0.06f, center = Offset(cx - r * 0.4f, cy - r * 0.3f))
+            drawCircle(color = Color(0xFF4A2F1A).copy(alpha = 0.5f), radius = r * 0.04f, center = Offset(cx + r * 0.5f, cy + r * 0.1f))
+            drawCircle(color = Color(0xFF4A2F1A).copy(alpha = 0.4f), radius = r * 0.05f, center = Offset(cx + r * 0.2f, cy - r * 0.6f))
+        }
+    }
 }
 
 // ─── Adult Pet Screen ───────────────────────────────────────────────
@@ -403,7 +456,8 @@ fun AdultScreen(
     state: TamagotchiState,
     infiniteTransition: InfiniteTransition,
     onFeed: () -> Unit,
-    onPet: () -> Unit
+    onPet: () -> Unit,
+    onBath: () -> Unit
 ) {
     val bounce by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -425,7 +479,7 @@ fun AdultScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Canvas(modifier = Modifier.size(110.dp)) {
-            drawAdultPet(bounce, state.mood, state.color)
+            drawAdultPet(bounce, state.mood, state.color, state.cleanliness)
         }
 
         Text(
@@ -433,10 +487,17 @@ fun AdultScreen(
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
+
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "🛁",
+            fontSize = 16.sp,
+            modifier = Modifier.pointerInput(Unit) { detectTapGestures { onBath() } }
+        )
     }
 }
 
-private fun DrawScope.drawAdultPet(bounce: Float, mood: Mood, petColor: Int) {
+private fun DrawScope.drawAdultPet(bounce: Float, mood: Mood, petColor: Int, cleanliness: Int) {
     val cx = size.width / 2
     val cy = size.height / 2 + bounce
     val r = size.width * 0.3f
@@ -476,12 +537,28 @@ private fun DrawScope.drawAdultPet(bounce: Float, mood: Mood, petColor: Int) {
     // Arms
     drawCircle(color = color.copy(alpha = 0.7f), radius = r * 0.15f, center = Offset(cx - r * 0.6f, cy + r * 0.2f))
     drawCircle(color = color.copy(alpha = 0.7f), radius = r * 0.15f, center = Offset(cx + r * 0.6f, cy + r * 0.2f))
+
+    // Dirty tint overlay
+    if (cleanliness < 40) {
+        val dirtyAlpha = ((40 - cleanliness) / 40f) * 0.45f
+        drawCircle(
+            color = Color(0xFF6B4226).copy(alpha = dirtyAlpha),
+            radius = r * 1.1f,
+            center = Offset(cx, cy)
+        )
+        // Dirt specks
+        if (cleanliness < 20) {
+            drawCircle(color = Color(0xFF4A2F1A).copy(alpha = 0.6f), radius = r * 0.06f, center = Offset(cx - r * 0.4f, cy - r * 0.3f))
+            drawCircle(color = Color(0xFF4A2F1A).copy(alpha = 0.5f), radius = r * 0.04f, center = Offset(cx + r * 0.5f, cy + r * 0.1f))
+            drawCircle(color = Color(0xFF4A2F1A).copy(alpha = 0.4f), radius = r * 0.05f, center = Offset(cx + r * 0.2f, cy - r * 0.6f))
+        }
+    }
 }
 
 // ─── Stats Bar ──────────────────────────────────────────────────────
 
 @Composable
-fun StatsBar(hunger: Int, happiness: Int, energy: Int) {
+fun StatsBar(hunger: Int, happiness: Int, energy: Int, cleanliness: Int) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
@@ -489,6 +566,7 @@ fun StatsBar(hunger: Int, happiness: Int, energy: Int) {
         StatDot(label = "🍖", value = hunger)
         StatDot(label = "❤️", value = happiness)
         StatDot(label = "⚡", value = energy)
+        StatDot(label = "🛁", value = cleanliness)
     }
 }
 
