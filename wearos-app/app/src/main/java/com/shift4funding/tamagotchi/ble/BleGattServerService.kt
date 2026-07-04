@@ -589,7 +589,7 @@ class BleGattServerService : Service() {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "TamaGo Auto-Catcher",
+            "Pokégatchi Auto-Catcher",
             NotificationManager.IMPORTANCE_LOW
         )
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -598,7 +598,7 @@ class BleGattServerService : Service() {
 
     private fun startService() {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("TamaGo")
+            .setContentTitle("Pokégatchi")
             .setContentText("Auto-catcher is running")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setOngoing(true)

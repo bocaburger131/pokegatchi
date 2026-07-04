@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pokégatchi — Watch Preview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0f;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    font-family: 'Segoe UI', sans-serif;
+    color: #eee;
+    padding: 30px 20px;
+    gap: 30px;
+  }
+
+  h1 {
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: #fff;
+    text-transform: uppercase;
+  }
+
+  h1 span { color: #f7c948; }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  button {
+    background: #1e1e2e;
+    border: 1px solid #333;
+    color: #eee;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+  }
+  button:hover { background: #2e2e4e; border-color: #f7c948; color: #f7c948; }
+  button.active { background: #f7c948; color: #000; border-color: #f7c948; }
+
+  .watch-row {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .watch-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .watch-label {
+    font-size: 12px;
+    color: #666;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* Watch bezel */
+  .watch {
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #2a2a3a, #0d0d14);
+    border: 6px solid #222;
+    box-shadow:
+      0 0 0 3px #111,
+      0 0 0 6px #333,
+      0 8px 40px rgba(0,0,0,0.8),
+      inset 0 1px 0 rgba(255,255,255,0.05);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  /* Crown button */
+  .watch::before {
+    content: '';
+    position: absolute;
+    right: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 10px;
+    height: 30px;
+    background: #2a2a2a;
+    border-radius: 3px;
+    border: 1px solid #444;
+  }
+
+  /* Watch strap top/bottom */
+  .strap-top, .strap-bottom {
+    width: 70px;
+    height: 24px;
+    background: #1a1a1a;
+    border-radius: 4px;
+    border: 1px solid #333;
+  }
+
+  canvas#watchFace {
+    border-radius: 50%;
+    display: block;
+  }
+
+  /* Status panel below watch */
+  .status-panel {
+    background: #111118;
+    border: 1px solid #222;
+    border-radius: 12px;
+    padding: 14px 20px;
+    width: 260px;
+    font-size: 13px;
+    line-height: 1.8;
+  }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .stat-bar-bg {
+    flex: 1;
+    height: 6px;
+    background: #222;
+    border-radius: 3px;
+    margin: 0 8px;
+    overflow: hidden;
+  }
+
+  .stat-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    color: #555;
+    font-size: 11px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #1e1e1e;
+  }
+
+  .event-log {
+    background: #0d0d12;
+    border: 1px solid #1e1e1e;
+    border-radius: 10px;
+    padding: 12px 16px;
+    width: 260px;
+    max-height: 140px;
+    overflow-y: auto;
+    font-size: 12px;
+    line-height: 1.9;
+  }
+
+  .event-log div { color: #555; }
+  .event-log div.new { color: #aaa; }
+  .event-log div.catch { color: #4eff9f; }
+  .event-log div.spin  { color: #4eb8ff; }
+  .event-log div.warn  { color: #ffaa33; }
+  .event-log div.level { color: #f7c948; font-weight: bold; }
+
+  .section-title {
+    font-size: 11px;
+    color: #444;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .ble-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #555;
+  }
+  .ble-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #222;
+    transition: background 0.3s;
+  }
+  .ble-dot.connected { background: #4eff9f; box-shadow: 0 0 6px #4eff9f; }
+  .ble-dot.catching  { background: #f7c948; box-shadow: 0 0 10px #f7c948; }
+</style>
+</head>
+<body>
+
+<h1>Poké<span>gatchi</span> — Watch Preview</h1>
+
+<div class="controls">
+  <button onclick="simCatch(false)">⚡ Simulate Catch</button>
+  <button onclick="simCatch(true)">✨ Simulate Shiny</button>
+  <button onclick="simSpin()">🔵 Simulate Spin</button>
+  <button onclick="simFled()">💨 Pokémon Fled</button>
+  <button onclick="simBath()">🛁 Give Bath</button>
+  <button onclick="simFeed()">🍖 Feed Berry</button>
+  <button id="btnDirty" onclick="simDirty()">💩 Make Dirty</button>
+  <button onclick="simCritical()">⚠️ Critical State</button>
+  <button onclick="resetPet()">🔄 Reset</button>
+</div>
+
+<div class="watch-row">
+
+  <div class="watch-wrap">
+    <div class="strap-top"></div>
+    <div class="watch" onclick="tapPet()">
+      <canvas id="watchFace" width="208" height="208"></canvas>
+    </div>
+    <div class="strap-bottom"></div>
+    <div class="watch-label">Pokégatchi Watch</div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <div class="status-panel">
+      <div class="section-title">Pet Stats</div>
+      <div class="stat-row">
+        <span>🍖</span>
+        <div class="stat-bar-bg"><div class="stat-bar-fill" id="barHunger" style="background:#ff7043;width:80%"></div></div>
+        <span id="valHunger" style="width:28px;text-align:right">80</span>
+      </div>
+      <div class="stat-row">
+        <span>❤️</span>
+        <div class="stat-bar-bg"><div class="stat-bar-fill" id="barHappy" style="background:#e91e8c;width:75%"></div></div>
+        <span id="valHappy" style="width:28px;text-align:right">75</span>
+      </div>
+      <div class="stat-row">
+        <span>⚡</span>
+        <div class="stat-bar-bg"><div class="stat-bar-fill" id="barEnergy" style="background:#f7c948;width:90%"></div></div>
+        <span id="valEnergy" style="width:28px;text-align:right">90</span>
+      </div>
+      <div class="stat-row">
+        <span>🛁</span>
+        <div class="stat-bar-bg"><div class="stat-bar-fill" id="barClean" style="background:#4eb8ff;width:100%"></div></div>
+        <span id="valClean" style="width:28px;text-align:right">100</span>
+      </div>
+      <div class="info-row">
+        <span id="lblLevel">Lv.1</span>
+        <span id="lblXP">XP: 0 / 100</span>
+        <span id="lblMood">😊 Happy</span>
+      </div>
+      <div class="info-row">
+        <span id="lblStreak">🔥 Streak: 1</span>
+        <span id="lblCatches">Catches: 0</span>
+      </div>
+    </div>
+
+    <div class="event-log" id="eventLog">
+      <div class="section-title">Activity Log</div>
+      <div class="new">🟣 Pokégatchi started</div>
+    </div>
+
+    <div class="ble-indicator">
+      <div class="ble-dot" id="bleDot"></div>
+      <span id="bleStatus">BLE: Waiting for Pokémon GO...</span>
+    </div>
+
+  </div>
+</div>
+
+<canvas id="watchFace" width="0" height="0" style="display:none"></canvas>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────
+const state = {
+  name: 'Starter',
+  hunger: 80, happiness: 75, energy: 90, cleanliness: 100,
+  level: 1, xp: 0, catches: 0, spins: 0, streak: 1,
+  mood: 'happy', // happy | content | hungry | sad | excited | sleepy | dirty
+  stage: 'baby', // baby | teen | adult
+  bounce: 0, bounceDir: 1,
+  blinkTimer: 0, eyeOpen: true,
+  flashTimer: 0, flashColor: null,
+  dirtySpecks: [],
+  tapBounce: 0,
+};
+
+// Generate random dirt speck positions once
+for(let i=0;i<5;i++) state.dirtySpecks.push({
+  ax: (Math.random()-0.5)*0.7,
+  ay: (Math.random()-0.5)*0.7,
+  r: 0.04+Math.random()*0.04
+});
+
+const canvas = document.getElementById('watchFace');
+const ctx = canvas.getContext('2d');
+const W = 208, H = 208, CX = W/2, CY = H/2;
+
+// ─── Team color (Yellow = Instinct default) ──────────────────────
+const TEAM = { r:247, g:201, b:72 }; // Instinct yellow
+
+// ─── Draw Loop ───────────────────────────────────────────────────
+let frame = 0;
+function draw() {
+  frame++;
+  ctx.clearRect(0,0,W,H);
+
+  // Round clip
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(CX,CY,CX,0,Math.PI*2);
+  ctx.clip();
+
+  // Background
+  const bg = ctx.createRadialGradient(CX*0.8,CY*0.6,10,CX,CY,CX);
+  bg.addColorStop(0,'#1e1e2e');
+  bg.addColorStop(1,'#0a0a12');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0,0,W,H);
+
+  // Subtle grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  for(let y=0;y<H;y+=20){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  // Flash overlay (catch/spin feedback)
+  if(state.flashTimer > 0) {
+    const alpha = state.flashTimer / 15 * 0.35;
+    ctx.fillStyle = `rgba(${state.flashColor},${alpha})`;
+    ctx.fillRect(0,0,W,H);
+    state.flashTimer--;
+  }
+
+  // Animate bounce
+  state.bounce += 0.04 * state.bounceDir;
+  if(Math.abs(state.bounce) > 1) state.bounceDir *= -1;
+  const bouncePx = state.bounce * 5 + (state.tapBounce > 0 ? Math.sin(state.tapBounce/5*Math.PI)*-12 : 0);
+  if(state.tapBounce > 0) state.tapBounce--;
+
+  // Blink
+  state.blinkTimer++;
+  if(state.blinkTimer > 120) { state.eyeOpen = false; }
+  if(state.blinkTimer > 125) { state.eyeOpen = true; state.blinkTimer = 0; }
+
+  // Dirty tint alpha
+  const dirtyAlpha = state.cleanliness < 40 ? (40 - state.cleanliness) / 40 * 0.5 : 0;
+
+  drawPet(CX, CY + bouncePx - 15, dirtyAlpha);
+  drawHUD();
+
+  ctx.restore();
+  requestAnimationFrame(draw);
+}
+
+function petRadius() {
+  if(state.stage==='baby') return 32;
+  if(state.stage==='teen') return 38;
+  return 44;
+}
+
+function teamColor(alpha=1) {
+  return `rgba(${TEAM.r},${TEAM.g},${TEAM.b},${alpha})`;
+}
+
+function moodColor() {
+  if(state.mood==='dirty') return '#6b4226';
+  if(state.mood==='sad' || state.mood==='hungry') return '#5577bb';
+  if(state.mood==='excited') return teamColor();
+  return teamColor();
+}
+
+function drawPet(cx, cy, dirtyAlpha) {
+  const r = petRadius();
+
+  // Body glow
+  const glow = ctx.createRadialGradient(cx-r*0.3,cy-r*0.3,r*0.1,cx,cy,r*1.4);
+  glow.addColorStop(0, teamColor(0.15));
+  glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(cx,cy,r*1.5,0,Math.PI*2); ctx.fill();
+
+  // Body
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.fillStyle = moodColor();
+  ctx.fill();
+
+  // Body shine
+  ctx.beginPath();
+  ctx.arc(cx - r*0.28, cy - r*0.28, r*0.28, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fill();
+
+  // Ears (teen+)
+  if(state.stage !== 'baby') {
+    drawEar(cx - r*0.55, cy - r*0.75, r*0.22, -0.4);
+    drawEar(cx + r*0.55, cy - r*0.75, r*0.22, 0.4);
+  }
+
+  // Eyes
+  const eyeY = state.stage==='baby' ? cy - r*0.1 : cy - r*0.12;
+  drawEye(cx - r*0.3, eyeY, r*0.13, state.eyeOpen, state.mood);
+  drawEye(cx + r*0.3, eyeY, r*0.13, state.eyeOpen, state.mood);
+
+  // Mouth
+  drawMouth(cx, cy + r*0.28, r, state.mood);
+
+  // Dirty tint
+  if(dirtyAlpha > 0) {
+    ctx.beginPath(); ctx.arc(cx, cy, r*1.05, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(107,66,38,${dirtyAlpha})`;
+    ctx.fill();
+
+    // Dirt specks
+    if(state.cleanliness < 25) {
+      state.dirtySpecks.forEach(s => {
+        ctx.beginPath();
+        ctx.arc(cx + s.ax*r, cy + s.ay*r, s.r*r, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(60,35,15,0.7)`;
+        ctx.fill();
+      });
+    }
+  }
+
+  // Crown (adult)
+  if(state.stage === 'adult') {
+    drawCrown(cx, cy - r*0.85, r);
+  }
+
+  // Level 100 glow
+  if(state.level >= 100) {
+    const glow100 = ctx.createRadialGradient(cx,cy,r,cx,cy,r*2.2);
+    glow100.addColorStop(0, teamColor(0.3));
+    glow100.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow100;
+    ctx.beginPath(); ctx.arc(cx,cy,r*2.2,0,Math.PI*2); ctx.fill();
+  }
+}
+
+function drawEar(cx, cy, r, tilt) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(tilt);
+  ctx.beginPath();
+  ctx.moveTo(0, r); ctx.lineTo(-r, -r); ctx.lineTo(r, -r);
+  ctx.closePath();
+  ctx.fillStyle = teamColor(0.85);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawEye(cx, cy, r, open, mood) {
+  if(!open) {
+    // Blink line
+    ctx.beginPath();
+    ctx.moveTo(cx-r, cy); ctx.lineTo(cx+r, cy);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+    return;
+  }
+  if(mood === 'sad' || mood === 'hungry') {
+    // Sad curved brow
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy+r*0.15, r*0.55, 0, Math.PI*2);
+    ctx.fillStyle = '#1a1a1a'; ctx.fill();
+    // Teardrop
+    ctx.beginPath(); ctx.arc(cx+r*0.5, cy+r*1.5, r*0.25, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(100,160,255,0.7)'; ctx.fill();
+    return;
+  }
+  if(mood === 'excited') {
+    // Star eyes
+    drawStar(cx, cy, r, 5, '#fff', teamColor());
+    return;
+  }
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.fillStyle = '#fff'; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx+r*0.1, cy+r*0.1, r*0.52, 0, Math.PI*2);
+  ctx.fillStyle = '#111'; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx+r*0.25, cy-r*0.2, r*0.2, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fill();
+}
+
+function drawStar(cx,cy,r,points,fill,stroke) {
+  ctx.beginPath();
+  for(let i=0;i<points*2;i++) {
+    const ang = (i*Math.PI/points) - Math.PI/2;
+    const rad = i%2===0 ? r : r*0.45;
+    if(i===0) ctx.moveTo(cx+Math.cos(ang)*rad, cy+Math.sin(ang)*rad);
+    else ctx.lineTo(cx+Math.cos(ang)*rad, cy+Math.sin(ang)*rad);
+  }
+  ctx.closePath();
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.strokeStyle = stroke; ctx.lineWidth=1.5; ctx.stroke();
+}
+
+function drawMouth(cx, cy, r, mood) {
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  if(mood==='happy'||mood==='excited') {
+    ctx.beginPath();
+    ctx.arc(cx, cy - r*0.05, r*0.3, 0.15*Math.PI, 0.85*Math.PI);
+    ctx.strokeStyle = '#333'; ctx.stroke();
+    // Rosy cheeks
+    ctx.beginPath(); ctx.arc(cx-r*0.45, cy+r*0.1, r*0.18, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,120,120,0.25)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx+r*0.45, cy+r*0.1, r*0.18, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,120,120,0.25)'; ctx.fill();
+  } else if(mood==='sad'||mood==='hungry'||mood==='dirty') {
+    ctx.beginPath();
+    ctx.arc(cx, cy + r*0.35, r*0.28, 1.2*Math.PI, 1.8*Math.PI);
+    ctx.strokeStyle = '#444'; ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(cx-r*0.22, cy); ctx.lineTo(cx+r*0.22, cy);
+    ctx.strokeStyle = '#444'; ctx.stroke();
+  }
+}
+
+function drawCrown(cx, cy, r) {
+  ctx.beginPath();
+  ctx.moveTo(cx-r*0.35, cy);
+  ctx.lineTo(cx-r*0.35, cy-r*0.35);
+  ctx.lineTo(cx-r*0.18, cy-r*0.2);
+  ctx.lineTo(cx, cy-r*0.45);
+  ctx.lineTo(cx+r*0.18, cy-r*0.2);
+  ctx.lineTo(cx+r*0.35, cy-r*0.35);
+  ctx.lineTo(cx+r*0.35, cy);
+  ctx.closePath();
+  ctx.fillStyle = teamColor(0.9);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth=1; ctx.stroke();
+}
+
+function drawHUD() {
+  const r = petRadius();
+
+  // Name + level top center
+  ctx.font = 'bold 13px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(state.name, CX, 22);
+
+  ctx.font = '11px Segoe UI';
+  ctx.fillStyle = teamColor(0.9);
+  ctx.fillText(`Lv.${state.level}`, CX, 36);
+
+  // Mood emoji
+  ctx.font = '18px serif';
+  ctx.textAlign = 'left';
+  const moodEmoji = {
+    happy:'😊', content:'🙂', hungry:'🍽️', sad:'😢',
+    excited:'🎉', sleepy:'😴', dirty:'🛁'
+  }[state.mood] || '🙂';
+  ctx.fillText(moodEmoji, 14, 30);
+
+  // BLE dot top-right
+  ctx.beginPath();
+  ctx.arc(W-18, 18, 5, 0, Math.PI*2);
+  ctx.fillStyle = state.flashTimer > 0 ? '#4eff9f' : '#2a2a3a';
+  ctx.fill();
+
+  // Stats bar bottom
+  const barY = H - 30;
+  const barW = 120;
+  const barX = CX - barW/2;
+  const stats = [
+    { v: state.hunger,      color: '#ff7043' },
+    { v: state.happiness,   color: '#e91e8c' },
+    { v: state.cleanliness, color: '#4eb8ff' },
+  ];
+  const segW = barW / stats.length - 4;
+  stats.forEach((s,i) => {
+    const x = barX + i*(segW+4);
+    // bg
+    roundRect(ctx, x, barY, segW, 6, 3);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
+    // fill
+    const fw = Math.max(2, segW * s.v/100);
+    roundRect(ctx, x, barY, fw, 6, 3);
+    ctx.fillStyle = s.color; ctx.fill();
+  });
+
+  // XP bar
+  const xpNeeded = state.level * 100;
+  const xpFrac = state.xp / xpNeeded;
+  roundRect(ctx, CX-50, barY+12, 100, 3, 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fill();
+  roundRect(ctx, CX-50, barY+12, Math.max(2, 100*xpFrac), 3, 2);
+  ctx.fillStyle = teamColor(0.7); ctx.fill();
+
+  // Catch count bottom-left
+  ctx.font = '10px Segoe UI';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#444';
+  ctx.fillText(`⚡ ${state.catches}`, 14, H-14);
+
+  // Streak bottom-right
+  ctx.textAlign = 'right';
+  ctx.fillText(`🔥 ${state.streak}`, W-14, H-14);
+
+  // Level 100 message
+  if(state.level >= 100) {
+    ctx.font = 'bold 14px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = teamColor();
+    ctx.shadowColor = teamColor();
+    ctx.shadowBlur = 12;
+    ctx.fillText('OH? What\'s this?', CX, CY + petRadius() + 28);
+    ctx.shadowBlur = 0;
+  }
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+}
+
+// ─── Sync UI panels ──────────────────────────────────────────────
+function syncUI() {
+  ['Hunger','Happy','Energy','Clean'].forEach((k,i) => {
+    const val = [state.hunger, state.happiness, state.energy, state.cleanliness][i];
+    document.getElementById('bar'+k).style.width = val+'%';
+    document.getElementById('val'+k).textContent = val;
+  });
+  document.getElementById('lblLevel').textContent = `Lv.${state.level}`;
+  document.getElementById('lblXP').textContent = `XP: ${state.xp} / ${state.level*100}`;
+  document.getElementById('lblMood').textContent = {
+    happy:'😊 Happy', content:'🙂 Content', hungry:'🍽️ Hungry',
+    sad:'😢 Sad', excited:'🎉 Excited', sleepy:'😴 Sleepy', dirty:'🛁 Dirty'
+  }[state.mood];
+  document.getElementById('lblCatches').textContent = `Catches: ${state.catches}`;
+  document.getElementById('lblStreak').textContent = `🔥 Streak: ${state.streak}`;
+  updateMood();
+}
+
+function updateMood() {
+  if(state.cleanliness < 20) { state.mood='dirty'; return; }
+  if(state.hunger < 20)      { state.mood='hungry'; return; }
+  if(state.happiness < 20)   { state.mood='sad'; return; }
+  if(state.energy < 20)      { state.mood='sleepy'; return; }
+  if(state.happiness > 85 && state.hunger > 70) { state.mood='excited'; return; }
+  if(state.happiness > 60)   { state.mood='happy'; return; }
+  state.mood = 'content';
+}
+
+function log(msg, cls='new') {
+  const el = document.getElementById('eventLog');
+  const d = document.createElement('div');
+  d.className = cls;
+  d.textContent = msg;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+function gainXP(amount) {
+  state.xp += amount;
+  const needed = state.level * 100;
+  if(state.xp >= needed) {
+    state.xp -= needed;
+    state.level++;
+    state.stage = state.level >= 30 ? 'adult' : state.level >= 10 ? 'teen' : 'baby';
+    log(`⭐ LEVEL UP! Now Lv.${state.level}`, 'level');
+    state.flashColor = `${TEAM.r},${TEAM.g},${TEAM.b}`;
+    state.flashTimer = 25;
+    if(state.level >= 100) {
+      setTimeout(()=>log(`✨ OH? What's this?`, 'level'), 1200);
+    }
+  }
+}
+
+// ─── Simulations ─────────────────────────────────────────────────
+function simCatch(shiny=false) {
+  state.catches++;
+  state.happiness = Math.min(100, state.happiness + 8);
+  gainXP(shiny ? 15 : 5);
+  state.flashColor = shiny ? '255,215,0' : '78,255,159';
+  state.flashTimer = 20;
+  state.tapBounce = 10;
+  // BLE dot pulse
+  const dot = document.getElementById('bleDot');
+  dot.className = 'ble-dot catching';
+  document.getElementById('bleStatus').textContent = shiny ? '✨ Shiny caught!' : '⚡ Pokémon caught!';
+  setTimeout(()=>{ dot.className='ble-dot connected'; document.getElementById('bleStatus').textContent='BLE: Connected to Pokémon GO'; }, 1500);
+  log(shiny ? `✨ Shiny caught! (+15 XP)` : `⚡ Caught a Pokémon! (+5 XP)`, 'catch');
+  syncUI();
+}
+
+function simSpin() {
+  state.spins++;
+  gainXP(2);
+  state.flashColor = '78,184,255';
+  state.flashTimer = 15;
+  const dot = document.getElementById('bleDot');
+  dot.className = 'ble-dot connected';
+  document.getElementById('bleStatus').textContent = 'BLE: PokéStop spun!';
+  setTimeout(()=>document.getElementById('bleStatus').textContent='BLE: Connected to Pokémon GO', 1200);
+  log(`🔵 PokéStop spun (+2 XP)`, 'spin');
+  syncUI();
+}
+
+function simFled() {
+  state.happiness = Math.max(0, state.happiness - 5);
+  state.flashColor = '255,80,80';
+  state.flashTimer = 15;
+  log(`💨 Pokémon fled...`, 'warn');
+  syncUI();
+}
+
+function simBath() {
+  state.cleanliness = 100;
+  state.happiness = Math.min(100, state.happiness + 5);
+  state.flashColor = '78,184,255';
+  state.flashTimer = 15;
+  log(`🛁 Bath time! Cleanliness restored`, 'spin');
+  syncUI();
+}
+
+function simFeed() {
+  state.hunger = Math.min(100, state.hunger + 25);
+  state.happiness = Math.min(100, state.happiness + 5);
+  state.tapBounce = 8;
+  log(`🍖 Fed a berry! (+25 hunger, +5 happiness)`, 'new');
+  syncUI();
+}
+
+function simDirty() {
+  state.cleanliness = 10;
+  log(`💩 Got dirty... needs a bath!`, 'warn');
+  syncUI();
+}
+
+function simCritical() {
+  state.hunger = 8;
+  state.happiness = 8;
+  state.cleanliness = 5;
+  log(`⚠️ CRITICAL — needs attention NOW`, 'warn');
+  syncUI();
+}
+
+function tapPet() {
+  state.tapBounce = 12;
+  state.happiness = Math.min(100, state.happiness + 3);
+  log(`💗 You petted ${state.name}`, 'new');
+  syncUI();
+}
+
+function resetPet() {
+  Object.assign(state, {
+    hunger:80, happiness:75, energy:90, cleanliness:100,
+    level:1, xp:0, catches:0, spins:0,
+    mood:'happy', stage:'baby', flashTimer:0
+  });
+  log(`🔄 Pet reset`, 'new');
+  syncUI();
+}
+
+// Simulate BLE connected after 2s
+setTimeout(()=>{
+  document.getElementById('bleDot').className = 'ble-dot connected';
+  document.getElementById('bleStatus').textContent = 'BLE: Connected to Pokémon GO';
+  log('🟢 BLE connected to Pokémon GO', 'catch');
+}, 2000);
+
+syncUI();
+draw();
+</script>
+</body>
+</html>
