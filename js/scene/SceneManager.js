@@ -214,36 +214,20 @@ export class SceneManager {
       });
       console.log(`DEBUG model: ${meshCount} meshes, ${vertCount} vertices`);
 
-      // Built-in animations — apply first frame for default pose
-      // PokeMiners GLBs store bones at origin (bind pose); animations position them
+      this.mixer = new THREE.AnimationMixer(this.model);
       if (gltf.animations && gltf.animations.length > 0) {
-        console.log(`GLTF animations: ${gltf.animations.length} clips`);
-        gltf.animations.forEach((clip, ci) => {
-          const tracks = clip.tracks || [];
-          console.log(`  Clip ${ci}: "${clip.name}" ${tracks.length} tracks, duration ${clip.duration}s`);
-          tracks.slice(0, 5).forEach(t => {
-            const boneName = t.name.split('.')[0];
-            const prop = t.name.split('.')[1];
-            const vals = Array.isArray(t.values) ? t.values.length : (t.times ? t.times.length : '?');
-            console.log(`    "${t.name}": ${vals} keys`);
-          });
-        });
-        // Apply first frame at time 0
-        const tempMixer = new THREE.AnimationMixer(this.model);
-        const action = tempMixer.clipAction(gltf.animations[0]);
+        const clip = gltf.animations[0];
+        const action = this.mixer.clipAction(clip);
         action.play();
-        tempMixer.update(0);       // Evaluate at time 0
-        action.stop();
-        tempMixer.uncacheClip(gltf.animations[0]);
-        console.log('Default pose applied from animation');
+        console.log(`Playing default animation clip: "${clip.name}"`);
       }
 
-      // === SCAN FOR BONES (AFTER pose applied) ===
-      this._scanBones();
-      this.useV2 = true;
-
-      if (this._successCallback) this._successCallback(filename);
       console.log(`V2 model loaded: ${filename}, bones: ${Object.keys(this.bones).length}`);
+
+      // Re-enable the idle system
+      this._idlePaused = false;
+      
+      if (this._successCallback) this._successCallback(filename);
 
     } catch (err) {
       if (timedOut) return;
@@ -880,9 +864,12 @@ export class SceneManager {
         this._updateIdle(dt);
       }
     }
-
-    this.renderer.render(this.scene, this.camera);
-  }
+    if (this.renderer && this.scene && this.camera) {
+      if (this.mixer) {
+        this.mixer.update(dt);
+      }
+      this.renderer.render(this.scene, this.camera);
+    }
 
   /**
    * V2 bone-based idle animations
