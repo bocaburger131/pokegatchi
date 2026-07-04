@@ -19,42 +19,7 @@ export class SceneManager {
     this._activeAnim = null;
     this._idleBobOffset = 0;
     this._armature = null;
-
-    // === BONE ANIMATION SYSTEM ===
-    this.bones = {};          // { name: { bone, restQ, restP } }
-    this.hasBones = false;    // true if skeleton found
-    this.useV2 = false;       // true if using local rigged GLB
-
-    // Bone animation targets (set by playAnimation)
-    this._boneTargets = {};   // { name: { q: Quat|null, p: Vec3|null, weight: 0.05 } }
-    this._boneAnimWeight = 0; // 0-1, ramps up/down during animations
-
-    // Idle state machine
-    this._idleState = 'FLOAT';
-    this._idleTimer = 0;
-    this._idleNextSwitch = this._randomIdleInterval();
-    this._idleAnimProgress = 0;
-    this._idleFromRotY = 0;
-    this._idleTargetRotY = 0;
-    this._idleFromPosY = 0;
-    this._idleTargetPosY = 0;
-    this._idlePaused = false;
-
-    // Tail wag phase
-    this._tailPhase = 0;
-    // Ear flick timer
-    this._earFlickTimer = 0;
-    this._earFlickInterval = 0;
-    // Frame-based ear flick return (replaces setTimeout race condition)
-    this._earFlickReturn = {};
-    // Bounce hop animation data
-    this._bounceAnimData = null;
   }
-
-  _randomIdleInterval() {
-    return 3 + Math.random() * 5; // 3-8 seconds
-  }
-
   _detectWebGL() {
     try {
       const canvas = document.createElement('canvas');
@@ -117,20 +82,12 @@ export class SceneManager {
     this.bones = {};
 
     // Reset idle state
-    this._idleState = 'FLOAT';
-    this._idleTimer = 0;
-    this._idleNextSwitch = this._randomIdleInterval();
-    this._idleAnimProgress = 0;
-    this._idlePaused = false;
-
     if (this._loadingTimeout) {
       clearTimeout(this._loadingTimeout);
       this._loadingTimeout = null;
     }
 
-    // Build absolute URL for GitHub Pages
-    const base = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
-    const url = `${base}/assets/models_v2/${filename}`;
+    const url = `assets/models_v2/${filename}`;
 
     const loader = new GLTFLoader();
     let timedOut = false;
@@ -197,23 +154,6 @@ export class SceneManager {
       this._modelRestRot.copy(this.model.rotation);
       this._modelRestScale.copy(this.model.scale);
 
-      console.log('V2 model loaded successfully:', filename);
-
-      // === DEBUG: expose for inspection ===
-      window.__debugScene = this.scene;
-      window.__debugModel = this.model;
-      window.__debugCamera = this.camera;
-      window.__debugRenderer = this.renderer;
-
-      // Initial visibility check
-      let meshCount = 0; let vertCount = 0;
-      this.model.traverse(c => {
-        if (c.isMesh) { meshCount++;
-          if (c.geometry) vertCount += c.geometry.attributes.position?.count || 0;
-        }
-      });
-      console.log(`DEBUG model: ${meshCount} meshes, ${vertCount} vertices`);
-
       this.mixer = new THREE.AnimationMixer(this.model);
       if (gltf.animations && gltf.animations.length > 0) {
         const clip = gltf.animations[0];
@@ -222,18 +162,14 @@ export class SceneManager {
         console.log(`Playing default animation clip: "${clip.name}"`);
       }
 
-      console.log(`V2 model loaded: ${filename}, bones: ${Object.keys(this.bones).length}`);
-
       // Re-enable the idle system
-      this._idlePaused = false;
-      
       if (this._successCallback) this._successCallback(filename);
 
     } catch (err) {
       if (timedOut) return;
       clearTimeout(this._loadingTimeout);
       this._loadingTimeout = null;
-      console.warn('V2 model load failed:', err);
+      console.error(`V2 model load failed for URL: ${url}`, err);
       if (this._fallbackCallback) this._fallbackCallback(filename);
     }
   }
@@ -278,11 +214,6 @@ export class SceneManager {
     this.hasBones = false;
     this.bones = {};
 
-    this._idleState = 'FLOAT';
-    this._idleTimer = 0;
-    this._idleNextSwitch = this._randomIdleInterval();
-    this._idleAnimProgress = 0;
-    this._idlePaused = false;
     this._armature = null;
 
     if (this._loadingTimeout) {
@@ -724,7 +655,9 @@ export class SceneManager {
   update(dt) {
     if (!this.initialized || !this.scene || !this.renderer) return;
     
-    // No built-in mixer — we handle all animation via _updateBoneIdle / _playBoneAnimation
+    if (this.mixer) {
+      this.mixer.update(dt);
+    }
 
     if (this._activeAnim) {
       const a = this._activeAnim;
@@ -848,7 +781,6 @@ export class SceneManager {
           }
         }
         this._activeAnim = null;
-        this._idlePaused = false;
       }
     } else if (this.model) {
       // === IDLE STATE MACHINE ===
@@ -857,160 +789,11 @@ export class SceneManager {
         if (this.model.userData.ring) {
           this.model.userData.ring.scale.setScalar(1 + Math.sin(Date.now() * 0.002) * 0.05);
         }
-      } else if (this.hasBones) {
-        // === V2 BONE-BASED IDLE ===
-        this._updateBoneIdle(dt);
-      } else {
-        this._updateIdle(dt);
       }
     }
     if (this.renderer && this.scene && this.camera) {
-      if (this.mixer) {
-        this.mixer.update(dt);
-      }
       this.renderer.render(this.scene, this.camera);
     }
-
-  /**
-   * V2 bone-based idle animations
-   * Animates bones directly: tail wag, ear flick, breathing, head look
-   */
-  _updateBoneIdle(dt) {
-    if (this._idlePaused) return;
-
-    const now = Date.now();
-
-    // === TAIL WAG (independent sine wave) ===
-    if (this._bone('Tail1')) {
-      this._tailPhase += dt * 0.8; // slow speed
-      const wag = Math.sin(now * 0.003) * 0.15;
-      this._bone('Tail1').bone.rotation.z = wag;
-      if (this._bone('Tail2')) this._bone('Tail2').bone.rotation.z = Math.sin(now * 0.0035 + 0.5) * 0.2;
-      if (this._bone('Tail3')) this._bone('Tail3').bone.rotation.z = Math.sin(now * 0.004 + 1.0) * 0.25;
-    }
-
-    // === EAR FLICK (random intervals, frame-based return) ===
-    this._earFlickTimer += dt;
-    if (this._earFlickTimer >= (this._earFlickInterval || 4)) {
-      this._earFlickTimer = 0;
-      this._earFlickInterval = 3 + Math.random() * 5;
-      
-      // Quick ear flick (both ears) — schedule return via frame counter
-      if (this._bone('LEar1')) {
-        const flick = (Math.random() > 0.5 ? 1 : -1) * 0.2;
-        this._bone('LEar1').bone.rotation.z += flick;
-        this._earFlickReturn['LEar1'] = 4; // Return to 0 after 4 frames
-      }
-      if (this._bone('REar1')) {
-        const flickR = (Math.random() > 0.5 ? 1 : -1) * 0.15;
-        this._bone('REar1').bone.rotation.z += flickR;
-        this._earFlickReturn['REar1'] = 4; // Return to 0 after 4 frames
-      }
-    }
-
-    // Process frame-based ear flick returns (decrements each frame)
-    for (const earName of Object.keys(this._earFlickReturn)) {
-      this._earFlickReturn[earName]--;
-      if (this._earFlickReturn[earName] <= 0) {
-        if (this._bone(earName)) {
-          this._bone(earName).bone.rotation.z = 0;
-        }
-        delete this._earFlickReturn[earName];
-      }
-    }
-
-    // === HEAD SINE (gentle look-around) ===
-    if (this._bone('Head')) {
-      const headTurn = Math.sin(now * 0.0005) * 0.05; // very slow, subtle
-      this._bone('Head').bone.rotation.y = headTurn;
-    }
-
-    // === BREATHING (subtle body scale pulse) ===
-    const baseScale = 1;
-    const breathOffset = Math.sin(now * 0.002) * 0.003;
-    this.model.scale.x = baseScale + breathOffset;
-    this.model.scale.z = baseScale + breathOffset;
-
-    // === FLOAT BOB ===
-    const targetBob = Math.sin(now * 0.003) * 0.03;
-    const deltaBob = targetBob - this._idleBobOffset;
-    this.model.position.y += deltaBob;
-    this._idleBobOffset = targetBob;
-  }
-
-  _updateIdle(dt) {
-    if (this._idlePaused) return;
-
-    this._idleTimer += dt;
-    const now = Date.now();
-
-    if (this._idleState === 'FLOAT') {
-      const targetBob = Math.sin(now * 0.003) * 0.03;
-      const deltaBob = targetBob - this._idleBobOffset;
-      this.model.position.y += deltaBob;
-      this._idleBobOffset = targetBob;
-      this.model.rotation.y += (0 - this.model.rotation.y) * 0.02;
-    }
-
-    if (this._idleTimer >= this._idleNextSwitch) {
-      this._idleTimer = 0;
-      this._idleNextSwitch = this._randomIdleInterval();
-      const states = ['LOOK_LEFT', 'LOOK_RIGHT', 'BOUNCE', 'FLOAT', 'FLOAT'];
-      const newState = states[Math.floor(Math.random() * states.length)];
-      
-      this._idleFromRotY = this.model.rotation.y;
-      this._idleFromPosY = this.model.position.y;
-      this._idleAnimProgress = 0;
-      this._idleState = newState;
-
-      switch (newState) {
-        case 'LOOK_LEFT': this._idleTargetRotY = -0.35; break;
-        case 'LOOK_RIGHT': this._idleTargetRotY = 0.35; break;
-        case 'BOUNCE': this._idleTargetPosY = this._idleFromPosY + 0.1; break;
-      }
-    }
-
-    const turnSpeed = 0.02;
-    switch (this._idleState) {
-      case 'LOOK_LEFT':
-      case 'LOOK_RIGHT': {
-        this._idleAnimProgress += dt;
-        const lookDuration = 2.5;
-        const progress = Math.min(this._idleAnimProgress / lookDuration, 1);
-        if (progress < 0.4) {
-          const p = progress / 0.4;
-          this.model.rotation.y = this._idleFromRotY + (this._idleTargetRotY - this._idleFromRotY) * this._smoothstep(p);
-        } else if (progress < 0.6) {
-          this.model.rotation.y = this._idleTargetRotY;
-        } else {
-          const p = (progress - 0.6) / 0.4;
-          this.model.rotation.y = this._idleTargetRotY + (0 - this._idleTargetRotY) * this._smoothstep(p);
-        }
-        if (progress >= 1) { this._idleState = 'FLOAT'; this._idleTimer = 0; }
-        break;
-      }
-      case 'BOUNCE': {
-        this._idleAnimProgress += dt;
-        const bounceDuration = 0.4;
-        const progress = Math.min(this._idleAnimProgress / bounceDuration, 1);
-        if (progress < 0.5) {
-          const p = progress / 0.5;
-          this.model.position.y = this._idleFromPosY + 0.1 * this._smoothstep(p);
-        } else {
-          const p = (progress - 0.5) / 0.5;
-          this.model.position.y = this._idleFromPosY + 0.1 * (1 - this._smoothstep(p));
-        }
-        if (progress >= 1) { this.model.position.y = this._idleFromPosY; this._idleState = 'FLOAT'; this._idleTimer = 0; }
-        break;
-      }
-      case 'FLOAT':
-      default:
-        this.model.rotation.y += (0 - this.model.rotation.y) * turnSpeed;
-        break;
-    }
-  }
-
-  _smoothstep(t) { return t * t * (3 - 2 * t); }
-
   get canvas() { return this.renderer?.domElement; }
+}
 }

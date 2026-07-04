@@ -6,6 +6,12 @@ import { ExpressionOverlay } from './scene/ExpressionOverlay.js';
 import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js';
 
 // === GLOBALS ===
+const ANIMS = {
+  FEED: 'feed',
+  PET: 'pet',
+  HEAL: 'heal',
+  BOUNCE: 'bounce',
+};
 let sceneMan, exprOverlay;
 let currentSpecies = null;
 let _hudFlashTimer = null;
@@ -182,7 +188,7 @@ function playAnimation(name) {
 
 window.feed = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
-  playAnimation('feed');
+  playAnimation(ANIMS.FEED);
   store.addStat('hunger', 15);
   store.addStat('happiness', -5);
   exprOverlay.showTempMood(0, 2); // happy
@@ -192,7 +198,7 @@ window.feed = function() {
 
 window.petAction = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
-  playAnimation('pet');
+  playAnimation(ANIMS.PET);
   store.addStat('affection', 10);
   store.addStat('happiness', 5);
   exprOverlay.showTempMood(0, 1.5); // happy
@@ -202,7 +208,7 @@ window.petAction = function() {
 
 window.healPet = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
-  playAnimation('heal');
+  playAnimation(ANIMS.HEAL);
   store.addStat('happiness', 25);
   const hungerToAdd = 100 - store.state.hunger;
   store.addStat('hunger', hungerToAdd); // refill to 100
@@ -213,7 +219,7 @@ window.healPet = function() {
 
 window.bounce = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
-  playAnimation('bounce');
+  playAnimation(ANIMS.BOUNCE);
   store.addStat('happiness', 10);
   exprOverlay.showTempMood(4, 1.5); // excited
   store.logEvent('bounce', 'Bounced', '⭐');
@@ -264,14 +270,14 @@ window.useItem = function(itemName) {
     case 'berries':
       store.addStat('hunger', 20);
       store.addItem('berries', -1);
-      playAnimation('feed');
+      playAnimation(ANIMS.FEED);
       store.logEvent('item', 'Used Berry', '🫐');
       toast('🍇 Used a Berry! +20 hunger');
       break;
     case 'toys':
       store.addStat('happiness', 15);
       store.addItem('toys', -1);
-      playAnimation('bounce');
+      playAnimation(ANIMS.BOUNCE);
       store.logEvent('item', 'Used Toy', '🧸');
       toast('🧸 Played with a Toy! +15 happiness');
       break;
@@ -279,14 +285,14 @@ window.useItem = function(itemName) {
       store.addStat('happiness', 20);
       store.addStat('affection', 15);
       store.addItem('potions', -1);
-      playAnimation('heal');
+      playAnimation(ANIMS.HEAL);
       store.logEvent('item', 'Used Potion', '💊');
       toast('💖 Used a Potion! +20 happiness, +15 affection');
       break;
     case 'candy':
       store.addStat('happiness', 10);
       store.addItem('candy', -1);
-      playAnimation('feed');
+      playAnimation(ANIMS.FEED);
       exprOverlay.showTempMood(4, 1.5); // excited special animation
       store.logEvent('item', 'Used Candy', '🍬');
       toast('🍬 Gave Candy! +10 happiness');
@@ -780,315 +786,5 @@ function _pgRenderJournal() {
 }
 
 // Load default species (deferred — all window exports must be defined first)
-Promise.resolve().then(() => {
-  window.selectSpecies(store.state.current || 'pikachu');
+window.selectSpecies(store.state.current || 'pikachu');
 });
-
-// ══════════════════════════════════════════════════════════════
-// CATCH ANIMATION
-// ══════════════════════════════════════════════════════════════
-window.triggerCatchAnim = function() {
-  const petWrap = document.getElementById('petWrap');
-  if (!petWrap) return;
-  const rect = petWrap.getBoundingClientRect();
-  const cx = rect.left + rect.width  / 2;
-  const cy = rect.top  + rect.height / 2;
-
-  const overlay = document.createElement('div');
-  overlay.className = 'catch-anim-overlay';
-  document.body.appendChild(overlay);
-
-  // Flash ring on pet wrap
-  petWrap.classList.remove('catch-flash');
-  void petWrap.offsetWidth;
-  petWrap.classList.add('catch-flash');
-
-  // 8 Pokéball burst particles
-  const ballColors = ['#ef4444','#fff','#ef4444','#fff','#ef4444','#fff','#ef4444','#fff'];
-  for (let i = 0; i < 8; i++) {
-    const angle = (i / 8) * Math.PI * 2;
-    const dist  = 55 + Math.random() * 30;
-    const p = document.createElement('div');
-    p.className = 'catch-particle';
-    p.style.cssText = `
-      left:${cx}px; top:${cy}px;
-      background:${ballColors[i]};
-      box-shadow: 0 0 8px ${ballColors[i]};
-      --tx:${Math.cos(angle)*dist}px; --ty:${Math.sin(angle)*dist}px;
-    `;
-    p.animate([
-      { transform:'translate(-50%,-50%) scale(1)',   opacity:1 },
-      { transform:`translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px)) scale(0.3)`, opacity:0 }
-    ], { duration:1100, easing:'ease-out', fill:'forwards' });
-    overlay.appendChild(p);
-  }
-
-  // 12 green sparkle dots
-  for (let i = 0; i < 12; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist  = 40 + Math.random() * 50;
-    const s = document.createElement('div');
-    s.className = 'catch-sparkle';
-    s.style.cssText = `left:${cx}px; top:${cy}px;
-      --sx:${Math.cos(angle)*dist}px; --sy:${Math.sin(angle)*dist - 20}px;
-      animation-delay:${Math.random()*200}ms;`;
-    overlay.appendChild(s);
-  }
-
-  // "✨ Caught!" floating label
-  const lbl = document.createElement('div');
-  lbl.className = 'catch-label';
-  lbl.textContent = '✨ Caught!';
-  lbl.style.cssText = `left:${cx}px; top:${cy}px;`;
-  overlay.appendChild(lbl);
-
-  setTimeout(() => overlay.remove(), 1400);
-  setTimeout(() => petWrap.classList.remove('catch-flash'), 1100);
-};
-
-// ══════════════════════════════════════════════════════════════
-// SPIN ANIMATION
-// ══════════════════════════════════════════════════════════════
-window.triggerSpinAnim = function() {
-  const petWrap = document.getElementById('petWrap');
-  if (!petWrap) return;
-  const rect = petWrap.getBoundingClientRect();
-  const cx = rect.left + rect.width  / 2;
-  const cy = rect.top  + rect.height / 2;
-
-  const overlay = document.createElement('div');
-  overlay.className = 'catch-anim-overlay';
-  document.body.appendChild(overlay);
-
-  // Flash ring blue
-  petWrap.classList.remove('spin-flash');
-  void petWrap.offsetWidth;
-  petWrap.classList.add('spin-flash');
-
-  // 6 blue diamond particles in expanding circle
-  for (let i = 0; i < 6; i++) {
-    const angle = (i / 6) * Math.PI * 2;
-    const dist  = 50 + Math.random() * 25;
-    const p = document.createElement('div');
-    p.className = 'spin-particle';
-    p.style.cssText = `left:${cx}px; top:${cy}px;
-      --dx:${Math.cos(angle)*dist}px; --dy:${Math.sin(angle)*dist}px;
-      animation-delay:${i*60}ms;`;
-    overlay.appendChild(p);
-  }
-
-  // Item reward label
-  const lbl = document.createElement('div');
-  lbl.className = 'spin-reward';
-  lbl.textContent = '💠 +Berry';
-  lbl.style.cssText = `left:${cx}px; top:${cy}px;`;
-  overlay.appendChild(lbl);
-
-  setTimeout(() => overlay.remove(), 1300);
-  setTimeout(() => petWrap.classList.remove('spin-flash'), 1100);
-};
-
-// ══════════════════════════════════════════════════════════════
-// WIRE ANIMATIONS INTO DEMO BOOST
-// ══════════════════════════════════════════════════════════════
-const _origBoostCaught = window.demoBoostCaught;
-window.demoBoostCaught = function() {
-  _origBoostCaught();
-  window.triggerCatchAnim();
-  store.logEvent('caught', 'Pokémon caught (demo)', '🟢');
-};
-
-const _origBoostSpin = window.demoBoostSpin;
-window.demoBoostSpin = function() {
-  _origBoostSpin();
-  window.triggerSpinAnim();
-  store.logEvent('spin', 'Pokéstop spun (demo)', '💠');
-};
-
-// Wire logging into existing actions
-const _origFeed = window.feed;
-window.feed = function() { _origFeed(); store.logEvent('feed','Fed Pokémon','🍽'); };
-const _origPet = window.petAction;
-window.petAction = function() { _origPet(); store.logEvent('pet','Petted Pokémon','🫳'); };
-const _origHeal = window.healPet;
-window.healPet = function() { _origHeal(); store.logEvent('heal','Healed Pokémon','💊'); };
-const _origBounce = window.bounce;
-window.bounce = function() { _origBounce(); store.logEvent('bounce','Bounce!','⭐'); };
-
-// ══════════════════════════════════════════════════════════════
-// SETTINGS PANEL
-// ══════════════════════════════════════════════════════════════
-window.openSettings = function() {
-  document.getElementById('settingsPanel').classList.add('open');
-  document.getElementById('settingsPanel').setAttribute('aria-hidden','false');
-  document.getElementById('pgBackdrop').classList.add('open');
-  // load saved toggles
-  ['pg_sound','pg_sound_catch','pg_sound_spin','pg_auto_catch_anim'].forEach(k => {
-    const idMap = { pg_sound:'togSound', pg_sound_catch:'togCatchSound', pg_sound_spin:'togSpinSound', pg_auto_catch_anim:'togAutoCatch' };
-    const el = document.getElementById(idMap[k]);
-    if (el) el.checked = localStorage.getItem(k) !== 'false';
-  });
-  const cameos = localStorage.getItem('pg_cameos');
-  const togCam = document.getElementById('togCameos');
-  if (togCam) togCam.checked = cameos !== 'false';
-  const togBone = document.getElementById('togBoneAnim');
-  if (togBone) togBone.checked = localStorage.getItem('pg_bone_anim') !== 'false';
-};
-window.closeSettings = function() {
-  document.getElementById('settingsPanel').classList.remove('open');
-  document.getElementById('settingsPanel').setAttribute('aria-hidden','true');
-  if (!document.getElementById('journalPanel').classList.contains('open')) {
-    document.getElementById('pgBackdrop').classList.remove('open');
-  }
-};
-window.saveSetting = function(key, val) {
-  localStorage.setItem(key, val);
-};
-window.toggleCameos = function(on) {
-  localStorage.setItem('pg_cameos', on);
-  document.querySelectorAll('.cameo-pkmn').forEach(el => { el.style.display = on ? '' : 'none'; });
-};
-window.toggleBoneAnim = function(on) {
-  localStorage.setItem('pg_bone_anim', on);
-  if (sceneMan) sceneMan._pauseAnim = !on;
-};
-
-// Reset with hold
-let _resetTimer = null, _resetStart = null;
-window.startReset = function() {
-  _resetStart = Date.now();
-  const fill = document.getElementById('resetBarFill');
-  function tick() {
-    const pct = Math.min(100, ((Date.now() - _resetStart) / 3000) * 100);
-    if (fill) fill.style.width = pct + '%';
-    if (pct >= 100) {
-      if (fill) fill.style.width = '0%';
-      store.state.hunger = 80; store.state.happiness = 60; store.state.affection = 50;
-      store.state.pokemonCaught = 0; store.state.pokestopSpins = 0; store.state.steps = 0;
-      store.state.berries = 5; store.state.toys = 3; store.state.potions = 2; store.state.candy = 10;
-      store.state.journal = [];
-      syncAllHUD();
-      toast('🔄 Progress reset!', 3000);
-      window.closeSettings();
-      return;
-    }
-    _resetTimer = requestAnimationFrame(tick);
-  }
-  _resetTimer = requestAnimationFrame(tick);
-};
-window.cancelReset = function() {
-  if (_resetTimer) cancelAnimationFrame(_resetTimer);
-  const fill = document.getElementById('resetBarFill');
-  if (fill) fill.style.width = '0%';
-};
-
-// ══════════════════════════════════════════════════════════════
-// JOURNAL PANEL
-// ══════════════════════════════════════════════════════════════
-let _currentJTab = 'log';
-
-window.openJournal = function() {
-  document.getElementById('journalPanel').classList.add('open');
-  document.getElementById('journalPanel').setAttribute('aria-hidden','false');
-  document.getElementById('pgBackdrop').classList.add('open');
-  window.renderJTab(_currentJTab);
-};
-window.closeJournal = function() {
-  document.getElementById('journalPanel').classList.remove('open');
-  document.getElementById('journalPanel').setAttribute('aria-hidden','true');
-  if (!document.getElementById('settingsPanel').classList.contains('open')) {
-    document.getElementById('pgBackdrop').classList.remove('open');
-  }
-};
-window.switchJTab = function(tab) {
-  _currentJTab = tab;
-  document.querySelectorAll('.pg-jtab').forEach(b => b.classList.remove('active'));
-  const btn = document.getElementById('jtab-' + tab);
-  if (btn) btn.classList.add('active');
-  window.renderJTab(tab);
-};
-window.clearJournal = function() {
-  store.state.journal = [];
-  window.renderJTab(_currentJTab);
-  toast('📓 Journal cleared');
-};
-
-function timeAgo(ts) {
-  const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60)  return s + 's ago';
-  if (s < 3600) return Math.floor(s/60) + 'm ago';
-  if (s < 86400) return Math.floor(s/3600) + 'h ago';
-  return Math.floor(s/86400) + 'd ago';
-}
-
-window.renderJTab = function(tab) {
-  const body = document.getElementById('journalBody');
-  if (!body) return;
-  const j = store.state.journal;
-
-  if (tab === 'log') {
-    if (!j.length) {
-      body.innerHTML = '<div class="jlog-empty">🌙 No activity yet.<br>Play to see your log here.</div>';
-      return;
-    }
-    const rows = j.slice(0, 80).map(e => `
-      <div class="jlog-row type-${e.type}">
-        <span class="jlog-icon">${e.icon}</span>
-        <span class="jlog-label">${e.label}</span>
-        <span class="jlog-time">${timeAgo(e.ts)}</span>
-      </div>`).join('');
-    body.innerHTML = `<div class="jlog-list">${rows}</div>`;
-  }
-
-  if (tab === 'today') {
-    const caught  = j.filter(e=>e.type==='caught').length;
-    const fled    = j.filter(e=>e.type==='fled').length;
-    const spins   = j.filter(e=>e.type==='spin').length;
-    const feeds   = j.filter(e=>e.type==='feed').length;
-    const items   = j.filter(e=>e.type==='item').length;
-    const pets    = j.filter(e=>e.type==='pet').length;
-    const rate    = caught+fled > 0 ? Math.round((caught/(caught+fled))*100) : 0;
-    body.innerHTML = `
-      <div class="jtoday-grid">
-        <div class="jtoday-card"><div class="jtoday-icon">🟢</div><div class="jtoday-val">${caught}</div><div class="jtoday-name">Caught</div></div>
-        <div class="jtoday-card"><div class="jtoday-icon">🔴</div><div class="jtoday-val">${fled}</div><div class="jtoday-name">Fled</div></div>
-        <div class="jtoday-card"><div class="jtoday-icon">💠</div><div class="jtoday-val">${spins}</div><div class="jtoday-name">Spins</div></div>
-        <div class="jtoday-card"><div class="jtoday-icon">🍽</div><div class="jtoday-val">${feeds}</div><div class="jtoday-name">Feeds</div></div>
-        <div class="jtoday-card"><div class="jtoday-icon">🧸</div><div class="jtoday-val">${items}</div><div class="jtoday-name">Items Used</div></div>
-        <div class="jtoday-card"><div class="jtoday-icon">🫳</div><div class="jtoday-val">${pets}</div><div class="jtoday-name">Pets</div></div>
-        <div class="jtoday-rate">
-          <div class="jtoday-rate-val">${rate}%</div>
-          <div class="jtoday-rate-lbl">Catch Rate this session</div>
-        </div>
-      </div>`;
-  }
-
-  if (tab === 'milestones') {
-    const caught  = store.state.pokemonCaught;
-    const spins   = store.state.pokestopSpins;
-    const feeds   = j.filter(e=>e.type==='feed').length;
-    const pets    = j.filter(e=>e.type==='pet').length;
-    const milestones = [
-      { icon:'🎯', name:'First Catch',   sub:'Catch your first Pokémon',    unlocked: caught >= 1 },
-      { icon:'⚡', name:'10 Catches',    sub:'Catch 10 Pokémon',            unlocked: caught >= 10 },
-      { icon:'💫', name:'50 Catches',    sub:'Catch 50 Pokémon',            unlocked: caught >= 50 },
-      { icon:'🏆', name:'100 Catches',   sub:'Catch 100 Pokémon',           unlocked: caught >= 100 },
-      { icon:'💠', name:'First Spin',    sub:'Spin your first PokéStop',    unlocked: spins >= 1 },
-      { icon:'🔵', name:'10 Spins',      sub:'Spin 10 PokéStops',           unlocked: spins >= 10 },
-      { icon:'🌀', name:'50 Spins',      sub:'Spin 50 PokéStops',           unlocked: spins >= 50 },
-      { icon:'🍽', name:'First Feed',    sub:'Feed your Pokémon once',      unlocked: feeds >= 1 },
-      { icon:'🫳', name:'Loving Care',   sub:'Pet your Pokémon 10 times',   unlocked: pets >= 10 },
-      { icon:'💖', name:'Full Bond',     sub:'Reach 100 affection',         unlocked: store.state.affection >= 100 },
-    ];
-    const rows = milestones.map(m => `
-      <div class="jmilestone ${m.unlocked?'unlocked':'locked'}">
-        <div class="jmilestone-icon">${m.icon}</div>
-        <div class="jmilestone-info">
-          <div class="jmilestone-name">${m.name}</div>
-          <div class="jmilestone-sub">${m.sub}</div>
-        </div>
-        ${m.unlocked ? '<span style="color:var(--accent);font-size:1rem;">✓</span>' : '<span class="jmilestone-lock">🔒</span>'}
-      </div>`).join('');
-    body.innerHTML = `<div class="jmilestone-list">${rows}</div>`;
-  }
-};
