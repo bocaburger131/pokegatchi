@@ -1,6 +1,6 @@
-// js/data/Pokedex.js — Stripped: only V2 model mapping + face data
+// Pokedex.js — Species definitions, V2 model map, face data, and Pokemon3D API IDs
 
-// V2 rigged model filenames (PokeMiners — has bones/skeleton)
+// Map species names to V2 model filenames (local assets)
 export const V2_MODELS = {
   pikachu:     'pikachu_v2.glb',
   pichu:       'pichu_v2.glb',
@@ -10,11 +10,32 @@ export const V2_MODELS = {
   squirtle:    'squirtle_v2.glb',
 };
 
+// Map species names to Pokemon3D API pokedex IDs (for CDN loading)
+export const POKEMON_IDS = {
+  pikachu:     25,
+  pichu:       172,
+  eevee:       133,
+  charmander:  4,
+  bulbasaur:   1,
+  squirtle:    7,
+};
+
+// Map species names to (pokedexId, category)
+export const SPECIES_TO_POKEMON3D = {
+  pikachu:     { id: 25,  category: 'regular' },
+  pichu:       { id: 172, category: 'regular' },
+  eevee:       { id: 133, category: 'regular' },
+  charmander:  { id: 4,   category: 'regular' },
+  bulbasaur:   { id: 1,   category: 'regular' },
+  squirtle:    { id: 7,   category: 'regular' },
+};
+
+// 2D overlay face data — crosshair offsets per species (normalized 0-1)
 export const FACE_DATA = {
-  pichu: { ex:.49, ey:.33, ew:.30, eh:.22, mx:.49, my:.53, mw:.22, mh:.12 },
-  pikachu: { ex:.49, ey:.31, ew:.28, eh:.20, mx:.49, my:.51, mw:.20, mh:.10 },
-  eevee: { ex:.49, ey:.32, ew:.30, eh:.22, mx:.49, my:.52, mw:.22, mh:.10 },
-  charmander: { ex:.49, ey:.30, ew:.28, eh:.20, mx:.49, my:.50, mw:.20, mh:.10 },
-  bulbasaur: { ex:.49, ey:.34, ew:.30, eh:.22, mx:.49, my:.54, mw:.22, mh:.12 },
-  squirtle: { ex:.49, ey:.33, ew:.28, eh:.20, mx:.49, my:.52, mw:.20, mh:.10 },
+  pikachu:     { x: 0.48, y: 0.42, scale: 0.40 },
+  pichu:       { x: 0.48, y: 0.45, scale: 0.45 },
+  eevee:       { x: 0.47, y: 0.40, scale: 0.38 },
+  charmander:  { x: 0.48, y: 0.44, scale: 0.42 },
+  bulbasaur:   { x: 0.47, y: 0.43, scale: 0.44 },
+  squirtle:    { x: 0.47, y: 0.42, scale: 0.40 },
 };

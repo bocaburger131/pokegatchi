@@ -1,8 +1,9 @@
 // js/main.js — Complete with HUD sync, Bag system, Demo Boost, stat-modifying actions, collapsible sections
+import * as THREE from 'three';
 import { store } from './core/Store.js';
 import { SceneManager } from './scene/SceneManager.js';
 import { ExpressionOverlay } from './scene/ExpressionOverlay.js';
-import { V2_MODELS, FACE_DATA } from './data/Pokedex.js';
+import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js';
 
 // === GLOBALS ===
 let sceneMan, exprOverlay;
@@ -146,7 +147,7 @@ window.selectSpecies = function(species) {
   const btn = document.querySelector(`.pick-btn[data-species="${species}"]`);
   if (btn) btn.classList.add('active');
 
-  // Load V2 model
+  // Load V2 model from local assets
   const glbFile = V2_MODELS[species];
   if (glbFile) {
     try {
