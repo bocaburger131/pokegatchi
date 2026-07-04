@@ -1,16 +1,19 @@
-node_modules/
-*.fbx
-.DS_Store
-__pycache__/
-*.pyc
-assets/downloaded/
-assets/extracted_oga/
-assets/models/
-assets/Suota.Go+.apk
-assets/*.7z
-assets/*.zip
-lib/
-package-lock.json
-*.zip
-*.7z
-*.img
+# Android Studio
+.idea
+.gradle
+build/
+local.properties
+*.iml
+*.hprof
+*.keystore
+*~
+*.swp
+*.log
+captures/
+.externalNativeBuild
+
+# Wear OS
+wearos-app/.gradle
+wearos-app/.idea
+wearos-app/build
+wearos-app/local.properties
