@@ -1,7 +1,7 @@
 // js/main.js — Complete with HUD sync, Bag system, Demo Boost, stat-modifying actions, collapsible sections
 import * as THREE from 'three';
 import { store } from './core/Store.js';
-import { SceneManager } from './scene/SceneManager.js';
+import { SceneManager } from './scene/SceneManager.js?v=11';
 import { ExpressionOverlay } from './scene/ExpressionOverlay.js';
 import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js';
 
@@ -153,15 +153,21 @@ window.selectSpecies = function(species) {
   const btn = document.querySelector(`.pick-btn[data-species="${species}"]`);
   if (btn) btn.classList.add('active');
 
-  // Load V2 model from local assets
-  const glbFile = V2_MODELS[species];
-  if (glbFile) {
+  // Load V2 model from local assets/models_v2 OR sprite fallback from assets/sprites/generated
+  const modelOrSprite = V2_MODELS[species];
+  if (modelOrSprite) {
     try {
-      sceneMan.loadV2Model(glbFile);
-      toast(`✨ Loading ${species}...`);
+      if (modelOrSprite.endsWith('.png')) {
+        sceneMan.showSpriteOnly(`assets/sprites/generated/${modelOrSprite}`);
+        toast(`✨ Loaded ${species} skin`);
+      } else {
+        sceneMan.init(); // ensure 3D renderer exists in case we switched from sprite mode
+        sceneMan.loadV2Model(modelOrSprite);
+        toast(`✨ Loading ${species}...`);
+      }
     } catch (e) {
-      console.error('Failed to load model:', e);
-      toast(`⚠ Failed to load ${species} model`, 3000);
+      console.error('Failed to load model/skin:', e);
+      toast(`⚠ Failed to load ${species}`, 3000);
     }
   } else {
     toast(`⚠ No model for ${species}`, 3000);
@@ -787,4 +793,3 @@ function _pgRenderJournal() {
 
 // Load default species (deferred — all window exports must be defined first)
 window.selectSpecies(store.state.current || 'pikachu');
-});

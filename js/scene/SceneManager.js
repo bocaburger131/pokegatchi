@@ -794,6 +794,7 @@ export class SceneManager {
     if (this.renderer && this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
     }
+  }
+
   get canvas() { return this.renderer?.domElement; }
-}
 }
