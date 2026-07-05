@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pokégatchi Art Style Comparison</title>
+    <style>
+        body { font-family: sans-serif; background-color: #1a1a1a; color: #eee; margin: 0; padding: 2rem; text-align: center; }
+        h1 { color: #f7c948; }
+        .comparison-container { display: flex; justify-content: center; align-items: flex-start; gap: 2rem; margin-top: 2rem; flex-wrap: wrap; }
+        .style-card { background-color: #2a2a2a; border: 1px solid #444; border-radius: 15px; padding: 1.5rem; width: 400px; }
+        .style-card h2 { margin-top: 0; }
+        .style-card h3 { color: #aaa; font-weight: normal; font-size: 1rem; }
+        .image-container { width: 100%; height: 300px; background-color: #333; border-radius: 10px; display: flex; justify-content: center; align-items: center; margin-top: 1rem; overflow: hidden; }
+        img { max-width: 100%; max-height: 100%; }
+        .placeholder { color: #888; font-style: italic; }
+        .spinner { border: 4px solid #555; border-top: 4px solid #f7c948; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <h1>Pokégatchi Art Style Comparison</h1>
+    <p>This page will be updated automatically when Style B is ready.</p>
+    <div class="comparison-container">
+        <div class="style-card">
+            <h2>Style A: Soft-Futuristic</h2>
+            <h3>Clean, sharp, with modern lighting.</h3>
+            <div class="image-container">
+                <img src="https://i.ibb.co/3kM4c7S/pokegatchi-style-A.png" alt="Style A: Soft-Futuristic Render">
+            </div>
+        </div>
+        <div class="style-card">
+            <h2>Style B: Cozy Storybook</h2>
+            <h3>Soft, painterly, with custom storybook lighting.</h3>
+            <div class="image-container">
+                <div class="placeholder">
+                    <div class="spinner"></div>
+                    <p>Rendering in progress...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
