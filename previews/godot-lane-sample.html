@@ -57,8 +57,10 @@
     @keyframes pet-catch{0%{transform:translateY(0)}40%{transform:translateY(-11px) scale(1.02)}100%{transform:translateY(0)}}
     @keyframes pet-spin{0%{transform:rotate(0deg)}65%{transform:rotate(10deg)}100%{transform:rotate(0deg)}}
     @media (min-width: 900px){
-      .layout{grid-template-columns:1.25fr .95fr;align-items:start}
+      .layout{grid-template-columns:1fr 1fr;align-items:start}
       .tabs{margin-top:0}
+      .row#modeRow{justify-content:space-between;max-width:740px;margin:8px auto}
+      .row#tabRow{justify-content:flex-start}
     }
     @media (max-width:540px){
       .app{--edge:12px}
@@ -169,8 +171,8 @@
     const layout = $('#layoutRoot');
     const petCard = $('#petCard');
     if(w >= 1000){
-      layout.style.gridTemplateColumns = '1.05fr 1.15fr'; // right panel more room on desktop
-      petCard.style.order = '2';
+      layout.style.gridTemplateColumns = '1fr 1fr';
+      petCard.style.order = '0';
     }else{
       layout.style.gridTemplateColumns = '';
       petCard.style.order = '0';
