@@ -8,5 +8,8 @@ config/name="Pokegatchi Godot Lane"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.2")
 
+[autoload]
+GameState="*res://scripts/GameState.gd"
+
 [rendering]
 renderer/rendering_method="forward_plus"
