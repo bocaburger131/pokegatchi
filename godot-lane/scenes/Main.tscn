@@ -20,7 +20,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.08, 0.08, 0.12, 1)
+color = Color(0.08, 0.09, 0.17, 1)
 
 [node name="AccentBar" type="ColorRect" parent="."]
 layout_mode = 1
@@ -114,7 +114,7 @@ anchor_right = 0.5
 offset_left = -240.0
 offset_top = 205.0
 offset_right = 240.0
-offset_bottom = 605.0
+offset_bottom = 590.0
 
 [node name="VBox" type="VBoxContainer" parent="PetPanel"]
 layout_mode = 2
@@ -303,9 +303,9 @@ anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
 offset_left = -350.0
-offset_top = -42.0
+offset_top = -34.0
 offset_right = 350.0
-offset_bottom = -10.0
+offset_bottom = -8.0
 horizontal_alignment = 1
 text = "Mode: Play · Team: Mystic"
 

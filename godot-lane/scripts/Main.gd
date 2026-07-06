@@ -26,6 +26,8 @@ const PETS := [
 	{"name": "Psyduck", "texture": preload("res://assets/sprites/psyduck_skin_v1.png")}
 ]
 
+const WATCH_BREAKPOINT := 540.0
+
 @onready var background: ColorRect = $Background
 @onready var accent_bar: ColorRect = $AccentBar
 @onready var title_label: Label = $Title
@@ -125,6 +127,10 @@ func _ready() -> void:
 	_update_mood_text()
 	_update_bag_text()
 	_update_journal_text()
+	_apply_watch_layout()
+
+	# runtime responsive pass
+	resized.connect(_on_resized)
 
 	team_overlay.visible = current_team == ""
 
@@ -293,3 +299,34 @@ func _pretty_team(team: String) -> String:
 			return "Instinct"
 		_:
 			return "Mystic"
+
+func _on_resized() -> void:
+	_apply_watch_layout()
+
+func _apply_watch_layout() -> void:
+	var is_watch := size.x <= WATCH_BREAKPOINT
+
+	if is_watch:
+		title_label.add_theme_font_size_override("font_size", 18)
+		status_label.add_theme_font_size_override("font_size", 13)
+		pet_name.add_theme_font_size_override("font_size", 14)
+		pet_mood.add_theme_font_size_override("font_size", 12)
+		action_state.add_theme_font_size_override("font_size", 12)
+		journal_log.add_theme_font_size_override("normal_font_size", 12)
+		bag_text.add_theme_font_size_override("font_size", 12)
+
+		pet_texture.custom_minimum_size = Vector2(150, 116)
+		pokedex_list.custom_minimum_size = Vector2(300, 150)
+		journal_log.custom_minimum_size = Vector2(320, 170)
+	else:
+		title_label.add_theme_font_size_override("font_size", 24)
+		status_label.add_theme_font_size_override("font_size", 16)
+		pet_name.add_theme_font_size_override("font_size", 16)
+		pet_mood.add_theme_font_size_override("font_size", 14)
+		action_state.add_theme_font_size_override("font_size", 14)
+		journal_log.add_theme_font_size_override("normal_font_size", 14)
+		bag_text.add_theme_font_size_override("font_size", 14)
+
+		pet_texture.custom_minimum_size = Vector2(220, 170)
+		pokedex_list.custom_minimum_size = Vector2(420, 180)
+		journal_log.custom_minimum_size = Vector2(500, 220)

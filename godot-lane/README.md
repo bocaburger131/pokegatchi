@@ -25,6 +25,11 @@ This folder is the bootstrap lane for a future Godot implementation while web re
   - `scripts/ble/BleEventBridge.gd` emits mock catch/spin events
   - Catch/Spin buttons route through BLE event bridge
   - BLE events update stats, bag items, and journal log
+- Task 6 done (watch-form-factor pass):
+  - Responsive breakpoint (`WATCH_BREAKPOINT := 540.0`)
+  - Runtime `resized` handler + `_apply_watch_layout()`
+  - Compact typography for small/round displays
+  - Reduced sprite and panel footprints for watch screens
 - This lane is **not** the production target yet
 
 ## Next steps
@@ -32,7 +37,7 @@ This folder is the bootstrap lane for a future Godot implementation while web re
 2. Validate all interactions in `Main.tscn`
 3. Add animation-state mapping for richer expression/action frames
 4. Replace mock BLE bridge with real transport adapter
-5. Run watch-form-factor layout pass (round/small screens)
+5. Tune round-watch safe-area anchors for Wear OS device classes
 
 ## Source of recovered reference
 - `recovery/gemini-session-snapshot/`
