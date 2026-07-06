@@ -27,6 +27,7 @@ const PETS := [
 ]
 
 const WATCH_BREAKPOINT := 540.0
+const ROUND_ASPECT_TOLERANCE := 0.16
 
 @onready var background: ColorRect = $Background
 @onready var accent_bar: ColorRect = $AccentBar
@@ -304,9 +305,14 @@ func _on_resized() -> void:
 	_apply_watch_layout()
 
 func _apply_watch_layout() -> void:
-	var is_watch := size.x <= WATCH_BREAKPOINT
+	var viewport_size := get_viewport_rect().size
+	var w := maxf(1.0, viewport_size.x)
+	var h := maxf(1.0, viewport_size.y)
+	var is_small := minf(w, h) <= WATCH_BREAKPOINT
+	var near_square := absf((w / h) - 1.0) <= ROUND_ASPECT_TOLERANCE
+	var is_round_like := is_small and near_square
 
-	if is_watch:
+	if is_small:
 		title_label.add_theme_font_size_override("font_size", 18)
 		status_label.add_theme_font_size_override("font_size", 13)
 		pet_name.add_theme_font_size_override("font_size", 14)
@@ -330,3 +336,27 @@ func _apply_watch_layout() -> void:
 		pet_texture.custom_minimum_size = Vector2(220, 170)
 		pokedex_list.custom_minimum_size = Vector2(420, 180)
 		journal_log.custom_minimum_size = Vector2(500, 220)
+
+	# Dynamic shape-aware margins
+	var edge_margin := 18.0
+	if is_small:
+		edge_margin = 12.0
+	if is_round_like:
+		edge_margin = 26.0
+
+	set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	if has_node("PetPanel"):
+		$PetPanel.offset_left = edge_margin
+		$PetPanel.offset_top = 205.0 if not is_small else 195.0
+		$PetPanel.offset_right = -edge_margin
+		$PetPanel.offset_bottom = -95.0 if not is_small else -82.0
+
+	if has_node("HudPanels"):
+		$HudPanels.offset_left = edge_margin
+		$HudPanels.offset_top = 205.0 if not is_small else 195.0
+		$HudPanels.offset_right = -edge_margin
+		$HudPanels.offset_bottom = -95.0 if not is_small else -82.0
+
+	if has_node("Status"):
+		$Status.offset_left = edge_margin
+		$Status.offset_right = -edge_margin

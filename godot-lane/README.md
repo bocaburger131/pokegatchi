@@ -30,6 +30,7 @@ This folder is the bootstrap lane for a future Godot implementation while web re
   - Runtime `resized` handler + `_apply_watch_layout()`
   - Compact typography for small/round displays
   - Reduced sprite and panel footprints for watch screens
+  - Shape-aware margins (round-like vs rectangular screens)
 - This lane is **not** the production target yet
 
 ## Next steps
