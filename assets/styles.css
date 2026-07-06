@@ -356,6 +356,12 @@ body {
   /* Gentle floating idle animation for sprite-only mode */
   animation: spriteFloat 4s ease-in-out infinite;
 }
+#pet3dContainer[data-skin="eevee"] {
+  background-position: 49% 60% !important;
+}
+#pet3dContainer[data-skin="psyduck"] {
+  background-position: 50% 58% !important;
+}
 
 /* Sprite float animation — gentle levitation with background shift */
 @keyframes spriteFloat {
