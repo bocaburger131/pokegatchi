@@ -58,4 +58,8 @@ This folder is the bootstrap lane for a future Godot implementation while web re
 
 
 ## Task roadmap (remaining)
-- Task 10: Test-gamer delivery package (binary/editor import + short demo script)
+- Task 10: Test-gamer delivery package (binary/editor import + short demo script) ✅ completed
+
+## Tester handoff
+- `godot-lane/TEST_GAMER_DELIVERY.md`
+- Web mirror demo: `previews/godot-lane-sample.html`

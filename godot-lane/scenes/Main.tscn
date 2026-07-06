@@ -86,6 +86,10 @@ text = "Scene"
 layout_mode = 2
 text = "Shape: AUTO"
 
+[node name="BleModeButton" type="Button" parent="ModeBar"]
+layout_mode = 2
+text = "BLE: SIM"
+
 [node name="HudTabs" type="HBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 5
