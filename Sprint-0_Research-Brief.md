@@ -20,6 +20,7 @@
 | `@sorcerer` | Embedded Sorcerer | ESP32-S3 firmware, NE71 teardown, LCD drivers, custom PCB design |
 | `@enchanter` | UX Enchanter | Emotional interaction design, gesture systems, evolution ceremonies, tactile feedback |
 | `@growth` | Growth Alchemist | Post-launch content drops, animation packs, seasonal events, in-pet rewards |
+| `@gametester` | Game Test Agent | Systematic QA playthroughs, bug reproduction, console-error capture, and handoff feedback to all build agents before merge/release |
 
 ---
 
@@ -319,6 +320,7 @@ When you catch a **costume Pokemon** (witch hat Pikachu, flower crown Chansey, e
 | 4 | Research PGP notification byte mapping | `@whisperer` + `@researcher` |
 | 5 | Design first 3 mini-games as wireframes/prototypes | `@enchanter` + `@alchemist` |
 | 6 | Extract keys from Gotcha Evolve devices | `@whisperer` + you (hardware) |
+| 7 | Run pre-merge gameplay regression sweep (core flow + console error capture + UI centering + mobile checks) and post a bug report for all agents | `@gametester` |
 
 ---
 
