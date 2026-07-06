@@ -16,6 +16,12 @@ let sceneMan, exprOverlay;
 let currentSpecies = null;
 let _hudFlashTimer = null;
 
+// Per-sprite visual centering tweaks (only for PNG skin mode)
+const SPRITE_BG_POS = {
+  eevee: '49% 60%',     // pull slightly left
+  psyduck: '50% 58%',   // lift slightly up
+};
+
 // === TOAST ===
 function toast(msg, dur) {
   const el = document.getElementById('toast');
@@ -159,9 +165,15 @@ window.selectSpecies = function(species) {
     try {
       if (modelOrSprite.endsWith('.png')) {
         sceneMan.showSpriteOnly(`assets/sprites/generated/${modelOrSprite}`);
+        const c = document.getElementById('pet3dContainer');
+        if (c) {
+          c.style.setProperty('background-position', SPRITE_BG_POS[species] || '50% 60%', 'important');
+        }
         toast(`✨ Loaded ${species} skin`);
       } else {
         sceneMan.init(); // ensure 3D renderer exists in case we switched from sprite mode
+        const c = document.getElementById('pet3dContainer');
+        if (c) c.style.setProperty('background-position', '50% 55%', 'important'); // reset default for 3D mode
         sceneMan.loadV2Model(modelOrSprite);
         toast(`✨ Loading ${species}...`);
       }
