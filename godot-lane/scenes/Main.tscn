@@ -82,19 +82,43 @@ text = "Auto"
 layout_mode = 2
 text = "Scene"
 
+[node name="HudTabs" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -240.0
+offset_top = 160.0
+offset_right = 240.0
+offset_bottom = 196.0
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="BagButton" type="Button" parent="HudTabs"]
+layout_mode = 2
+text = "🎒 Bag"
+
+[node name="PokedexButton" type="Button" parent="HudTabs"]
+layout_mode = 2
+text = "📖 Pokédex"
+
+[node name="JournalButton" type="Button" parent="HudTabs"]
+layout_mode = 2
+text = "📓 Journal"
+
 [node name="PetPanel" type="PanelContainer" parent="."]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -240.0
-offset_top = 170.0
+offset_top = 205.0
 offset_right = 240.0
-offset_bottom = 590.0
+offset_bottom = 605.0
 
 [node name="VBox" type="VBoxContainer" parent="PetPanel"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 8
 
 [node name="PetName" type="Label" parent="PetPanel/VBox"]
 layout_mode = 2
@@ -106,8 +130,13 @@ layout_mode = 2
 horizontal_alignment = 1
 text = "Mood: Happy"
 
+[node name="ActionState" type="Label" parent="PetPanel/VBox"]
+layout_mode = 2
+horizontal_alignment = 1
+text = "State: Idle"
+
 [node name="PetSprite" type="TextureRect" parent="PetPanel/VBox"]
-custom_minimum_size = Vector2(220, 200)
+custom_minimum_size = Vector2(220, 170)
 layout_mode = 2
 size_flags_horizontal = 4
 texture = ExtResource("2_eevee")
@@ -116,7 +145,7 @@ stretch_mode = 5
 
 [node name="Stats" type="VBoxContainer" parent="PetPanel/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 4
 
 [node name="HungerLabel" type="Label" parent="PetPanel/VBox/Stats"]
 layout_mode = 2
@@ -151,7 +180,7 @@ show_percentage = false
 [node name="Actions" type="HBoxContainer" parent="PetPanel/VBox"]
 layout_mode = 2
 alignment = 1
-theme_override_constants/separation = 10
+theme_override_constants/separation = 8
 
 [node name="FeedButton" type="Button" parent="PetPanel/VBox/Actions"]
 layout_mode = 2
@@ -165,9 +194,106 @@ text = "Pet"
 layout_mode = 2
 text = "Heal"
 
+[node name="CatchButton" type="Button" parent="PetPanel/VBox/Actions"]
+layout_mode = 2
+text = "Catch"
+
+[node name="SpinButton" type="Button" parent="PetPanel/VBox/Actions"]
+layout_mode = 2
+text = "Spin"
+
 [node name="SwapPetButton" type="Button" parent="PetPanel/VBox"]
 layout_mode = 2
 text = "Swap Sample Pet (Eevee/Psyduck)"
+
+[node name="HudPanels" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="BagPanel" type="PanelContainer" parent="HudPanels"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -250.0
+offset_top = -110.0
+offset_right = 250.0
+offset_bottom = 110.0
+
+[node name="BagVBox" type="VBoxContainer" parent="HudPanels/BagPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BagTitle" type="Label" parent="HudPanels/BagPanel/BagVBox"]
+layout_mode = 2
+horizontal_alignment = 1
+text = "🎒 Bag"
+
+[node name="BagText" type="Label" parent="HudPanels/BagPanel/BagVBox"]
+layout_mode = 2
+horizontal_alignment = 1
+text = "Loading inventory..."
+
+[node name="PokedexPanel" type="PanelContainer" parent="HudPanels"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -250.0
+offset_top = -140.0
+offset_right = 250.0
+offset_bottom = 140.0
+
+[node name="PokedexVBox" type="VBoxContainer" parent="HudPanels/PokedexPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PokedexTitle" type="Label" parent="HudPanels/PokedexPanel/PokedexVBox"]
+layout_mode = 2
+horizontal_alignment = 1
+text = "📖 Pokédex"
+
+[node name="PokedexList" type="ItemList" parent="HudPanels/PokedexPanel/PokedexVBox"]
+custom_minimum_size = Vector2(420, 180)
+layout_mode = 2
+
+[node name="JournalPanel" type="PanelContainer" parent="HudPanels"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -160.0
+offset_right = 280.0
+offset_bottom = 160.0
+
+[node name="JournalVBox" type="VBoxContainer" parent="HudPanels/JournalPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="JournalTitle" type="Label" parent="HudPanels/JournalPanel/JournalVBox"]
+layout_mode = 2
+horizontal_alignment = 1
+text = "📓 Journal"
+
+[node name="JournalLog" type="RichTextLabel" parent="HudPanels/JournalPanel/JournalVBox"]
+custom_minimum_size = Vector2(500, 220)
+layout_mode = 2
+bbcode_enabled = true
+scroll_active = true
 
 [node name="Status" type="Label" parent="."]
 layout_mode = 1
@@ -176,10 +302,10 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -320.0
-offset_top = -40.0
-offset_right = 320.0
-offset_bottom = -12.0
+offset_left = -350.0
+offset_top = -42.0
+offset_right = 350.0
+offset_bottom = -10.0
 horizontal_alignment = 1
 text = "Mode: Play · Team: Mystic"
 
@@ -263,6 +389,3 @@ offset_top = 86.0
 offset_right = 80.0
 offset_bottom = 122.0
 text = "Close"
-
-[connection signal="pressed" from="TeamBadge" to="." method="_on_team_badge_pressed"]
-[connection signal="pressed" from="TeamOverlay/CloseOverlayButton" to="." method="_on_close_overlay_pressed"]
