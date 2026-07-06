@@ -1,15 +1,24 @@
 extends Control
 
-const TEAM_COLORS := {
-	"valor": Color(1.0, 0.27, 0.27, 1.0),
-	"mystic": Color(0.27, 0.53, 1.0, 1.0),
-	"instinct": Color(1.0, 0.84, 0.0, 1.0),
-}
-
-const TEAM_DIM_BG := {
-	"valor": Color(0.10, 0.05, 0.05, 1.0),
-	"mystic": Color(0.05, 0.06, 0.12, 1.0),
-	"instinct": Color(0.12, 0.11, 0.04, 1.0),
+const TEAM_META := {
+	"valor": {
+		"label": "Valor",
+		"badge": "🔴",
+		"bg": Color(0.16, 0.08, 0.08, 1.0),
+		"accent": Color(1.0, 0.28, 0.28, 1.0)
+	},
+	"mystic": {
+		"label": "Mystic",
+		"badge": "🔵",
+		"bg": Color(0.08, 0.09, 0.17, 1.0),
+		"accent": Color(0.33, 0.56, 1.0, 1.0)
+	},
+	"instinct": {
+		"label": "Instinct",
+		"badge": "🟡",
+		"bg": Color(0.17, 0.16, 0.08, 1.0),
+		"accent": Color(1.0, 0.84, 0.0, 1.0)
+	}
 }
 
 const PETS := [
@@ -17,45 +26,24 @@ const PETS := [
 	{"name": "Psyduck", "texture": preload("res://assets/sprites/psyduck_skin_v1.png")}
 ]
 
-const ACTION_STATE := {
-	"idle": "State: Idle",
-	"feed": "State: Eating 🍓",
-	"pet": "State: Loved ✨",
-	"heal": "State: Recovering 💖",
-	"catch": "State: Catch Celebration 🎉",
-	"spin": "State: Spinning Stop 🌀"
-}
-
-@onready var bg: ColorRect = $Background
+@onready var background: ColorRect = $Background
 @onready var accent_bar: ColorRect = $AccentBar
 @onready var title_label: Label = $Title
 @onready var team_badge: Button = $TeamBadge
-@onready var team_overlay: Control = $TeamOverlay
+@onready var status_label: Label = $Status
 
 @onready var play_button: Button = $ModeBar/PlayButton
 @onready var auto_button: Button = $ModeBar/AutoButton
 @onready var scene_button: Button = $ModeBar/SceneButton
-@onready var status_label: Label = $Status
 
 @onready var bag_button: Button = $HudTabs/BagButton
 @onready var pokedex_button: Button = $HudTabs/PokedexButton
 @onready var journal_button: Button = $HudTabs/JournalButton
-@onready var bag_panel: PanelContainer = $HudPanels/BagPanel
-@onready var pokedex_panel: PanelContainer = $HudPanels/PokedexPanel
-@onready var journal_panel: PanelContainer = $HudPanels/JournalPanel
-@onready var bag_text: Label = $HudPanels/BagPanel/BagVBox/BagText
-@onready var pokedex_list: ItemList = $HudPanels/PokedexPanel/PokedexVBox/PokedexList
-@onready var journal_log: RichTextLabel = $HudPanels/JournalPanel/JournalVBox/JournalLog
 
-@onready var valor_button: Button = $TeamOverlay/TeamButtons/ValorButton
-@onready var mystic_button: Button = $TeamOverlay/TeamButtons/MysticButton
-@onready var instinct_button: Button = $TeamOverlay/TeamButtons/InstinctButton
-@onready var close_overlay_button: Button = $TeamOverlay/CloseOverlayButton
-
-@onready var pet_name_label: Label = $PetPanel/VBox/PetName
-@onready var pet_mood_label: Label = $PetPanel/VBox/PetMood
-@onready var action_state_label: Label = $PetPanel/VBox/ActionState
-@onready var pet_sprite: TextureRect = $PetPanel/VBox/PetSprite
+@onready var pet_name: Label = $PetPanel/VBox/PetName
+@onready var pet_mood: Label = $PetPanel/VBox/PetMood
+@onready var action_state: Label = $PetPanel/VBox/ActionState
+@onready var pet_texture: TextureRect = $PetPanel/VBox/PetSprite
 @onready var hunger_bar: ProgressBar = $PetPanel/VBox/Stats/HungerBar
 @onready var happiness_bar: ProgressBar = $PetPanel/VBox/Stats/HappyBar
 @onready var energy_bar: ProgressBar = $PetPanel/VBox/Stats/EnergyBar
@@ -67,101 +55,233 @@ const ACTION_STATE := {
 @onready var spin_button: Button = $PetPanel/VBox/Actions/SpinButton
 @onready var swap_pet_button: Button = $PetPanel/VBox/SwapPetButton
 
-var current_mode := "Play"
-var current_team := ""
-var pet_index := 0
-var active_panel := ""
-var action_timer := 0.0
+@onready var bag_panel: PanelContainer = $HudPanels/BagPanel
+@onready var pokedex_panel: PanelContainer = $HudPanels/PokedexPanel
+@onready var journal_panel: PanelContainer = $HudPanels/JournalPanel
+@onready var bag_text: Label = $HudPanels/BagPanel/BagVBox/BagText
+@onready var pokedex_list: ItemList = $HudPanels/PokedexPanel/PokedexVBox/PokedexList
+@onready var journal_log: RichTextLabel = $HudPanels/JournalPanel/JournalVBox/JournalLog
 
-var ble_bridge := preload("res://scripts/ble/BleEventBridge.gd").new()
+@onready var team_overlay: Control = $TeamOverlay
+@onready var overlay_subtitle: Label = $TeamOverlay/OverlaySubtitle
+@onready var valor_button: Button = $TeamOverlay/TeamButtons/ValorButton
+@onready var mystic_button: Button = $TeamOverlay/TeamButtons/MysticButton
+@onready var instinct_button: Button = $TeamOverlay/TeamButtons/InstinctButton
+@onready var close_overlay_button: Button = $TeamOverlay/CloseOverlayButton
+
+var current_mode := "Play"
+var current_team := "mystic"
+var hunger := 72.0
+var happiness := 80.0
+var energy := 66.0
+var pet_index := 0
+var current_action := "idle"
+var active_panel := "bag"
+var journal_entries: Array[String] = []
+var ble_bridge := BleEventBridge.new()
 
 func _ready() -> void:
-	# team + mode
-	play_button.pressed.connect(func(): _set_mode("Play"))
-	auto_button.pressed.connect(func(): _set_mode("Auto"))
-	scene_button.pressed.connect(func(): _set_mode("Scene"))
-	team_badge.pressed.connect(_on_team_badge_pressed)
-
+	# Team controls
+	team_badge.pressed.connect(func(): team_overlay.visible = true)
+	close_overlay_button.pressed.connect(func(): team_overlay.visible = false)
 	valor_button.pressed.connect(func(): _select_team("valor"))
 	mystic_button.pressed.connect(func(): _select_team("mystic"))
 	instinct_button.pressed.connect(func(): _select_team("instinct"))
-	close_overlay_button.pressed.connect(_on_close_overlay_pressed)
 
-	# Task 4 HUD panels
-	bag_button.pressed.connect(func(): _toggle_panel("bag"))
-	pokedex_button.pressed.connect(func(): _toggle_panel("pokedex"))
-	journal_button.pressed.connect(func(): _toggle_panel("journal"))
+	# Mode controls
+	play_button.pressed.connect(func(): _set_mode("Play"))
+	auto_button.pressed.connect(func(): _set_mode("Auto"))
+	scene_button.pressed.connect(func(): _set_mode("Scene"))
 
-	# pet actions
-	feed_button.pressed.connect(_on_feed_pressed)
-	pet_button.pressed.connect(_on_pet_pressed)
-	heal_button.pressed.connect(_on_heal_pressed)
-	catch_button.pressed.connect(_on_catch_pressed)
-	spin_button.pressed.connect(_on_spin_pressed)
+	# HUD tabs (Task 4)
+	bag_button.pressed.connect(func(): _show_panel("bag"))
+	pokedex_button.pressed.connect(func(): _show_panel("pokedex"))
+	journal_button.pressed.connect(func(): _show_panel("journal"))
+
+	# Pet actions
+	feed_button.pressed.connect(_feed)
+	pet_button.pressed.connect(_pet)
+	heal_button.pressed.connect(_heal)
+	catch_button.pressed.connect(_catch)
+	spin_button.pressed.connect(_spin)
 	swap_pet_button.pressed.connect(_swap_pet)
 
-	# Task 5 BLE hook
-	ble_bridge.event_received.connect(_on_ble_event)
+	# Task 5 BLE bridge simulation hooks
+	ble_bridge.event_received.connect(_on_ble_event_received)
 
 	if Engine.has_singleton("GameState"):
-		current_team = GameState.current_team
+		current_team = GameState.get_team()
 		current_mode = GameState.current_mode
+		hunger = float(GameState.hunger)
+		happiness = float(GameState.happiness)
+		energy = float(GameState.energy)
 
-	if current_team == "":
-		team_overlay.visible = true
-		_apply_team_visuals("mystic")
-		team_badge.text = "Team: Select one"
-	else:
-		team_overlay.visible = false
-		_apply_team_visuals(current_team)
-		team_badge.text = "Team: %s" % _pretty_team(current_team)
-
+	_apply_team(current_team)
 	_set_mode(current_mode)
-	_refresh_pet_visual()
-	_refresh_stats_ui()
-	_refresh_hud_panels()
-	_set_action_state("idle")
+	_apply_pet()
+	_populate_pokedex()
+	_show_panel("bag")
+	_update_stats_ui()
+	_update_mood_text()
+	_update_bag_text()
+	_update_journal_text()
+
+	team_overlay.visible = current_team == ""
 
 func _process(delta: float) -> void:
-	if Engine.has_singleton("GameState"):
-		# tiny idle loop so sample feels alive
-		var hunger := GameState.hunger - int(2.0 * delta)
-		var happiness := GameState.happiness - int(1.0 * delta)
-		var energy := GameState.energy - int(1.0 * delta)
-		GameState.set_stats(hunger, happiness, energy)
-		_refresh_stats_ui()
-		_update_mood_text()
+	# lightweight idle decay + Auto mode bonus
+	hunger = clamp(hunger - 2.2 * delta, 0.0, 100.0)
+	energy = clamp(energy - 1.5 * delta, 0.0, 100.0)
+	if current_mode == "Auto":
+		happiness = clamp(happiness + 0.4 * delta, 0.0, 100.0)
+	else:
+		happiness = clamp(happiness - 0.45 * delta, 0.0, 100.0)
 
-	if action_timer > 0.0:
-		action_timer -= delta
-		if action_timer <= 0.0:
-			_set_action_state("idle")
+	if Engine.has_singleton("GameState"):
+		GameState.set_stats(int(hunger), int(happiness), int(energy))
+
+	_update_stats_ui()
+	_update_mood_text()
 
 func _select_team(team: String) -> void:
 	current_team = team
-	team_overlay.visible = false
-	team_badge.text = "Team: %s" % _pretty_team(team)
-	_apply_team_visuals(team)
 	if Engine.has_singleton("GameState"):
 		GameState.set_team(team)
-		GameState.add_journal_entry("Switched team to %s" % _pretty_team(team))
-		_refresh_journal_panel()
+	_apply_team(team)
+	team_overlay.visible = false
+	_log_event("Team set to %s" % _pretty_team(team))
+
+func _apply_team(team: String) -> void:
+	var meta: Dictionary = TEAM_META.get(team, TEAM_META["mystic"])
+	background.color = meta["bg"]
+	accent_bar.color = Color(meta["accent"].r, meta["accent"].g, meta["accent"].b, 0.65)
+	team_badge.text = "%s %s" % [meta["badge"], meta["label"]]
+	title_label.text = "Pokegatchi — Godot Sample (%s)" % meta["label"]
+	overlay_subtitle.text = "Team colors theme the whole scene (%s)" % meta["label"]
+	valor_button.disabled = team == "valor"
+	mystic_button.disabled = team == "mystic"
+	instinct_button.disabled = team == "instinct"
+	_update_status_text()
 
 func _set_mode(mode: String) -> void:
 	current_mode = mode
-	status_label.text = "Mode: %s · Pet: %s" % [mode, PETS[pet_index]["name"]]
+	if Engine.has_singleton("GameState"):
+		GameState.set_mode(mode)
 	play_button.disabled = mode == "Play"
 	auto_button.disabled = mode == "Auto"
 	scene_button.disabled = mode == "Scene"
-	if Engine.has_singleton("GameState"):
-		GameState.set_mode(mode)
+	_update_status_text()
 
-func _apply_team_visuals(team: String) -> void:
-	var accent := TEAM_COLORS.get(team, Color(0.42, 0.39, 1.0, 1.0))
-	var bg_color := TEAM_DIM_BG.get(team, Color(0.08, 0.08, 0.12, 1.0))
-	bg.color = bg_color
-	accent_bar.color = Color(accent.r, accent.g, accent.b, 0.35)
-	title_label.text = "Pokegatchi — Godot Sample (%s)" % _pretty_team(team)
+func _show_panel(panel_name: String) -> void:
+	active_panel = panel_name
+	bag_panel.visible = panel_name == "bag"
+	pokedex_panel.visible = panel_name == "pokedex"
+	journal_panel.visible = panel_name == "journal"
+	bag_button.disabled = panel_name == "bag"
+	pokedex_button.disabled = panel_name == "pokedex"
+	journal_button.disabled = panel_name == "journal"
+
+func _populate_pokedex() -> void:
+	pokedex_list.clear()
+	pokedex_list.add_item("#133 Eevee — Normal")
+	pokedex_list.add_item("#054 Psyduck — Water")
+	pokedex_list.add_item("#025 Pikachu — Electric (target roster)")
+
+func _update_status_text() -> void:
+	status_label.text = "Mode: %s · Team: %s · Action: %s" % [current_mode, _pretty_team(current_team), current_action]
+
+func _update_stats_ui() -> void:
+	hunger_bar.value = hunger
+	happiness_bar.value = happiness
+	energy_bar.value = energy
+
+func _update_mood_text() -> void:
+	var expression := "Neutral"
+	if hunger < 25.0:
+		expression = "Hungry"
+	elif energy < 20.0:
+		expression = "Sleepy"
+	elif happiness > 82.0:
+		expression = "Excited"
+	elif happiness < 35.0:
+		expression = "Sad"
+	elif current_action in ["catch", "spin"]:
+		expression = "Determined"
+
+	pet_mood.text = "Mood: %s" % expression
+	action_state.text = "State: %s" % current_action.capitalize()
+
+func _apply_pet() -> void:
+	var pet: Dictionary = PETS[pet_index]
+	pet_name.text = "Buddy: %s" % pet["name"]
+	pet_texture.texture = pet["texture"]
+
+func _feed() -> void:
+	current_action = "feed"
+	hunger = clamp(hunger + 24.0, 0.0, 100.0)
+	happiness = clamp(happiness + 5.0, 0.0, 100.0)
+	energy = clamp(energy + 2.0, 0.0, 100.0)
+	_log_event("Fed %s" % PETS[pet_index]["name"])
+	_update_status_text()
+
+func _pet() -> void:
+	current_action = "pet"
+	happiness = clamp(happiness + 12.0, 0.0, 100.0)
+	energy = clamp(energy - 2.0, 0.0, 100.0)
+	_log_event("Petted %s" % PETS[pet_index]["name"])
+	_update_status_text()
+
+func _heal() -> void:
+	current_action = "heal"
+	energy = clamp(energy + 20.0, 0.0, 100.0)
+	happiness = clamp(happiness + 3.0, 0.0, 100.0)
+	_log_event("Healed %s" % PETS[pet_index]["name"])
+	_update_status_text()
+
+func _catch() -> void:
+	current_action = "catch"
+	ble_bridge.simulate_catch("sample")
+
+func _spin() -> void:
+	current_action = "spin"
+	ble_bridge.simulate_spin("sample")
+
+func _on_ble_event_received(event_type: String, payload: Dictionary) -> void:
+	if event_type == "catch":
+		happiness = clamp(happiness + 8.0, 0.0, 100.0)
+		energy = clamp(energy - 4.0, 0.0, 100.0)
+		_log_event("BLE catch event (%s)" % payload.get("source", "unknown"))
+	elif event_type == "spin":
+		happiness = clamp(happiness + 5.0, 0.0, 100.0)
+		energy = clamp(energy - 2.0, 0.0, 100.0)
+		_log_event("BLE spin event (%s)" % payload.get("source", "unknown"))
+	_update_status_text()
+	_update_bag_text()
+
+func _swap_pet() -> void:
+	current_action = "swap"
+	pet_index = (pet_index + 1) % PETS.size()
+	_apply_pet()
+	_log_event("Swapped pet to %s" % PETS[pet_index]["name"])
+	_update_status_text()
+
+func _update_bag_text() -> void:
+	bag_text.text = "Sim BLE ready. Last action: %s" % current_action
+
+func _log_event(message: String) -> void:
+	journal_entries.append(message)
+	if journal_entries.size() > 18:
+		journal_entries = journal_entries.slice(journal_entries.size() - 18, journal_entries.size())
+	_update_journal_text()
+
+func _update_journal_text() -> void:
+	if journal_entries.is_empty():
+		journal_log.text = "[i]No events yet.[/i]"
+		return
+	var out := ""
+	for i in range(journal_entries.size()):
+		out += "• %s\n" % journal_entries[i]
+	journal_log.text = out.strip_edges()
 
 func _pretty_team(team: String) -> String:
 	match team:
@@ -172,143 +292,4 @@ func _pretty_team(team: String) -> String:
 		"instinct":
 			return "Instinct"
 		_:
-			return "Unknown"
-
-func _refresh_pet_visual() -> void:
-	var pet: Dictionary = PETS[pet_index]
-	pet_name_label.text = "Buddy: %s" % pet["name"]
-	pet_sprite.texture = pet["texture"]
-	status_label.text = "Mode: %s · Pet: %s" % [current_mode, pet["name"]]
-	if Engine.has_singleton("GameState"):
-		GameState.register_species(pet["name"])
-		_refresh_pokedex_panel()
-
-func _refresh_stats_ui() -> void:
-	if not Engine.has_singleton("GameState"):
-		return
-	hunger_bar.value = GameState.hunger
-	happiness_bar.value = GameState.happiness
-	energy_bar.value = GameState.energy
-
-func _update_mood_text() -> void:
-	if not Engine.has_singleton("GameState"):
-		return
-	if GameState.hunger < 25:
-		pet_mood_label.text = "Mood: Hungry"
-	elif GameState.energy < 25:
-		pet_mood_label.text = "Mood: Sleepy"
-	elif GameState.happiness > 80:
-		pet_mood_label.text = "Mood: Excited"
-	elif GameState.happiness < 35:
-		pet_mood_label.text = "Mood: Sad"
-	else:
-		pet_mood_label.text = "Mood: Content"
-
-func _on_feed_pressed() -> void:
-	if not Engine.has_singleton("GameState"):
-		return
-	GameState.set_stats(GameState.hunger + 18, GameState.happiness + 6, GameState.energy + 4)
-	GameState.add_journal_entry("Fed buddy")
-	_refresh_stats_ui()
-	_refresh_journal_panel()
-	_set_action_state("feed")
-
-func _on_pet_pressed() -> void:
-	if not Engine.has_singleton("GameState"):
-		return
-	GameState.set_stats(GameState.hunger + 2, GameState.happiness + 14, GameState.energy - 3)
-	GameState.add_journal_entry("Petted buddy")
-	_refresh_stats_ui()
-	_refresh_journal_panel()
-	_set_action_state("pet")
-
-func _on_heal_pressed() -> void:
-	if not Engine.has_singleton("GameState"):
-		return
-	GameState.set_stats(GameState.hunger + 2, GameState.happiness + 4, GameState.energy + 20)
-	GameState.add_journal_entry("Healed buddy")
-	_refresh_stats_ui()
-	_refresh_journal_panel()
-	_set_action_state("heal")
-
-func _on_catch_pressed() -> void:
-	ble_bridge.simulate_catch("ui")
-
-func _on_spin_pressed() -> void:
-	ble_bridge.simulate_spin("ui")
-
-func _on_ble_event(event_type: String, _payload: Dictionary) -> void:
-	if not Engine.has_singleton("GameState"):
-		return
-	if event_type == "catch":
-		GameState.set_stats(GameState.hunger - 2, GameState.happiness + 8, GameState.energy - 3)
-		GameState.add_item("Poké Ball", -1)
-		GameState.add_item("Candy", 1)
-		GameState.add_journal_entry("BLE catch event received")
-		_set_action_state("catch")
-	elif event_type == "spin":
-		GameState.set_stats(GameState.hunger - 1, GameState.happiness + 5, GameState.energy - 2)
-		GameState.add_item("Poké Ball", 1)
-		GameState.add_item("Berry", 1)
-		GameState.add_journal_entry("BLE spin event received")
-		_set_action_state("spin")
-
-	_refresh_stats_ui()
-	_refresh_hud_panels()
-	_update_mood_text()
-
-func _swap_pet() -> void:
-	pet_index = (pet_index + 1) % PETS.size()
-	_refresh_pet_visual()
-	if Engine.has_singleton("GameState"):
-		GameState.add_journal_entry("Swapped buddy to %s" % PETS[pet_index]["name"])
-		_refresh_journal_panel()
-
-func _set_action_state(key: String) -> void:
-	action_state_label.text = ACTION_STATE.get(key, ACTION_STATE["idle"])
-	if key != "idle":
-		action_timer = 1.2
-
-func _toggle_panel(name: String) -> void:
-	if active_panel == name:
-		active_panel = ""
-	else:
-		active_panel = name
-	_refresh_hud_panels()
-
-func _refresh_hud_panels() -> void:
-	_refresh_bag_panel()
-	_refresh_pokedex_panel()
-	_refresh_journal_panel()
-	bag_panel.visible = active_panel == "bag"
-	pokedex_panel.visible = active_panel == "pokedex"
-	journal_panel.visible = active_panel == "journal"
-
-func _refresh_bag_panel() -> void:
-	if not Engine.has_singleton("GameState"):
-		return
-	var lines: Array[String] = []
-	for key in GameState.bag_items.keys():
-		lines.append("%s × %s" % [str(key), str(GameState.bag_items[key])])
-	lines.sort()
-	bag_text.text = "\n".join(lines)
-
-func _refresh_pokedex_panel() -> void:
-	if not Engine.has_singleton("GameState"):
-		return
-	pokedex_list.clear()
-	for name in GameState.pokedex_seen:
-		pokedex_list.add_item(str(name))
-
-func _refresh_journal_panel() -> void:
-	if not Engine.has_singleton("GameState"):
-		return
-	journal_log.clear()
-	for entry in GameState.journal_entries:
-		journal_log.append_text("• %s\n" % str(entry))
-
-func _on_team_badge_pressed() -> void:
-	team_overlay.visible = true
-
-func _on_close_overlay_pressed() -> void:
-	team_overlay.visible = false
+			return "Mystic"
