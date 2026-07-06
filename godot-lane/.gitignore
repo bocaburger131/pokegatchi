@@ -1,0 +1,19 @@
+# Godot 4+
+.import/
+.godot/
+
+# Mono/C#
+.mono/
+*.csproj
+*.sln
+
+# Exports
+export_presets.cfg
+*.apk
+*.aab
+*.ipa
+
+# OS/editor
+.DS_Store
+Thumbs.db
+*.tmp

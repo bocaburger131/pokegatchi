@@ -1,0 +1,12 @@
+; Engine configuration file.
+; Godot 4 project scaffold for Pokégatchi parallel lane.
+
+config_version=5
+
+[application]
+config/name="Pokegatchi Godot Lane"
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.2")
+
+[rendering]
+renderer/rendering_method="forward_plus"
