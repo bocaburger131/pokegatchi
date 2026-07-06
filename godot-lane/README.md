@@ -25,6 +25,14 @@ This folder is the bootstrap lane for a future Godot implementation while web re
   - `scripts/ble/BleEventBridge.gd` emits mock catch/spin events
   - Catch/Spin buttons route through BLE event bridge
   - BLE events update stats, bag items, and journal log
+- Task 8 done (pluggable BLE transport adapter):
+  - `BleEventBridge` now supports provider abstraction (`MockBleProvider`, `QueueBleProvider`)
+  - Runtime transport switching via `BLE: SIM/LOCAL` button
+  - Provider poll loop + transport status signal wired in `Main.gd`
+  - Keeps current mock behavior while opening a clean path for real transport adapter
+- Task 9 done (Option C tester mirror):
+  - Added `previews/godot-lane-sample.html` as a web-accessible mirror of current Godot sample behavior
+  - Includes team/mode/shape controls, BLE mode toggle, actions, stats, journal, and responsive round-vs-rect layout logic
 - Task 6 done (watch-form-factor pass):
   - Responsive breakpoint (`WATCH_BREAKPOINT := 540.0`)
   - Runtime `resized` handler + `_apply_watch_layout()`
@@ -47,3 +55,7 @@ This folder is the bootstrap lane for a future Godot implementation while web re
 ## Source of recovered reference
 - `recovery/gemini-session-snapshot/`
 - `recovery/RECOVERED_GEMINI_INTENT_AND_FINISH_PLAN.md`
+
+
+## Task roadmap (remaining)
+- Task 10: Test-gamer delivery package (binary/editor import + short demo script)

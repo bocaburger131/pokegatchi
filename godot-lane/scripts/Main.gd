@@ -39,6 +39,7 @@ const ROUND_ASPECT_TOLERANCE := 0.16
 @onready var auto_button: Button = $ModeBar/AutoButton
 @onready var scene_button: Button = $ModeBar/SceneButton
 @onready var shape_button: Button = $ModeBar/ShapeButton
+@onready var ble_mode_button: Button = $ModeBar/BleModeButton
 
 @onready var bag_button: Button = $HudTabs/BagButton
 @onready var pokedex_button: Button = $HudTabs/PokedexButton
@@ -76,6 +77,7 @@ const ROUND_ASPECT_TOLERANCE := 0.16
 var current_mode := "Play"
 var current_team := "mystic"
 var layout_shape_mode := "auto"
+var expression_state := "Neutral"
 var hunger := 72.0
 var happiness := 80.0
 var energy := 66.0
@@ -83,7 +85,8 @@ var pet_index := 0
 var current_action := "idle"
 var active_panel := "bag"
 var journal_entries: Array[String] = []
-var ble_bridge := BleEventBridge.new()
+var ble_provider_mode := "mock"
+var ble_bridge: BleEventBridge
 
 func _ready() -> void:
 	# Team controls
@@ -98,6 +101,7 @@ func _ready() -> void:
 	auto_button.pressed.connect(func(): _set_mode("Auto"))
 	scene_button.pressed.connect(func(): _set_mode("Scene"))
 	shape_button.pressed.connect(_cycle_shape_mode)
+	ble_mode_button.pressed.connect(_toggle_ble_transport)
 
 	# HUD tabs (Task 4)
 	bag_button.pressed.connect(func(): _show_panel("bag"))
@@ -113,7 +117,9 @@ func _ready() -> void:
 	swap_pet_button.pressed.connect(_swap_pet)
 
 	# Task 5 BLE bridge simulation hooks
+	ble_bridge = BleEventBridge.new()
 	ble_bridge.event_received.connect(_on_ble_event_received)
+	ble_bridge.transport_status_changed.connect(_on_ble_transport_status)
 
 	if Engine.has_singleton("GameState"):
 		current_team = GameState.get_team()
@@ -134,6 +140,7 @@ func _ready() -> void:
 	_update_journal_text()
 	_apply_watch_layout()
 	_update_shape_button_text()
+	_update_ble_mode_button_text()
 
 	# runtime responsive pass
 	resized.connect(_on_resized)
@@ -141,6 +148,8 @@ func _ready() -> void:
 	team_overlay.visible = current_team == ""
 
 func _process(delta: float) -> void:
+	ble_bridge.poll()
+
 	# lightweight idle decay + Auto mode bonus
 	hunger = clamp(hunger - 2.2 * delta, 0.0, 100.0)
 	energy = clamp(energy - 1.5 * delta, 0.0, 100.0)
@@ -199,6 +208,11 @@ func _cycle_shape_mode() -> void:
 	_update_shape_button_text()
 	_log_event("Layout shape mode: %s" % layout_shape_mode.to_upper())
 
+func _toggle_ble_transport() -> void:
+	var mode := ble_bridge.toggle_transport_mode()
+	_update_ble_mode_button_text()
+	_log_event("BLE transport: %s" % mode.to_upper())
+
 func _show_panel(panel_name: String) -> void:
 	active_panel = panel_name
 	bag_panel.visible = panel_name == "bag"
@@ -235,8 +249,10 @@ func _update_mood_text() -> void:
 	elif current_action in ["catch", "spin"]:
 		expression = "Determined"
 
+	expression_state = expression
 	pet_mood.text = "Mood: %s" % expression
 	action_state.text = "State: %s" % current_action.capitalize()
+	_apply_expression_visuals()
 
 func _apply_pet() -> void:
 	var pet: Dictionary = PETS[pet_index]
@@ -293,7 +309,7 @@ func _swap_pet() -> void:
 	_update_status_text()
 
 func _update_bag_text() -> void:
-	bag_text.text = "Sim BLE ready. Last action: %s" % current_action
+	bag_text.text = "BLE %s · Last action: %s" % [ble_bridge.get_transport_mode_label(), current_action]
 
 func _log_event(message: String) -> void:
 	journal_entries.append(message)
@@ -310,6 +326,35 @@ func _update_journal_text() -> void:
 		out += "• %s\n" % journal_entries[i]
 	journal_log.text = out.strip_edges()
 
+func _apply_expression_visuals() -> void:
+	var tint := Color(1, 1, 1, 1)
+	var scale := Vector2(1.0, 1.0)
+
+	match expression_state:
+		"Hungry":
+			tint = Color(0.95, 0.86, 0.72, 1)
+		"Sleepy":
+			tint = Color(0.78, 0.84, 1.0, 1)
+		"Excited":
+			tint = Color(1.0, 0.95, 0.70, 1)
+			scale = Vector2(1.04, 1.04)
+		"Sad":
+			tint = Color(0.78, 0.78, 0.86, 1)
+		"Determined":
+			tint = Color(1.0, 0.82, 0.82, 1)
+		_:
+			tint = Color(1, 1, 1, 1)
+
+	if current_action == "feed":
+		tint = tint.lerp(Color(0.88, 1.0, 0.88, 1), 0.45)
+	elif current_action == "heal":
+		tint = tint.lerp(Color(0.92, 1.0, 1.0, 1), 0.45)
+	elif current_action in ["catch", "spin"]:
+		scale = Vector2(1.03, 1.03)
+
+	pet_texture.modulate = tint
+	pet_texture.scale = scale
+
 func _pretty_team(team: String) -> String:
 	match team:
 		"valor":
@@ -324,8 +369,16 @@ func _pretty_team(team: String) -> String:
 func _on_resized() -> void:
 	_apply_watch_layout()
 
+func _on_ble_transport_status(text: String) -> void:
+	_log_event(text)
+	_update_bag_text()
+	_update_ble_mode_button_text()
+
 func _update_shape_button_text() -> void:
 	shape_button.text = "Shape: %s" % layout_shape_mode.to_upper()
+
+func _update_ble_mode_button_text() -> void:
+	ble_mode_button.text = "BLE: %s" % ble_bridge.get_transport_mode_label()
 
 func _apply_watch_layout() -> void:
 	var viewport_size := get_viewport_rect().size

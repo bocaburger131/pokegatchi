@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pokégatchi Godot Lane Mirror Sample</title>
+  <style>
+    :root{
+      --bg:#0c1020; --card:#171d2f; --muted:#9aa7c7; --text:#eef3ff; --accent:#4a6bff;
+      --edge:18px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
+    .app{max-width:960px;margin:0 auto;padding:12px var(--edge) 80px}
+    .title{font-weight:800;font-size:clamp(20px,4vw,28px);text-align:center;margin:6px 0 4px}
+    .sub{font-size:13px;color:var(--muted);text-align:center;margin:0 0 10px}
+    .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:8px 0}
+    button{background:#222b47;color:#fff;border:1px solid #2f3b66;padding:8px 10px;border-radius:10px;cursor:pointer}
+    button.active{border-color:#8ea4ff;background:#30417a}
+    .card{background:var(--card);border:1px solid #2e395e;border-radius:14px;padding:12px}
+    .layout{display:grid;gap:10px;grid-template-columns:1fr}
+    .pet{display:grid;grid-template-columns:1fr;gap:10px}
+    .pet img{width:min(260px,70vw);height:auto;display:block;margin:0 auto;image-rendering:auto;border-radius:10px}
+    .center{text-align:center}
+    .stats{display:grid;gap:6px}
+    .bar{height:10px;background:#2a3557;border-radius:999px;overflow:hidden}
+    .bar>span{display:block;height:100%;background:linear-gradient(90deg,#6dc7ff,#8f90ff)}
+    .tabs,.panel{margin-top:10px}
+    .panel{display:none}
+    .panel.active{display:block}
+    .journal{max-height:180px;overflow:auto;padding-right:4px}
+    .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+    .chip{font-size:12px;border:1px solid #395088;background:#1d2950;padding:4px 8px;border-radius:999px}
+    .round-like .app{--edge:26px}
+    @media (max-width:540px){
+      .app{--edge:12px}
+      button{padding:7px 8px;font-size:12px}
+      .card{padding:10px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1 class="title" id="title">Pokégatchi — Godot Lane Mirror</h1>
+    <p class="sub" id="status">Mode: Play · Team: Mystic · Action: Idle</p>
+
+    <div class="row" id="teamRow">
+      <button data-team="valor">🔴 Valor</button>
+      <button data-team="mystic" class="active">🔵 Mystic</button>
+      <button data-team="instinct">🟡 Instinct</button>
+    </div>
+    <div class="row" id="modeRow">
+      <button data-mode="Play" class="active">Play</button>
+      <button data-mode="Auto">Auto</button>
+      <button data-mode="Scene">Scene</button>
+      <button id="shapeBtn">Shape: AUTO</button>
+      <button id="bleBtn">BLE: SIM</button>
+    </div>
+
+    <div class="layout">
+      <section class="card pet">
+        <div class="center">
+          <strong id="petName">Buddy: Eevee</strong><br />
+          <small id="petMood">Mood: Neutral</small>
+        </div>
+        <img id="petImg" src="../assets/sprites/generated/eevee_skin_v2_compact.png" alt="Buddy" />
+        <div class="chips">
+          <span class="chip" id="actionChip">State: idle</span>
+          <span class="chip" id="shapeChip">Layout: auto</span>
+          <span class="chip" id="bleChip">Transport: sim</span>
+        </div>
+        <div class="stats">
+          <label>Hunger<div class="bar"><span id="hungerBar" style="width:72%"></span></div></label>
+          <label>Happiness<div class="bar"><span id="happyBar" style="width:80%"></span></div></label>
+          <label>Energy<div class="bar"><span id="energyBar" style="width:66%"></span></div></label>
+        </div>
+        <div class="row">
+          <button data-act="feed">Feed</button>
+          <button data-act="pet">Pet</button>
+          <button data-act="heal">Heal</button>
+          <button data-act="catch">Catch</button>
+          <button data-act="spin">Spin</button>
+          <button id="swapBtn">Swap</button>
+        </div>
+      </section>
+
+      <section class="card tabs">
+        <div class="row" id="tabRow">
+          <button data-tab="bag" class="active">🎒 Bag</button>
+          <button data-tab="pokedex">📖 Pokédex</button>
+          <button data-tab="journal">📓 Journal</button>
+        </div>
+        <div id="bag" class="panel active"><div id="bagText">BLE SIM · Last action: idle</div></div>
+        <div id="pokedex" class="panel"><ul><li>#133 Eevee</li><li>#054 Psyduck</li><li>#025 Pikachu</li></ul></div>
+        <div id="journal" class="panel journal"></div>
+      </section>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const state = {
+    team:'mystic', mode:'Play', shape:'auto', ble:'sim', action:'idle',
+    pet:0, pets:[
+      {name:'Eevee', src:'../assets/sprites/generated/eevee_skin_v2_compact.png'},
+      {name:'Psyduck', src:'../assets/sprites/generated/psyduck_skin_v1.png'}
+    ],
+    hunger:72, happiness:80, energy:66, journal:['Session boot']
+  };
+  const teamMeta={valor:['Valor','#9f1f2f'],mystic:['Mystic','#2e4fa0'],instinct:['Instinct','#9b8515']};
+
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+
+  function mood(){
+    if(state.hunger<25) return 'Hungry';
+    if(state.energy<20) return 'Sleepy';
+    if(state.happiness>82) return 'Excited';
+    if(state.happiness<35) return 'Sad';
+    if(['catch','spin'].includes(state.action)) return 'Determined';
+    return 'Neutral';
+  }
+  function log(msg){
+    const t=new Date().toLocaleTimeString();
+    state.journal.unshift(`[${t}] ${msg}`);
+    state.journal=state.journal.slice(0,30);
+  }
+  function detectRoundLike(){
+    const w=window.innerWidth,h=window.innerHeight;
+    const small=Math.min(w,h)<=540;
+    const nearSquare=Math.abs((w/h)-1)<=0.16;
+    return small && nearSquare;
+  }
+  function applyLayout(){
+    const round = state.shape==='round' ? true : state.shape==='rect' ? false : detectRoundLike();
+    document.body.classList.toggle('round-like',round);
+    $('#shapeChip').textContent=`Layout: ${state.shape}`;
+  }
+  function render(){
+    const [teamLabel,color]=teamMeta[state.team];
+    document.documentElement.style.setProperty('--accent',color);
+    $('#title').textContent=`Pokégatchi — Godot Lane Mirror (${teamLabel})`;
+    $('#status').textContent=`Mode: ${state.mode} · Team: ${teamLabel} · Action: ${state.action}`;
+    $('#petName').textContent=`Buddy: ${state.pets[state.pet].name}`;
+    $('#petMood').textContent=`Mood: ${mood()}`;
+    $('#petImg').src=state.pets[state.pet].src;
+    $('#actionChip').textContent=`State: ${state.action}`;
+    $('#bleChip').textContent=`Transport: ${state.ble}`;
+    $('#bleBtn').textContent=`BLE: ${state.ble.toUpperCase()}`;
+    $('#shapeBtn').textContent=`Shape: ${state.shape.toUpperCase()}`;
+    $('#hungerBar').style.width=`${state.hunger}%`;
+    $('#happyBar').style.width=`${state.happiness}%`;
+    $('#energyBar').style.width=`${state.energy}%`;
+    $('#bagText').textContent=`BLE ${state.ble.toUpperCase()} · Last action: ${state.action}`;
+    $('#journal').innerHTML = state.journal.map(x=>`<div>• ${x}</div>`).join('');
+    applyLayout();
+  }
+
+  $$('#teamRow button').forEach(b=>b.onclick=()=>{
+    $$('#teamRow button').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+    state.team=b.dataset.team; log(`Team set to ${teamMeta[state.team][0]}`); render();
+  });
+  $$('#modeRow button[data-mode]').forEach(b=>b.onclick=()=>{
+    $$('#modeRow button[data-mode]').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+    state.mode=b.dataset.mode; render();
+  });
+  $('#shapeBtn').onclick=()=>{ state.shape = state.shape==='auto'?'round':state.shape==='round'?'rect':'auto'; log(`Layout shape mode: ${state.shape.toUpperCase()}`); render(); };
+  $('#bleBtn').onclick=()=>{ state.ble = state.ble==='sim'?'local':'sim'; log(`BLE transport: ${state.ble.toUpperCase()}`); render(); };
+  $$('.tabs [data-tab]').forEach(b=>b.onclick=()=>{
+    $$('.tabs [data-tab]').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+    $$('.panel').forEach(p=>p.classList.remove('active')); $('#'+b.dataset.tab).classList.add('active');
+  });
+  $$('.pet [data-act]').forEach(b=>b.onclick=()=>{
+    state.action=b.dataset.act;
+    if(state.action==='feed'){ state.hunger=Math.min(100,state.hunger+24); state.happiness=Math.min(100,state.happiness+5); }
+    if(state.action==='pet'){ state.happiness=Math.min(100,state.happiness+12); state.energy=Math.max(0,state.energy-2); }
+    if(state.action==='heal'){ state.energy=Math.min(100,state.energy+20); state.happiness=Math.min(100,state.happiness+3); }
+    if(state.action==='catch'){ state.happiness=Math.min(100,state.happiness+8); state.energy=Math.max(0,state.energy-4); }
+    if(state.action==='spin'){ state.happiness=Math.min(100,state.happiness+5); state.energy=Math.max(0,state.energy-2); }
+    log(`${state.action.toUpperCase()} action`); render();
+  });
+  $('#swapBtn').onclick=()=>{ state.pet=(state.pet+1)%state.pets.length; state.action='swap'; log(`Swapped pet to ${state.pets[state.pet].name}`); render(); };
+  window.addEventListener('resize', applyLayout);
+
+  setInterval(()=>{
+    state.hunger=Math.max(0,state.hunger-0.25);
+    state.energy=Math.max(0,state.energy-0.2);
+    state.happiness=Math.max(0, Math.min(100, state.happiness + (state.mode==='Auto'?0.08:-0.08)));
+    render();
+  }, 500);
+
+  render();
+})();
+</script>
+</body>
+</html>
