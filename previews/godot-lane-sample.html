@@ -18,24 +18,53 @@
     button{background:#222b47;color:#fff;border:1px solid #2f3b66;padding:8px 10px;border-radius:10px;cursor:pointer}
     button.active{border-color:#8ea4ff;background:#30417a}
     .card{background:var(--card);border:1px solid #2e395e;border-radius:14px;padding:12px}
-    .layout{display:grid;gap:10px;grid-template-columns:1fr}
-    .pet{display:grid;grid-template-columns:1fr;gap:10px}
-    .pet img{width:min(260px,70vw);height:auto;display:block;margin:0 auto;image-rendering:auto;border-radius:10px}
+    .layout{display:grid;gap:12px;grid-template-columns:1fr}
+    .pet{display:grid;grid-template-columns:1fr;gap:10px;position:relative}
+    .pet img{
+      width:min(280px,72vw);height:auto;display:block;margin:0 auto;image-rendering:auto;border-radius:12px;
+      transition:transform .22s ease, filter .25s ease, box-shadow .25s ease;
+      animation:idleFloat 3.2s ease-in-out infinite, idleBreath 2.6s ease-in-out infinite;
+      box-shadow:0 6px 20px rgba(0,0,0,.28);
+    }
+    .pet img.mood-hungry{filter:saturate(.85) brightness(.95) hue-rotate(-8deg)}
+    .pet img.mood-sleepy{filter:saturate(.9) brightness(.92) hue-rotate(18deg)}
+    .pet img.mood-excited{filter:saturate(1.15) brightness(1.08)}
+    .pet img.mood-sad{filter:saturate(.75) brightness(.88)}
+    .pet img.mood-determined{filter:saturate(1.1) contrast(1.06)}
+    .pet img.action-feed{animation:actionNibble .55s ease 1}
+    .pet img.action-pet{animation:actionPet .55s ease 1}
+    .pet img.action-heal{animation:actionHeal .72s ease 1}
+    .pet img.action-catch,.pet img.action-spin{animation:actionPop .45s ease 1}
+    .pet img.action-swap{animation:actionFlip .55s ease 1}
+
     .center{text-align:center}
-    .stats{display:grid;gap:6px}
-    .bar{height:10px;background:#2a3557;border-radius:999px;overflow:hidden}
-    .bar>span{display:block;height:100%;background:linear-gradient(90deg,#6dc7ff,#8f90ff)}
-    .tabs,.panel{margin-top:10px}
+    .stats{display:grid;gap:8px}
+    .bar{height:12px;background:#2a3557;border-radius:999px;overflow:hidden}
+    .bar>span{display:block;height:100%;background:linear-gradient(90deg,#6dc7ff,#8f90ff);transition:width .25s ease}
+
     .panel{display:none}
     .panel.active{display:block}
     .journal{max-height:180px;overflow:auto;padding-right:4px}
     .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
     .chip{font-size:12px;border:1px solid #395088;background:#1d2950;padding:4px 8px;border-radius:999px}
     .round-like .app{--edge:26px}
+    .pet-acting{animation:pet-pop .34s ease}
+    .pet-catch{animation:pet-catch 0.42s ease}
+    .pet-spin{animation:pet-spin 0.42s ease}
+    .status-glow{box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 26px color-mix(in srgb, var(--accent) 40%, transparent)}
+    @keyframes pet-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+    @keyframes pet-pop{0%{transform:scale(1)}50%{transform:scale(1.07)}100%{transform:scale(1)}}
+    @keyframes pet-catch{0%{transform:translateY(0)}40%{transform:translateY(-11px) scale(1.02)}100%{transform:translateY(0)}}
+    @keyframes pet-spin{0%{transform:rotate(0deg)}65%{transform:rotate(10deg)}100%{transform:rotate(0deg)}}
+    @media (min-width: 900px){
+      .layout{grid-template-columns:1.25fr .95fr;align-items:start}
+      .tabs{margin-top:0}
+    }
     @media (max-width:540px){
       .app{--edge:12px}
       button{padding:7px 8px;font-size:12px}
       .card{padding:10px}
+      .pet img{width:min(230px,72vw)}
     }
   </style>
 </head>
@@ -57,8 +86,8 @@
       <button id="bleBtn">BLE: SIM</button>
     </div>
 
-    <div class="layout">
-      <section class="card pet">
+    <div class="layout" id="layoutRoot">
+      <section class="card pet" id="petCard">
         <div class="center">
           <strong id="petName">Buddy: Eevee</strong><br />
           <small id="petMood">Mood: Neutral</small>
@@ -135,6 +164,17 @@
     const round = state.shape==='round' ? true : state.shape==='rect' ? false : detectRoundLike();
     document.body.classList.toggle('round-like',round);
     $('#shapeChip').textContent=`Layout: ${state.shape}`;
+
+    const w = window.innerWidth;
+    const layout = $('#layoutRoot');
+    const petCard = $('#petCard');
+    if(w >= 1000){
+      layout.style.gridTemplateColumns = '1.05fr 1.15fr'; // right panel more room on desktop
+      petCard.style.order = '2';
+    }else{
+      layout.style.gridTemplateColumns = '';
+      petCard.style.order = '0';
+    }
   }
   function render(){
     const [teamLabel,color]=teamMeta[state.team];
@@ -142,8 +182,18 @@
     $('#title').textContent=`Pokégatchi — Godot Lane Mirror (${teamLabel})`;
     $('#status').textContent=`Mode: ${state.mode} · Team: ${teamLabel} · Action: ${state.action}`;
     $('#petName').textContent=`Buddy: ${state.pets[state.pet].name}`;
-    $('#petMood').textContent=`Mood: ${mood()}`;
-    $('#petImg').src=state.pets[state.pet].src;
+
+    const currentMood = mood();
+    $('#petMood').textContent=`Mood: ${currentMood}`;
+    const img = $('#petImg');
+    img.src=state.pets[state.pet].src;
+    img.className='';
+    img.classList.add(`mood-${currentMood.toLowerCase()}`);
+    if(state.action!=='idle'){
+      img.classList.add(`action-${state.action}`);
+      setTimeout(()=>img.classList.remove(`action-${state.action}`),460);
+    }
+
     $('#actionChip').textContent=`State: ${state.action}`;
     $('#bleChip').textContent=`Transport: ${state.ble}`;
     $('#bleBtn').textContent=`BLE: ${state.ble.toUpperCase()}`;
@@ -154,6 +204,14 @@
     $('#bagText').textContent=`BLE ${state.ble.toUpperCase()} · Last action: ${state.action}`;
     $('#journal').innerHTML = state.journal.map(x=>`<div>• ${x}</div>`).join('');
     applyLayout();
+  }
+
+  function pulsePet(kind='pet-acting'){
+    const img = $('#petImg');
+    img.classList.remove('pet-acting','pet-catch','pet-spin');
+    void img.offsetWidth;
+    img.classList.add(kind);
+    setTimeout(()=> img.classList.remove(kind), 430);
   }
 
   $$('#teamRow button').forEach(b=>b.onclick=()=>{
@@ -177,9 +235,14 @@
     if(state.action==='heal'){ state.energy=Math.min(100,state.energy+20); state.happiness=Math.min(100,state.happiness+3); }
     if(state.action==='catch'){ state.happiness=Math.min(100,state.happiness+8); state.energy=Math.max(0,state.energy-4); }
     if(state.action==='spin'){ state.happiness=Math.min(100,state.happiness+5); state.energy=Math.max(0,state.energy-2); }
+    if(state.action==='catch') pulsePet('pet-catch');
+    else if(state.action==='spin') pulsePet('pet-spin');
+    else pulsePet('pet-acting');
+    $('#status').classList.add('status-glow');
+    setTimeout(()=>$('#status').classList.remove('status-glow'), 360);
     log(`${state.action.toUpperCase()} action`); render();
   });
-  $('#swapBtn').onclick=()=>{ state.pet=(state.pet+1)%state.pets.length; state.action='swap'; log(`Swapped pet to ${state.pets[state.pet].name}`); render(); };
+  $('#swapBtn').onclick=()=>{ state.pet=(state.pet+1)%state.pets.length; state.action='swap'; pulsePet('pet-acting'); log(`Swapped pet to ${state.pets[state.pet].name}`); render(); };
   window.addEventListener('resize', applyLayout);
 
   setInterval(()=>{
