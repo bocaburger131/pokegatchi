@@ -11,31 +11,49 @@
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
-    .app{max-width:960px;margin:0 auto;padding:12px var(--edge) 80px}
+    .app{max-width:1060px;margin:0 auto;padding:12px var(--edge) 80px}
     .title{font-weight:800;font-size:clamp(20px,4vw,28px);text-align:center;margin:6px 0 4px}
-    .sub{font-size:13px;color:var(--muted);text-align:center;margin:0 0 10px}
+    .sub{font-size:13px;color:var(--muted);text-align:center;margin:0 0 10px;border-radius:10px;padding:6px 10px;transition:box-shadow .2s ease}
     .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:8px 0}
     button{background:#222b47;color:#fff;border:1px solid #2f3b66;padding:8px 10px;border-radius:10px;cursor:pointer}
     button.active{border-color:#8ea4ff;background:#30417a}
-    .card{background:var(--card);border:1px solid #2e395e;border-radius:14px;padding:12px}
+
     .layout{display:grid;gap:12px;grid-template-columns:1fr}
+    .card{background:var(--card);border:1px solid #2e395e;border-radius:14px;padding:12px}
     .pet{display:grid;grid-template-columns:1fr;gap:10px;position:relative}
+
     .pet img{
       width:min(280px,72vw);height:auto;display:block;margin:0 auto;image-rendering:auto;border-radius:12px;
       transition:transform .22s ease, filter .25s ease, box-shadow .25s ease;
-      animation:idleFloat 3.2s ease-in-out infinite, idleBreath 2.6s ease-in-out infinite;
-      box-shadow:0 6px 20px rgba(0,0,0,.28);
+      animation:
+        idleFloat var(--idle-float-speed,3.2s) ease-in-out infinite,
+        idleBreath var(--idle-breath-speed,2.6s) ease-in-out infinite,
+        idleWiggle var(--idle-wiggle-speed,5.5s) ease-in-out infinite;
+      transform-origin:center bottom;
+      box-shadow:0 8px 24px rgba(0,0,0,.33);
+      --idle-float: 6px;
+      --idle-breath-scale: 1.02;
+      --idle-wiggle: 2.5deg;
     }
+
     .pet img.mood-hungry{filter:saturate(.85) brightness(.95) hue-rotate(-8deg)}
     .pet img.mood-sleepy{filter:saturate(.9) brightness(.92) hue-rotate(18deg)}
     .pet img.mood-excited{filter:saturate(1.15) brightness(1.08)}
     .pet img.mood-sad{filter:saturate(.75) brightness(.88)}
     .pet img.mood-determined{filter:saturate(1.1) contrast(1.06)}
+
     .pet img.action-feed{animation:actionNibble .55s ease 1}
     .pet img.action-pet{animation:actionPet .55s ease 1}
     .pet img.action-heal{animation:actionHeal .72s ease 1}
     .pet img.action-catch,.pet img.action-spin{animation:actionPop .45s ease 1}
     .pet img.action-swap{animation:actionFlip .55s ease 1}
+
+    .character-roster{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+    .char-btn{
+      display:flex;align-items:center;justify-content:center;gap:6px;
+      font-size:12px;padding:7px 8px;border-radius:10px;background:#1e2642;border:1px solid #334273;
+    }
+    .char-btn.active{background:#31447f;border-color:#93a7ff}
 
     .center{text-align:center}
     .stats{display:grid;gap:8px}
@@ -47,15 +65,38 @@
     .journal{max-height:180px;overflow:auto;padding-right:4px}
     .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
     .chip{font-size:12px;border:1px solid #395088;background:#1d2950;padding:4px 8px;border-radius:999px}
+
+    .fx-burst{
+      position:absolute;inset:34% 30% auto; height:120px; border-radius:999px; pointer-events:none;
+      background:radial-gradient(circle, color-mix(in srgb, var(--accent) 42%, white) 0%, color-mix(in srgb, var(--accent) 35%, transparent) 35%, transparent 72%);
+      opacity:0; transform:scale(.4);
+    }
+    .fx-burst.show{animation:burst .45s ease}
+
     .round-like .app{--edge:26px}
-    .pet-acting{animation:pet-pop .34s ease}
-    .pet-catch{animation:pet-catch 0.42s ease}
-    .pet-spin{animation:pet-spin 0.42s ease}
     .status-glow{box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 26px color-mix(in srgb, var(--accent) 40%, transparent)}
-    @keyframes pet-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
-    @keyframes pet-pop{0%{transform:scale(1)}50%{transform:scale(1.07)}100%{transform:scale(1)}}
-    @keyframes pet-catch{0%{transform:translateY(0)}40%{transform:translateY(-11px) scale(1.02)}100%{transform:translateY(0)}}
-    @keyframes pet-spin{0%{transform:rotate(0deg)}65%{transform:rotate(10deg)}100%{transform:rotate(0deg)}}
+
+    @keyframes idleFloat{
+      0%,100%{transform:translateY(0)}
+      50%{transform:translateY(calc(var(--idle-float) * -1))}
+    }
+    @keyframes idleBreath{
+      0%,100%{scale:1}
+      50%{scale:var(--idle-breath-scale)}
+    }
+    @keyframes idleWiggle{
+      0%,100%{rotate:0deg}
+      35%{rotate:var(--idle-wiggle)}
+      75%{rotate:calc(var(--idle-wiggle) * -1)}
+    }
+
+    @keyframes actionNibble{0%{transform:translateY(0)}30%{transform:translateY(-7px) scale(1.03)}100%{transform:translateY(0)}}
+    @keyframes actionPet{0%{transform:scale(1)}45%{transform:scale(1.08)}100%{transform:scale(1)}}
+    @keyframes actionHeal{0%{filter:brightness(1)}50%{filter:brightness(1.32)}100%{filter:brightness(1)}}
+    @keyframes actionPop{0%{transform:translateY(0)}38%{transform:translateY(-12px) scale(1.05)}100%{transform:translateY(0)}}
+    @keyframes actionFlip{0%{transform:rotateY(0deg)}48%{transform:rotateY(88deg)}100%{transform:rotateY(0deg)}}
+    @keyframes burst{0%{opacity:0;transform:scale(.35)}35%{opacity:.85;transform:scale(1)}100%{opacity:0;transform:scale(1.3)}}
+
     @media (min-width: 900px){
       .layout{grid-template-columns:1fr 1fr;align-items:start}
       .tabs{margin-top:0}
@@ -67,6 +108,7 @@
       button{padding:7px 8px;font-size:12px}
       .card{padding:10px}
       .pet img{width:min(230px,72vw)}
+      .character-roster{grid-template-columns:repeat(2,minmax(0,1fr))}
     }
   </style>
 </head>
@@ -95,6 +137,10 @@
           <small id="petMood">Mood: Neutral</small>
         </div>
         <img id="petImg" src="../assets/sprites/generated/eevee_skin_v2_compact.png" alt="Buddy" />
+        <div class="fx-burst" id="fxBurst" aria-hidden="true"></div>
+
+        <div class="character-roster" id="charRoster"></div>
+
         <div class="chips">
           <span class="chip" id="actionChip">State: idle</span>
           <span class="chip" id="shapeChip">Layout: auto</span>
@@ -122,7 +168,7 @@
           <button data-tab="journal">📓 Journal</button>
         </div>
         <div id="bag" class="panel active"><div id="bagText">BLE SIM · Last action: idle</div></div>
-        <div id="pokedex" class="panel"><ul><li>#133 Eevee</li><li>#054 Psyduck</li><li>#025 Pikachu</li></ul></div>
+        <div id="pokedex" class="panel"><ul id="pokedexList"></ul></div>
         <div id="journal" class="panel journal"></div>
       </section>
     </div>
@@ -130,12 +176,18 @@
 
 <script>
 (() => {
+  const characters = [
+    { id:'eevee', name:'Eevee', dex:'#133', type:'Normal', src:'../assets/sprites/generated/eevee_skin_v2_compact.png', motion:{ float:6, breath:1.02, wiggle:2.5, floatSpeed:'3.2s', breathSpeed:'2.5s', wiggleSpeed:'5.6s' } },
+    { id:'psyduck', name:'Psyduck', dex:'#054', type:'Water', src:'../assets/sprites/generated/psyduck_skin_v1.png', motion:{ float:7, breath:1.03, wiggle:3.1, floatSpeed:'2.9s', breathSpeed:'2.3s', wiggleSpeed:'4.8s' } },
+    { id:'pikachu', name:'Pikachu', dex:'#025', type:'Electric', src:'../assets/sprites/pikachu.png', motion:{ float:5, breath:1.018, wiggle:4, floatSpeed:'2.7s', breathSpeed:'2.2s', wiggleSpeed:'4.2s' } },
+    { id:'bulbasaur', name:'Bulbasaur', dex:'#001', type:'Grass/Poison', src:'../assets/sprites/bulbasaur.png', motion:{ float:4.5, breath:1.016, wiggle:2.2, floatSpeed:'3.4s', breathSpeed:'2.8s', wiggleSpeed:'6.1s' } },
+    { id:'charmander', name:'Charmander', dex:'#004', type:'Fire', src:'../assets/sprites/charmander.png', motion:{ float:6.8, breath:1.023, wiggle:3.6, floatSpeed:'2.6s', breathSpeed:'2.1s', wiggleSpeed:'4.5s' } },
+    { id:'squirtle', name:'Squirtle', dex:'#007', type:'Water', src:'../assets/sprites/squirtle.png', motion:{ float:5.3, breath:1.02, wiggle:2.8, floatSpeed:'3s', breathSpeed:'2.4s', wiggleSpeed:'5.2s' } },
+  ];
+
   const state = {
     team:'mystic', mode:'Play', shape:'auto', ble:'sim', action:'idle',
-    pet:0, pets:[
-      {name:'Eevee', src:'../assets/sprites/generated/eevee_skin_v2_compact.png'},
-      {name:'Psyduck', src:'../assets/sprites/generated/psyduck_skin_v1.png'}
-    ],
+    pet:0, pets:characters,
     hunger:72, happiness:80, energy:66, journal:['Session boot']
   };
   const teamMeta={valor:['Valor','#9f1f2f'],mystic:['Mystic','#2e4fa0'],instinct:['Instinct','#9b8515']};
@@ -154,7 +206,7 @@
   function log(msg){
     const t=new Date().toLocaleTimeString();
     state.journal.unshift(`[${t}] ${msg}`);
-    state.journal=state.journal.slice(0,30);
+    state.journal=state.journal.slice(0,40);
   }
   function detectRoundLike(){
     const w=window.innerWidth,h=window.innerHeight;
@@ -169,32 +221,74 @@
 
     const w = window.innerWidth;
     const layout = $('#layoutRoot');
-    const petCard = $('#petCard');
     if(w >= 1000){
       layout.style.gridTemplateColumns = '1fr 1fr';
-      petCard.style.order = '0';
     }else{
       layout.style.gridTemplateColumns = '';
-      petCard.style.order = '0';
     }
   }
+
+  function applyPetMotion(pet){
+    const img = $('#petImg');
+    img.style.setProperty('--idle-float', `${pet.motion.float}px`);
+    img.style.setProperty('--idle-breath-scale', `${pet.motion.breath}`);
+    img.style.setProperty('--idle-wiggle', `${pet.motion.wiggle}deg`);
+    img.style.setProperty('--idle-float-speed', pet.motion.floatSpeed);
+    img.style.setProperty('--idle-breath-speed', pet.motion.breathSpeed);
+    img.style.setProperty('--idle-wiggle-speed', pet.motion.wiggleSpeed);
+  }
+
+  function popFx(){
+    const fx=$('#fxBurst');
+    fx.classList.remove('show');
+    void fx.offsetWidth;
+    fx.classList.add('show');
+    setTimeout(()=>fx.classList.remove('show'),460);
+  }
+
+  function renderRoster(){
+    const host = $('#charRoster');
+    host.innerHTML = state.pets.map((p,idx)=>`<button class="char-btn ${idx===state.pet?'active':''}" data-pet="${idx}" title="${p.dex} ${p.name}">${p.dex} ${p.name}</button>`).join('');
+    host.querySelectorAll('button[data-pet]').forEach(b=>{
+      b.onclick=()=>{
+        state.pet=Number(b.dataset.pet);
+        state.action='swap';
+        log(`Swapped pet to ${state.pets[state.pet].name}`);
+        popFx();
+        render();
+      };
+    });
+  }
+
+  function renderPokedex(){
+    const ul = $('#pokedexList');
+    if(!ul) return;
+    ul.innerHTML = state.pets.map((p,idx)=>{
+      const active = idx===state.pet ? ' style="color:#8ed0ff;font-weight:700"' : '';
+      return `<li${active}>${p.id} ${p.name} — ${p.type}${idx===state.pet?' (active)':''}</li>`;
+    }).join('');
+  }
+
   function render(){
     const [teamLabel,color]=teamMeta[state.team];
     document.documentElement.style.setProperty('--accent',color);
+    const pet = state.pets[state.pet];
+
     $('#title').textContent=`Pokégatchi — Godot Lane Mirror (${teamLabel})`;
-    $('#status').textContent=`Mode: ${state.mode} · Team: ${teamLabel} · Action: ${state.action}`;
-    $('#petName').textContent=`Buddy: ${state.pets[state.pet].name}`;
+    $('#status').textContent=`Mode: ${state.mode} · Team: ${teamLabel} · Action: ${state.action} · Buddy: ${pet.name}`;
+    $('#petName').textContent=`Buddy: ${pet.name} (${pet.dex})`;
 
     const currentMood = mood();
     $('#petMood').textContent=`Mood: ${currentMood}`;
     const img = $('#petImg');
-    img.src=state.pets[state.pet].src;
+    img.src=pet.src;
     img.className='';
     img.classList.add(`mood-${currentMood.toLowerCase()}`);
     if(state.action!=='idle'){
       img.classList.add(`action-${state.action}`);
       setTimeout(()=>img.classList.remove(`action-${state.action}`),460);
     }
+    applyPetMotion(pet);
 
     $('#actionChip').textContent=`State: ${state.action}`;
     $('#bleChip').textContent=`Transport: ${state.ble}`;
@@ -203,33 +297,33 @@
     $('#hungerBar').style.width=`${state.hunger}%`;
     $('#happyBar').style.width=`${state.happiness}%`;
     $('#energyBar').style.width=`${state.energy}%`;
-    $('#bagText').textContent=`BLE ${state.ble.toUpperCase()} · Last action: ${state.action}`;
+    $('#bagText').textContent=`BLE ${state.ble.toUpperCase()} · Last action: ${state.action} · Active: ${pet.name}`;
     $('#journal').innerHTML = state.journal.map(x=>`<div>• ${x}</div>`).join('');
+    renderPokedex();
     applyLayout();
-  }
 
-  function pulsePet(kind='pet-acting'){
-    const img = $('#petImg');
-    img.classList.remove('pet-acting','pet-catch','pet-spin');
-    void img.offsetWidth;
-    img.classList.add(kind);
-    setTimeout(()=> img.classList.remove(kind), 430);
+    renderRoster();
+    applyLayout();
   }
 
   $$('#teamRow button').forEach(b=>b.onclick=()=>{
     $$('#teamRow button').forEach(x=>x.classList.remove('active')); b.classList.add('active');
     state.team=b.dataset.team; log(`Team set to ${teamMeta[state.team][0]}`); render();
   });
+
   $$('#modeRow button[data-mode]').forEach(b=>b.onclick=()=>{
     $$('#modeRow button[data-mode]').forEach(x=>x.classList.remove('active')); b.classList.add('active');
     state.mode=b.dataset.mode; render();
   });
+
   $('#shapeBtn').onclick=()=>{ state.shape = state.shape==='auto'?'round':state.shape==='round'?'rect':'auto'; log(`Layout shape mode: ${state.shape.toUpperCase()}`); render(); };
   $('#bleBtn').onclick=()=>{ state.ble = state.ble==='sim'?'local':'sim'; log(`BLE transport: ${state.ble.toUpperCase()}`); render(); };
+
   $$('.tabs [data-tab]').forEach(b=>b.onclick=()=>{
     $$('.tabs [data-tab]').forEach(x=>x.classList.remove('active')); b.classList.add('active');
     $$('.panel').forEach(p=>p.classList.remove('active')); $('#'+b.dataset.tab).classList.add('active');
   });
+
   $$('.pet [data-act]').forEach(b=>b.onclick=()=>{
     state.action=b.dataset.act;
     if(state.action==='feed'){ state.hunger=Math.min(100,state.hunger+24); state.happiness=Math.min(100,state.happiness+5); }
@@ -237,14 +331,24 @@
     if(state.action==='heal'){ state.energy=Math.min(100,state.energy+20); state.happiness=Math.min(100,state.happiness+3); }
     if(state.action==='catch'){ state.happiness=Math.min(100,state.happiness+8); state.energy=Math.max(0,state.energy-4); }
     if(state.action==='spin'){ state.happiness=Math.min(100,state.happiness+5); state.energy=Math.max(0,state.energy-2); }
-    if(state.action==='catch') pulsePet('pet-catch');
-    else if(state.action==='spin') pulsePet('pet-spin');
-    else pulsePet('pet-acting');
+
+    if(['catch','spin','heal'].includes(state.action)) popFx();
+
     $('#status').classList.add('status-glow');
     setTimeout(()=>$('#status').classList.remove('status-glow'), 360);
-    log(`${state.action.toUpperCase()} action`); render();
+
+    log(`${state.action.toUpperCase()} action with ${state.pets[state.pet].name}`);
+    render();
   });
-  $('#swapBtn').onclick=()=>{ state.pet=(state.pet+1)%state.pets.length; state.action='swap'; pulsePet('pet-acting'); log(`Swapped pet to ${state.pets[state.pet].name}`); render(); };
+
+  $('#swapBtn').onclick=()=>{
+    state.pet=(state.pet+1)%state.pets.length;
+    state.action='swap';
+    popFx();
+    log(`Swapped pet to ${state.pets[state.pet].name}`);
+    render();
+  };
+
   window.addEventListener('resize', applyLayout);
 
   setInterval(()=>{
