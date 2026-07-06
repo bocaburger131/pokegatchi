@@ -38,6 +38,7 @@ const ROUND_ASPECT_TOLERANCE := 0.16
 @onready var play_button: Button = $ModeBar/PlayButton
 @onready var auto_button: Button = $ModeBar/AutoButton
 @onready var scene_button: Button = $ModeBar/SceneButton
+@onready var shape_button: Button = $ModeBar/ShapeButton
 
 @onready var bag_button: Button = $HudTabs/BagButton
 @onready var pokedex_button: Button = $HudTabs/PokedexButton
@@ -74,6 +75,7 @@ const ROUND_ASPECT_TOLERANCE := 0.16
 
 var current_mode := "Play"
 var current_team := "mystic"
+var layout_shape_mode := "auto"
 var hunger := 72.0
 var happiness := 80.0
 var energy := 66.0
@@ -95,6 +97,7 @@ func _ready() -> void:
 	play_button.pressed.connect(func(): _set_mode("Play"))
 	auto_button.pressed.connect(func(): _set_mode("Auto"))
 	scene_button.pressed.connect(func(): _set_mode("Scene"))
+	shape_button.pressed.connect(_cycle_shape_mode)
 
 	# HUD tabs (Task 4)
 	bag_button.pressed.connect(func(): _show_panel("bag"))
@@ -115,6 +118,7 @@ func _ready() -> void:
 	if Engine.has_singleton("GameState"):
 		current_team = GameState.get_team()
 		current_mode = GameState.current_mode
+		layout_shape_mode = GameState.layout_shape_mode
 		hunger = float(GameState.hunger)
 		happiness = float(GameState.happiness)
 		energy = float(GameState.energy)
@@ -129,6 +133,7 @@ func _ready() -> void:
 	_update_bag_text()
 	_update_journal_text()
 	_apply_watch_layout()
+	_update_shape_button_text()
 
 	# runtime responsive pass
 	resized.connect(_on_resized)
@@ -178,6 +183,21 @@ func _set_mode(mode: String) -> void:
 	auto_button.disabled = mode == "Auto"
 	scene_button.disabled = mode == "Scene"
 	_update_status_text()
+
+func _cycle_shape_mode() -> void:
+	if layout_shape_mode == "auto":
+		layout_shape_mode = "round"
+	elif layout_shape_mode == "round":
+		layout_shape_mode = "rect"
+	else:
+		layout_shape_mode = "auto"
+
+	if Engine.has_singleton("GameState"):
+		GameState.set_layout_shape_mode(layout_shape_mode)
+
+	_apply_watch_layout()
+	_update_shape_button_text()
+	_log_event("Layout shape mode: %s" % layout_shape_mode.to_upper())
 
 func _show_panel(panel_name: String) -> void:
 	active_panel = panel_name
@@ -304,13 +324,22 @@ func _pretty_team(team: String) -> String:
 func _on_resized() -> void:
 	_apply_watch_layout()
 
+func _update_shape_button_text() -> void:
+	shape_button.text = "Shape: %s" % layout_shape_mode.to_upper()
+
 func _apply_watch_layout() -> void:
 	var viewport_size := get_viewport_rect().size
 	var w := maxf(1.0, viewport_size.x)
 	var h := maxf(1.0, viewport_size.y)
 	var is_small := minf(w, h) <= WATCH_BREAKPOINT
 	var near_square := absf((w / h) - 1.0) <= ROUND_ASPECT_TOLERANCE
-	var is_round_like := is_small and near_square
+	var detected_round := is_small and near_square
+
+	var effective_round := detected_round
+	if layout_shape_mode == "round":
+		effective_round = true
+	elif layout_shape_mode == "rect":
+		effective_round = false
 
 	if is_small:
 		title_label.add_theme_font_size_override("font_size", 18)
@@ -337,14 +366,13 @@ func _apply_watch_layout() -> void:
 		pokedex_list.custom_minimum_size = Vector2(420, 180)
 		journal_log.custom_minimum_size = Vector2(500, 220)
 
-	# Dynamic shape-aware margins
+	# Dynamic shape-aware margins (detected + override)
 	var edge_margin := 18.0
 	if is_small:
 		edge_margin = 12.0
-	if is_round_like:
+	if effective_round:
 		edge_margin = 26.0
 
-	set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	if has_node("PetPanel"):
 		$PetPanel.offset_left = edge_margin
 		$PetPanel.offset_top = 205.0 if not is_small else 195.0

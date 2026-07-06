@@ -4,6 +4,8 @@ const SAVE_PATH := "user://game_state.cfg"
 
 var current_team: String = ""
 var current_mode: String = "Play"
+# auto | round | rect
+var layout_shape_mode: String = "auto"
 
 # Sample pet state
 var hunger: int = 50
@@ -32,6 +34,11 @@ func set_team(team: String) -> void:
 func set_mode(mode: String) -> void:
 	current_mode = mode
 	save_state()
+
+func set_layout_shape_mode(mode: String) -> void:
+	if mode in ["auto", "round", "rect"]:
+		layout_shape_mode = mode
+		save_state()
 
 func set_stats(new_hunger: int, new_happiness: int, new_energy: int) -> void:
 	hunger = clampi(new_hunger, 0, 100)
@@ -62,6 +69,7 @@ func load_state() -> void:
 
 	current_team = str(cfg.get_value("player", "team", ""))
 	current_mode = str(cfg.get_value("player", "mode", "Play"))
+	layout_shape_mode = str(cfg.get_value("player", "layout_shape_mode", "auto"))
 	hunger = int(cfg.get_value("pet", "hunger", 50))
 	happiness = int(cfg.get_value("pet", "happiness", 70))
 	energy = int(cfg.get_value("pet", "energy", 80))
@@ -82,6 +90,7 @@ func save_state() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("player", "team", current_team)
 	cfg.set_value("player", "mode", current_mode)
+	cfg.set_value("player", "layout_shape_mode", layout_shape_mode)
 	cfg.set_value("pet", "hunger", hunger)
 	cfg.set_value("pet", "happiness", happiness)
 	cfg.set_value("pet", "energy", energy)

@@ -30,15 +30,19 @@ This folder is the bootstrap lane for a future Godot implementation while web re
   - Runtime `resized` handler + `_apply_watch_layout()`
   - Compact typography for small/round displays
   - Reduced sprite and panel footprints for watch screens
-  - Shape-aware margins (round-like vs rectangular screens)
+- Shape detection/override pass done:
+  - Auto-detects round-like displays via viewport aspect + size
+  - `Shape` button cycles `AUTO -> ROUND -> RECT`
+  - Stores shape preference in `GameState.layout_shape_mode`
+  - Lets non-watch rectangular devices avoid circular margins
 - This lane is **not** the production target yet
 
 ## Next steps
 1. Open `godot-lane/project.godot` in Godot 4.x
 2. Validate all interactions in `Main.tscn`
-3. Add animation-state mapping for richer expression/action frames
+3. Fine-tune for true round clipping/margins once tested on emulator/device
 4. Replace mock BLE bridge with real transport adapter
-5. Tune round-watch safe-area anchors for Wear OS device classes
+5. Add expression/action sprite-state mapping visuals
 
 ## Source of recovered reference
 - `recovery/gemini-session-snapshot/`

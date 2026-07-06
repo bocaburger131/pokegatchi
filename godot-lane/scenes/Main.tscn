@@ -82,6 +82,10 @@ text = "Auto"
 layout_mode = 2
 text = "Scene"
 
+[node name="ShapeButton" type="Button" parent="ModeBar"]
+layout_mode = 2
+text = "Shape: AUTO"
+
 [node name="HudTabs" type="HBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 5
