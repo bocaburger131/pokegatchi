@@ -1,0 +1,49 @@
+name: Godot Lane CI Artifacts
+
+on:
+  push:
+    branches:
+      - hermes/godot-lane-bootstrap
+    paths:
+      - 'godot-lane/**'
+      - 'previews/godot-lane-sample.html'
+      - '.github/workflows/godot-lane-artifacts.yml'
+  workflow_dispatch:
+
+jobs:
+  godot-lane-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Godot 4.x (headless)
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.2.2
+          use-dotnet: false
+
+      - name: Headless project smoke check
+        run: |
+          godot --headless --path godot-lane --quit
+
+      - name: Prepare artifacts
+        run: |
+          mkdir -p dist
+          zip -r dist/godot-lane-source.zip godot-lane
+          if [ -f previews/godot-lane-sample.html ]; then
+            zip -r dist/godot-lane-web-mirror.zip previews/godot-lane-sample.html
+          fi
+
+      - name: Upload Godot lane source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-lane-source
+          path: dist/godot-lane-source.zip
+
+      - name: Upload Godot lane web mirror artifact
+        if: ${{ hashFiles('dist/godot-lane-web-mirror.zip') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-lane-web-mirror
+          path: dist/godot-lane-web-mirror.zip

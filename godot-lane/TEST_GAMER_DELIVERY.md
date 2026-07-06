@@ -59,3 +59,20 @@ Expected: No console errors; status/mood/stats/journal all update.
 - BLE is adapter-ready with pluggable providers in:
   - `godot-lane/scripts/ble/BleEventBridge.gd`
 - Current providers: `SIM` and queue-based `LOCAL`.
+
+---
+
+## Option C CI artifacts (automatic on push)
+Workflow file:
+- `.github/workflows/godot-lane-artifacts.yml`
+
+What it does:
+1. Checks out repo
+2. Installs Godot 4.2.2 headless
+3. Runs smoke check: `godot --headless --path godot-lane --quit`
+4. Uploads artifacts:
+   - `godot-lane-source.zip`
+   - `godot-lane-web-mirror.zip`
+
+How tester gets artifacts:
+- GitHub → Actions → **Godot Lane CI Artifacts** → latest successful run → Artifacts section

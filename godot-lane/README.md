@@ -57,8 +57,17 @@ This folder is the bootstrap lane for a future Godot implementation while web re
 - `recovery/RECOVERED_GEMINI_INTENT_AND_FINISH_PLAN.md`
 
 
-## Task roadmap (remaining)
-- Task 10: Test-gamer delivery package (binary/editor import + short demo script) ✅ completed
+## Task roadmap (status)
+- Task 8: Real transport adapter path ✅ completed
+- Task 9: Expression/action visual mapping ✅ completed
+- Task 10: Test-gamer delivery package ✅ completed
+
+## Option C (CI artifact delivery)
+- Workflow: `.github/workflows/godot-lane-artifacts.yml`
+- Trigger: pushes to `hermes/godot-lane-bootstrap` touching `godot-lane/**` or manual `workflow_dispatch`
+- Artifacts:
+  - `godot-lane-source.zip`
+  - `godot-lane-web-mirror.zip`
 
 ## Tester handoff
 - `godot-lane/TEST_GAMER_DELIVERY.md`
