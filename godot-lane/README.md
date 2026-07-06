@@ -61,6 +61,10 @@ This folder is the bootstrap lane for a future Godot implementation while web re
 - Task 8: Real transport adapter path ✅ completed
 - Task 9: Expression/action visual mapping ✅ completed
 - Task 10: Test-gamer delivery package ✅ completed
+- Task 11: Mobile export readiness scaffold ✅ completed
+  - Added `godot-lane/export_presets.cfg` (Android debug preset)
+  - Added `godot-lane/ANDROID_EXPORT_QUICKSTART.md`
+  - Added `godot-lane/tester-drop/MOBILE_TESTER_INSTALL.md`
 
 ## Option C (CI artifact delivery)
 - Workflow: `.github/workflows/godot-lane-artifacts.yml`
