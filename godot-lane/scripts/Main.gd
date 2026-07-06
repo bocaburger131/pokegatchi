@@ -20,7 +20,7 @@ const PETS := [
 @onready var bg: ColorRect = $Background
 @onready var accent_bar: ColorRect = $AccentBar
 @onready var title_label: Label = $Title
-@onready var team_badge: Label = $TeamBadge
+@onready var team_badge: Button = $TeamBadge
 @onready var team_overlay: Control = $TeamOverlay
 
 @onready var play_button: Button = $ModeBar/PlayButton
@@ -73,6 +73,7 @@ func _ready() -> void:
 	_set_mode(current_mode)
 	_refresh_pet_visual()
 	_refresh_stats_ui()
+	team_badge.pressed.connect(_on_team_badge_pressed)
 
 func _process(delta: float) -> void:
 	if not Engine.has_singleton("GameState"):
@@ -151,3 +152,9 @@ func _on_heal_pressed() -> void:
 func _swap_pet() -> void:
 	pet_index = (pet_index + 1) % PETS.size()
 	_refresh_pet_visual()
+
+func _on_team_badge_pressed() -> void:
+	team_overlay.visible = true
+
+func _on_close_overlay_pressed() -> void:
+	team_overlay.visible = false
