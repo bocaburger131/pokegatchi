@@ -40,7 +40,7 @@ class BleProviderBase:
 				merged["source"] = provider_name
 			if not merged.has("ts"):
 				merged["ts"] = Time.get_unix_time_from_system()
-			provider_event.emit(_canonical_event(event_type), merged)
+			provider_event.emit(String(event_type).to_lower(), merged)
 
 	func poll() -> void:
 		pass
@@ -65,7 +65,7 @@ class QueueBleProvider:
 			merged["source"] = provider_name
 		if not merged.has("ts"):
 			merged["ts"] = Time.get_unix_time_from_system()
-		queue.append({"type": _canonical_event(event_type), "payload": merged})
+		queue.append({"type": String(event_type).to_lower(), "payload": merged})
 
 	func simulate_catch(source: String = "provider") -> void:
 		inject_event(EVENT_CAUGHT, {"source": source})
@@ -75,7 +75,7 @@ class QueueBleProvider:
 
 	func poll() -> void:
 		while not queue.is_empty() and connected:
-			var ev := queue.pop_front()
+			var ev: Dictionary = queue.pop_front()
 			provider_event.emit(String(ev.get("type", "unknown")), ev.get("payload", {}))
 
 var _provider: BleProviderBase
@@ -105,7 +105,7 @@ func set_connected(is_connected: bool) -> void:
 	if _provider != null:
 		_provider.connected = is_connected
 
-func is_connected() -> bool:
+func get_bridge_connected() -> bool:
 	return _provider != null and _provider.connected
 
 func simulate_catch(source: String = "bridge") -> void:

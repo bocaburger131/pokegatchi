@@ -22,8 +22,8 @@ const TEAM_META := {
 }
 
 const PETS := [
-	{"name": "Eevee", "texture": preload("res://assets/sprites/eevee_skin_v2_compact.png")},
-	{"name": "Psyduck", "texture": preload("res://assets/sprites/psyduck_skin_v1.png")}
+	{"name": "Eevee", "texture_path": "res://assets/sprites/eevee_skin_v2_compact.png"},
+	{"name": "Psyduck", "texture_path": "res://assets/sprites/psyduck_skin_v1.png"}
 ]
 
 const WATCH_BREAKPOINT := 540.0
@@ -85,8 +85,10 @@ var pet_index := 0
 var current_action := "idle"
 var active_panel := "bag"
 var journal_entries: Array[String] = []
+const BLE_BRIDGE_SCRIPT = preload("res://scripts/ble/BleEventBridge.gd")
+
 var ble_provider_mode := "mock"
-var ble_bridge: BleEventBridge
+var ble_bridge
 
 func _ready() -> void:
 	# Team controls
@@ -117,7 +119,7 @@ func _ready() -> void:
 	swap_pet_button.pressed.connect(_swap_pet)
 
 	# Task 5 BLE bridge simulation hooks
-	ble_bridge = BleEventBridge.new()
+	ble_bridge = BLE_BRIDGE_SCRIPT.new()
 	ble_bridge.event_received.connect(_on_ble_event_received)
 	ble_bridge.transport_status_changed.connect(_on_ble_transport_status)
 
@@ -209,7 +211,7 @@ func _cycle_shape_mode() -> void:
 	_log_event("Layout shape mode: %s" % layout_shape_mode.to_upper())
 
 func _toggle_ble_transport() -> void:
-	var mode := ble_bridge.toggle_transport_mode()
+	var mode: String = ble_bridge.toggle_transport_mode()
 	_update_ble_mode_button_text()
 	_log_event("BLE transport: %s" % mode.to_upper())
 
@@ -257,7 +259,12 @@ func _update_mood_text() -> void:
 func _apply_pet() -> void:
 	var pet: Dictionary = PETS[pet_index]
 	pet_name.text = "Buddy: %s" % pet["name"]
-	pet_texture.texture = pet["texture"]
+	var tex_path := String(pet.get("texture_path", ""))
+	var tex: Texture2D = load(tex_path) as Texture2D
+	if tex != null:
+		pet_texture.texture = tex
+	else:
+		push_warning("Missing pet texture: %s" % tex_path)
 
 func _feed() -> void:
 	current_action = "feed"
