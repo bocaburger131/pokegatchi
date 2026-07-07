@@ -22,8 +22,12 @@ const TEAM_META := {
 }
 
 const PETS := [
-	{"name": "Eevee", "texture_path": "res://assets/sprites/eevee_skin_v2_compact.png"},
-	{"name": "Psyduck", "texture_path": "res://assets/sprites/psyduck_skin_v1.png"}
+	{"id": "133", "name": "Eevee", "type": "Normal", "texture_path": "res://assets/sprites/eevee_skin_v2_compact.png", "idle_amp": 0.018, "idle_speed": 2.2},
+	{"id": "054", "name": "Psyduck", "type": "Water", "texture_path": "res://assets/sprites/psyduck_skin_v1.png", "idle_amp": 0.016, "idle_speed": 1.9},
+	{"id": "025", "name": "Pikachu", "type": "Electric", "texture_path": "res://assets/sprites/pikachu_skin_v1.png", "idle_amp": 0.022, "idle_speed": 2.6},
+	{"id": "001", "name": "Bulbasaur", "type": "Grass/Poison", "texture_path": "res://assets/sprites/bulbasaur_skin_v1.png", "idle_amp": 0.017, "idle_speed": 2.0},
+	{"id": "004", "name": "Charmander", "type": "Fire", "texture_path": "res://assets/sprites/charmander_skin_v1.png", "idle_amp": 0.023, "idle_speed": 2.8},
+	{"id": "007", "name": "Squirtle", "type": "Water", "texture_path": "res://assets/sprites/squirtle_skin_v1.png", "idle_amp": 0.017, "idle_speed": 2.1}
 ]
 
 const WATCH_BREAKPOINT := 540.0
@@ -90,6 +94,10 @@ const BLE_BRIDGE_SCRIPT = preload("res://scripts/ble/BleEventBridge.gd")
 var ble_provider_mode := "mock"
 var ble_bridge
 
+var _anim_time := 0.0
+var _action_timer := 0.0
+var _idle_phase_offset := 0.0
+
 func _ready() -> void:
 	# Team controls
 	team_badge.pressed.connect(func(): team_overlay.visible = true)
@@ -151,6 +159,11 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	ble_bridge.poll()
+	_anim_time += delta
+	if _action_timer > 0.0:
+		_action_timer = maxf(0.0, _action_timer - delta)
+		if _action_timer == 0.0 and current_action not in ["idle", "swap"]:
+			current_action = "idle"
 
 	# lightweight idle decay + Auto mode bonus
 	hunger = clamp(hunger - 2.2 * delta, 0.0, 100.0)
@@ -165,6 +178,7 @@ func _process(delta: float) -> void:
 
 	_update_stats_ui()
 	_update_mood_text()
+	_apply_sprite_animation(delta)
 
 func _select_team(team: String) -> void:
 	current_team = team
@@ -226,9 +240,8 @@ func _show_panel(panel_name: String) -> void:
 
 func _populate_pokedex() -> void:
 	pokedex_list.clear()
-	pokedex_list.add_item("#133 Eevee — Normal")
-	pokedex_list.add_item("#054 Psyduck — Water")
-	pokedex_list.add_item("#025 Pikachu — Electric (target roster)")
+	for pet in PETS:
+		pokedex_list.add_item("#%s %s — %s" % [pet.get("id", "???"), pet.get("name", "Unknown"), pet.get("type", "Normal")])
 
 func _update_status_text() -> void:
 	status_label.text = "Mode: %s · Team: %s · Action: %s" % [current_mode, _pretty_team(current_team), current_action]
@@ -265,9 +278,12 @@ func _apply_pet() -> void:
 		pet_texture.texture = tex
 	else:
 		push_warning("Missing pet texture: %s" % tex_path)
+	_idle_phase_offset = float(pet_index) * 0.37
+	pet_texture.rotation = 0.0
 
 func _feed() -> void:
 	current_action = "feed"
+	_action_timer = 0.75
 	hunger = clamp(hunger + 24.0, 0.0, 100.0)
 	happiness = clamp(happiness + 5.0, 0.0, 100.0)
 	energy = clamp(energy + 2.0, 0.0, 100.0)
@@ -276,6 +292,7 @@ func _feed() -> void:
 
 func _pet() -> void:
 	current_action = "pet"
+	_action_timer = 0.7
 	happiness = clamp(happiness + 12.0, 0.0, 100.0)
 	energy = clamp(energy - 2.0, 0.0, 100.0)
 	_log_event("Petted %s" % PETS[pet_index]["name"])
@@ -283,6 +300,7 @@ func _pet() -> void:
 
 func _heal() -> void:
 	current_action = "heal"
+	_action_timer = 0.85
 	energy = clamp(energy + 20.0, 0.0, 100.0)
 	happiness = clamp(happiness + 3.0, 0.0, 100.0)
 	_log_event("Healed %s" % PETS[pet_index]["name"])
@@ -290,10 +308,12 @@ func _heal() -> void:
 
 func _catch() -> void:
 	current_action = "catch"
+	_action_timer = 0.6
 	ble_bridge.simulate_catch("sample")
 
 func _spin() -> void:
 	current_action = "spin"
+	_action_timer = 0.55
 	ble_bridge.simulate_spin("sample")
 
 func _on_ble_event_received(event_type: String, payload: Dictionary) -> void:
@@ -316,6 +336,7 @@ func _on_ble_event_received(event_type: String, payload: Dictionary) -> void:
 
 func _swap_pet() -> void:
 	current_action = "swap"
+	_action_timer = 0.45
 	pet_index = (pet_index + 1) % PETS.size()
 	_apply_pet()
 	_log_event("Swapped pet to %s" % PETS[pet_index]["name"])
@@ -366,7 +387,41 @@ func _apply_expression_visuals() -> void:
 		scale = Vector2(1.03, 1.03)
 
 	pet_texture.modulate = tint
-	pet_texture.scale = scale
+	if _action_timer <= 0.0:
+		pet_texture.scale = scale
+
+func _apply_sprite_animation(_delta: float) -> void:
+	var pet: Dictionary = PETS[pet_index]
+	var amp := float(pet.get("idle_amp", 0.016))
+	var speed := float(pet.get("idle_speed", 2.1))
+	var base := Vector2.ONE
+	var pulse := sin((_anim_time + _idle_phase_offset) * speed)
+	var bob := sin((_anim_time + _idle_phase_offset) * (speed * 0.5))
+
+	var anim_scale := base + Vector2(pulse * amp, -pulse * amp * 0.55)
+	pet_texture.position.y = bob * 4.0
+
+	if _action_timer > 0.0:
+		var t := 1.0 - (_action_timer / maxf(_action_timer, 0.0001))
+		if current_action == "feed":
+			anim_scale += Vector2(0.045 * sin(_anim_time * 13.0), 0.03)
+		elif current_action == "pet":
+			anim_scale += Vector2(0.04, 0.04) * absf(sin(_anim_time * 10.0))
+		elif current_action == "heal":
+			anim_scale += Vector2(0.06 * sin(_anim_time * 8.0), 0.02)
+		elif current_action == "catch":
+			pet_texture.rotation = sin(_anim_time * 26.0) * 0.06
+			anim_scale += Vector2(0.08, 0.08) * (1.0 - t)
+		elif current_action == "spin":
+			pet_texture.rotation = sin(_anim_time * 30.0) * 0.08
+			anim_scale += Vector2(0.05, 0.05)
+		elif current_action == "swap":
+			pet_texture.rotation = sin(_anim_time * 22.0) * 0.04
+			anim_scale += Vector2(0.04, 0.04)
+	else:
+		pet_texture.rotation = lerp(pet_texture.rotation, 0.0, 0.18)
+
+	pet_texture.scale = anim_scale
 
 func _pretty_team(team: String) -> String:
 	match team:
