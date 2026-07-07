@@ -42,11 +42,18 @@ When active, the local API listens on:
 
 From repo root:
 ```bash
+python3 godot-lane/tools/ziva_bridge.py doctor
 python3 godot-lane/tools/ziva_bridge.py ready
 python3 godot-lane/tools/ziva_bridge.py state
 python3 godot-lane/tools/ziva_bridge.py install
 python3 godot-lane/tools/ziva_bridge.py installed
 python3 godot-lane/tools/ziva_bridge.py screenshot
+```
+
+Host overrides (if needed):
+```bash
+python3 godot-lane/tools/ziva_bridge.py ready --host 127.0.0.1
+python3 godot-lane/tools/ziva_bridge.py ready --host <WINDOWS_HOST_IP>
 ```
 
 ## 5) What this gives you
