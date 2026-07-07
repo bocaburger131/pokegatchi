@@ -165,7 +165,8 @@ window.selectSpecies = function(species) {
   if (modelOrSprite) {
     try {
       if (modelOrSprite.endsWith('.png')) {
-        sceneMan.showSpriteOnly(`assets/sprites/generated/${modelOrSprite}`);
+        const spritePath = modelOrSprite.includes('/') ? modelOrSprite : `assets/sprites/generated/${modelOrSprite}`;
+        sceneMan.showSpriteOnly(spritePath);
         const c = document.getElementById('pet3dContainer');
         if (c) {
           c.dataset.skin = species;
@@ -216,7 +217,7 @@ window.feed = function() {
   playAnimation(ANIMS.FEED);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('wiggle'); setTimeout(() => wrap.classList.remove('wiggle'), 350); }
-  _spawnGeneratedFx(GENERATED_VFX.feed, { label: '🍽 Feed', size: 72, duration: 900, radius: 36 });
+  _spawnGeneratedFx(GENERATED_VFX.feed, { label: '🍽 Feed', size: 72, duration: 900, radius: 36, action: 'feed', heroSize: 136 });
   store.addStat('hunger', 15);
   store.addStat('happiness', -5);
   exprOverlay.showTempMood(0, 2); // happy
@@ -229,7 +230,7 @@ window.petAction = function() {
   playAnimation(ANIMS.PET);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('sparkle'); setTimeout(() => wrap.classList.remove('sparkle'), 650); }
-  _spawnGeneratedFx(GENERATED_VFX.pet, { label: '🫳 Pet', size: 68, duration: 980, radius: 44 });
+  _spawnGeneratedFx(GENERATED_VFX.pet, { label: '🫳 Pet', size: 68, duration: 980, radius: 44, action: 'pet', heroSize: 138 });
   store.addStat('affection', 10);
   store.addStat('happiness', 5);
   exprOverlay.showTempMood(0, 1.5); // happy
@@ -242,7 +243,7 @@ window.healPet = function() {
   playAnimation(ANIMS.HEAL);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('celebrate'); setTimeout(() => wrap.classList.remove('celebrate'), 850); }
-  _spawnGeneratedFx(GENERATED_VFX.heal, { label: '💊 Heal', size: 74, duration: 1100, radius: 52 });
+  _spawnGeneratedFx(GENERATED_VFX.heal, { label: '💊 Heal', size: 74, duration: 1100, radius: 52, action: 'heal', heroSize: 142 });
   store.addStat('happiness', 25);
   const hungerToAdd = 100 - store.state.hunger;
   store.addStat('hunger', hungerToAdd); // refill to 100
@@ -256,7 +257,7 @@ window.bounce = function() {
   playAnimation(ANIMS.BOUNCE);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('bounce'); setTimeout(() => wrap.classList.remove('bounce'), 450); }
-  _spawnGeneratedFx(GENERATED_VFX.bounce, { label: '🌟 Bounce', size: 70, duration: 850, radius: 40 });
+  _spawnGeneratedFx(GENERATED_VFX.bounce, { label: '🌟 Bounce', size: 70, duration: 850, radius: 40, action: 'bounce', heroSize: 140 });
   store.addStat('happiness', 10);
   exprOverlay.showTempMood(4, 1.5); // excited
   store.logEvent('bounce', 'Bounced', '⭐');
@@ -466,10 +467,10 @@ const GENERATED_VFX = {
   catch_fail: ['assets/vfx/generated/catch_fail_set_b_transparent.png','assets/vfx/generated/catch_fail_set_a_alpha.png'],
   spin_success: ['assets/vfx/generated/pokestop_spin_outcomes_set_b_transparent.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha.png'],
   spin_fail: ['assets/vfx/generated/pokestop_spin_outcomes_set_b_transparent.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha.png'],
-  feed: ['assets/sprites/generated/squirtle_skin_v1_alpha.png'],
-  pet: ['assets/sprites/generated/eevee_skin_v2_compact_alpha.png'],
-  heal: ['assets/sprites/generated/psyduck_skin_v1_alpha.png'],
-  bounce: ['assets/sprites/generated/squirtle_skin_v1_alpha.png'],
+  feed: ['assets/sprites/squirtle.png','assets/vfx/generated/catch_success_set_a_alpha.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha.png'],
+  pet: ['assets/sprites/squirtle.png','assets/vfx/generated/catch_success_set_b_transparent.png','assets/vfx/generated/catch_fail_set_b_transparent.png'],
+  heal: ['assets/sprites/squirtle.png','assets/vfx/generated/catch_success_set_a_alpha.png','assets/vfx/generated/catch_fail_set_a_alpha.png'],
+  bounce: ['assets/sprites/squirtle.png','assets/vfx/generated/pokestop_spin_outcomes_set_b_transparent.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha.png'],
 };
 
 function _spawnGeneratedFx(images, options = {}) {
@@ -481,20 +482,72 @@ function _spawnGeneratedFx(images, options = {}) {
   ov.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;pointer-events:none;z-index:11;overflow:visible;border-radius:50%;`;
   document.body.appendChild(ov);
 
-  images.forEach((src, i) => {
+  const primary = images[0];
+  const fx = images.slice(1);
+
+  if (primary) {
+    const hero = document.createElement('img');
+    hero.src = primary;
+    hero.style.cssText = `position:absolute;left:50%;top:50%;width:${options.heroSize || 134}px;height:${options.heroSize || 134}px;object-fit:contain;transform:translate(-50%,-50%);opacity:0;filter:drop-shadow(0 10px 16px rgba(0,0,0,.32));z-index:3;`;
+    ov.appendChild(hero);
+    const action = options.action || 'default';
+    let heroFrames;
+    if (action === 'feed') {
+      heroFrames = [
+        { transform: 'translate(-50%,-50%) scale(0.92) rotate(0deg)', opacity: 0 },
+        { transform: 'translate(-50%,-50%) scale(1.02) rotate(-4deg)', opacity: 1, offset: 0.35 },
+        { transform: 'translate(-50%,-50%) scale(1.01) rotate(3deg)', opacity: 1, offset: 0.68 },
+        { transform: 'translate(-50%,-50%) scale(1.00) rotate(0deg)', opacity: 0 }
+      ];
+    } else if (action === 'pet') {
+      heroFrames = [
+        { transform: 'translate(-50%,-50%) translateY(0) scale(0.96)', opacity: 0 },
+        { transform: 'translate(-50%,-50%) translateY(-8px) scale(1.04)', opacity: 1, offset: 0.45 },
+        { transform: 'translate(-50%,-50%) translateY(-2px) scale(1.02)', opacity: 1, offset: 0.75 },
+        { transform: 'translate(-50%,-50%) translateY(0) scale(1.00)', opacity: 0 }
+      ];
+    } else if (action === 'heal') {
+      heroFrames = [
+        { transform: 'translate(-50%,-50%) scale(0.86)', opacity: 0, filter: 'brightness(1)' },
+        { transform: 'translate(-50%,-50%) scale(1.08)', opacity: 1, offset: 0.38, filter: 'brightness(1.35)' },
+        { transform: 'translate(-50%,-50%) scale(1.02)', opacity: 1, offset: 0.72, filter: 'brightness(1.15)' },
+        { transform: 'translate(-50%,-50%) scale(1.00)', opacity: 0, filter: 'brightness(1)' }
+      ];
+    } else if (action === 'bounce') {
+      heroFrames = [
+        { transform: 'translate(-50%,-50%) translateY(0) scale(0.94)', opacity: 0 },
+        { transform: 'translate(-50%,-50%) translateY(-34px) scale(1.08)', opacity: 1, offset: 0.30 },
+        { transform: 'translate(-50%,-50%) translateY(2px) scale(0.98)', opacity: 1, offset: 0.58 },
+        { transform: 'translate(-50%,-50%) translateY(-16px) scale(1.03)', opacity: 1, offset: 0.8 },
+        { transform: 'translate(-50%,-50%) translateY(0) scale(1.00)', opacity: 0 }
+      ];
+    } else {
+      heroFrames = [
+        { transform: 'translate(-50%,-50%) scale(0.3)', opacity: 0 },
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, offset: 0.45 },
+        { transform: 'translate(-50%,-50%) scale(0.6)', opacity: 0 }
+      ];
+    }
+    hero.animate(heroFrames, { duration: Math.max(700, (options.duration || 1000) - 120), easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' });
+  }
+
+  const emit = fx.length ? fx : [primary].filter(Boolean);
+  emit.forEach((src, i) => {
     const img = document.createElement('img');
-    const ang = (i / Math.max(images.length,1)) * Math.PI * 2;
-    const r = (options.radius || 42) + i * 8;
+    const baseAng = (i / Math.max(emit.length,1)) * Math.PI * 2;
+    const ang = baseAng + (Math.random() * 0.35 - 0.175);
+    const r = (options.radius || 42) + i * 10 + Math.random() * 8;
     const tx = Math.round(Math.cos(ang) * r);
-    const ty = Math.round(Math.sin(ang) * r);
-    const size = options.size || 64;
+    const ty = Math.round(Math.sin(ang) * r - (options.action === 'feed' ? 24 : options.action === 'heal' ? 46 : 18));
+    const size = (options.size || 64) - Math.min(20, i * 4);
     img.src = src;
-    img.style.cssText = `position:absolute;left:50%;top:50%;width:${size}px;height:${size}px;object-fit:contain;transform:translate(-50%,-50%);filter:drop-shadow(0 0 10px rgba(255,255,255,.4));opacity:0;`;
+    img.style.cssText = `position:absolute;left:50%;top:50%;width:${Math.max(20,size)}px;height:${Math.max(20,size)}px;object-fit:contain;transform:translate(-50%,-50%);filter:drop-shadow(0 0 10px rgba(255,255,255,.4));opacity:0;z-index:5;`;
     ov.appendChild(img);
+    const rot = (i % 2 ? 1 : -1) * (18 + Math.random() * 18);
     img.animate([
       { transform: 'translate(-50%,-50%) scale(0.3) rotate(0deg)', opacity: 0 },
-      { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(1) rotate(${(i%2?1:-1)*12}deg)`, opacity: 1, offset: 0.45 },
-      { transform: `translate(calc(-50% + ${Math.round(tx*1.3)}px), calc(-50% + ${Math.round(ty*1.3)}px)) scale(0.55) rotate(${(i%2?1:-1)*28}deg)`, opacity: 0 }
+      { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(1) rotate(${rot * 0.4}deg)`, opacity: 1, offset: 0.45 },
+      { transform: `translate(calc(-50% + ${Math.round(tx*1.25)}px), calc(-50% + ${Math.round(ty*1.25)}px)) scale(0.55) rotate(${rot}deg)`, opacity: 0 }
     ], { duration: options.duration || 1100, delay: i * 70, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' });
   });
 
