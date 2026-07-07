@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 TARGETS = [
     (ROOT / 'assets/sprites/generated/squirtle_skin_v1_alpha.png', 3, 2),
+    (ROOT / 'assets/sprites/generated/pikachu_skin_v1_alpha.png', 3, 2),
     (ROOT / 'assets/vfx/generated/catch_success_set_a_alpha.png', 3, 2),
     (ROOT / 'assets/vfx/generated/catch_fail_set_a_alpha.png', 3, 2),
     (ROOT / 'assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha.png', 3, 2),

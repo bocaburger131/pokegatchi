@@ -178,6 +178,7 @@ window.selectSpecies = function(species) {
         const c = document.getElementById('pet3dContainer');
         if (c) {
           c.dataset.skin = '';
+          c.style.backgroundImage = 'none';
           c.style.setProperty('background-position', '50% 55%', 'important'); // reset default for 3D mode
         }
         sceneMan.loadV2Model(modelOrSprite);
@@ -217,7 +218,7 @@ window.feed = function() {
   playAnimation(ANIMS.FEED);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('wiggle'); setTimeout(() => wrap.classList.remove('wiggle'), 350); }
-  _spawnGeneratedFx(GENERATED_VFX.feed, { label: '🍽 Feed', size: 72, duration: 900, radius: 36, action: 'feed', heroSize: 136 });
+  _spawnGeneratedFx(_getActionFrames('feed'), { label: '🍽 Feed', size: 72, duration: 900, radius: 36, action: 'feed', heroSize: 136 });
   store.addStat('hunger', 15);
   store.addStat('happiness', -5);
   exprOverlay.showTempMood(0, 2); // happy
@@ -230,7 +231,7 @@ window.petAction = function() {
   playAnimation(ANIMS.PET);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('sparkle'); setTimeout(() => wrap.classList.remove('sparkle'), 650); }
-  _spawnGeneratedFx(GENERATED_VFX.pet, { label: '🫳 Pet', size: 68, duration: 980, radius: 44, action: 'pet', heroSize: 138 });
+  _spawnGeneratedFx(_getActionFrames('pet'), { label: '🫳 Pet', size: 68, duration: 980, radius: 44, action: 'pet', heroSize: 138 });
   store.addStat('affection', 10);
   store.addStat('happiness', 5);
   exprOverlay.showTempMood(0, 1.5); // happy
@@ -243,7 +244,7 @@ window.healPet = function() {
   playAnimation(ANIMS.HEAL);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('celebrate'); setTimeout(() => wrap.classList.remove('celebrate'), 850); }
-  _spawnGeneratedFx(GENERATED_VFX.heal, { label: '💊 Heal', size: 74, duration: 1100, radius: 52, action: 'heal', heroSize: 142 });
+  _spawnGeneratedFx(_getActionFrames('heal'), { label: '💊 Heal', size: 74, duration: 1100, radius: 52, action: 'heal', heroSize: 142 });
   store.addStat('happiness', 25);
   const hungerToAdd = 100 - store.state.hunger;
   store.addStat('hunger', hungerToAdd); // refill to 100
@@ -257,7 +258,7 @@ window.bounce = function() {
   playAnimation(ANIMS.BOUNCE);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('bounce'); setTimeout(() => wrap.classList.remove('bounce'), 450); }
-  _spawnGeneratedFx(GENERATED_VFX.bounce, { label: '🌟 Bounce', size: 70, duration: 850, radius: 40, action: 'bounce', heroSize: 140 });
+  _spawnGeneratedFx(_getActionFrames('bounce'), { label: '🌟 Bounce', size: 70, duration: 850, radius: 40, action: 'bounce', heroSize: 140 });
   store.addStat('happiness', 10);
   exprOverlay.showTempMood(4, 1.5); // excited
   store.logEvent('bounce', 'Bounced', '⭐');
@@ -467,11 +468,27 @@ const GENERATED_VFX = {
   catch_fail: ['assets/vfx/generated/catch_fail_set_b_transparent.png','assets/vfx/generated/catch_fail_set_a_alpha.png'],
   spin_success: ['assets/vfx/generated/pokestop_spin_outcomes_set_b_transparent.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha.png'],
   spin_fail: ['assets/vfx/generated/pokestop_spin_outcomes_set_b_transparent.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha.png'],
-  feed: ['assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f01.png','assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f02.png','assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f03.png','assets/vfx/generated/catch_success_set_a_alpha/catch_success_set_a_alpha_f01.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha/pokestop_spin_outcomes_set_a_alpha_f01.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha/pokestop_spin_outcomes_set_a_alpha_f02.png'],
-  pet: ['assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f04.png','assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f05.png','assets/vfx/generated/catch_success_set_a_alpha/catch_success_set_a_alpha_f02.png','assets/vfx/generated/catch_success_set_a_alpha/catch_success_set_a_alpha_f03.png','assets/vfx/generated/catch_fail_set_a_alpha/catch_fail_set_a_alpha_f01.png'],
-  heal: ['assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f06.png','assets/vfx/generated/catch_success_set_a_alpha/catch_success_set_a_alpha_f04.png','assets/vfx/generated/catch_success_set_a_alpha/catch_success_set_a_alpha_f05.png','assets/vfx/generated/catch_fail_set_a_alpha/catch_fail_set_a_alpha_f02.png','assets/vfx/generated/catch_fail_set_a_alpha/catch_fail_set_a_alpha_f03.png'],
-  bounce: ['assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f03.png','assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f05.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha/pokestop_spin_outcomes_set_a_alpha_f03.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha/pokestop_spin_outcomes_set_a_alpha_f04.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha/pokestop_spin_outcomes_set_a_alpha_f05.png'],
 };
+
+const ACTION_FRAMESETS = {
+  squirtle: {
+    feed: ['assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f01.png','assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f02.png','assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f03.png','assets/vfx/generated/catch_success_set_a_alpha/catch_success_set_a_alpha_f01.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha/pokestop_spin_outcomes_set_a_alpha_f01.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha/pokestop_spin_outcomes_set_a_alpha_f02.png'],
+    pet: ['assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f04.png','assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f05.png','assets/vfx/generated/catch_success_set_a_alpha/catch_success_set_a_alpha_f02.png','assets/vfx/generated/catch_success_set_a_alpha/catch_success_set_a_alpha_f03.png','assets/vfx/generated/catch_fail_set_a_alpha/catch_fail_set_a_alpha_f01.png'],
+    heal: ['assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f06.png','assets/vfx/generated/catch_success_set_a_alpha/catch_success_set_a_alpha_f04.png','assets/vfx/generated/catch_success_set_a_alpha/catch_success_set_a_alpha_f05.png','assets/vfx/generated/catch_fail_set_a_alpha/catch_fail_set_a_alpha_f02.png','assets/vfx/generated/catch_fail_set_a_alpha/catch_fail_set_a_alpha_f03.png'],
+    bounce: ['assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f03.png','assets/sprites/generated/squirtle_skin_v1_alpha/squirtle_skin_v1_alpha_f05.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha/pokestop_spin_outcomes_set_a_alpha_f03.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha/pokestop_spin_outcomes_set_a_alpha_f04.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha/pokestop_spin_outcomes_set_a_alpha_f05.png'],
+  },
+  pikachu: {
+    feed: ['assets/sprites/generated/pikachu_skin_v1_alpha/pikachu_skin_v1_alpha_f01.png','assets/sprites/generated/pikachu_skin_v1_alpha/pikachu_skin_v1_alpha_f02.png','assets/sprites/generated/pikachu_skin_v1_alpha/pikachu_skin_v1_alpha_f03.png','assets/vfx/generated/catch_success_set_a_alpha/catch_success_set_a_alpha_f02.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha/pokestop_spin_outcomes_set_a_alpha_f01.png'],
+    pet: ['assets/sprites/generated/pikachu_skin_v1_alpha/pikachu_skin_v1_alpha_f04.png','assets/sprites/generated/pikachu_skin_v1_alpha/pikachu_skin_v1_alpha_f05.png','assets/vfx/generated/catch_success_set_a_alpha/catch_success_set_a_alpha_f03.png','assets/vfx/generated/catch_fail_set_a_alpha/catch_fail_set_a_alpha_f01.png'],
+    heal: ['assets/sprites/generated/pikachu_skin_v1_alpha/pikachu_skin_v1_alpha_f06.png','assets/vfx/generated/catch_success_set_a_alpha/catch_success_set_a_alpha_f04.png','assets/vfx/generated/catch_success_set_a_alpha/catch_success_set_a_alpha_f06.png','assets/vfx/generated/catch_fail_set_a_alpha/catch_fail_set_a_alpha_f04.png'],
+    bounce: ['assets/sprites/generated/pikachu_skin_v1_alpha/pikachu_skin_v1_alpha_f03.png','assets/sprites/generated/pikachu_skin_v1_alpha/pikachu_skin_v1_alpha_f05.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha/pokestop_spin_outcomes_set_a_alpha_f04.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha/pokestop_spin_outcomes_set_a_alpha_f06.png'],
+  }
+};
+
+function _getActionFrames(action) {
+  const speciesKey = ACTION_FRAMESETS[currentSpecies] ? currentSpecies : 'squirtle';
+  return ACTION_FRAMESETS[speciesKey][action] || ACTION_FRAMESETS.squirtle[action] || [];
+}
 
 function _spawnGeneratedFx(images, options = {}) {
   if (!_pgScreenEffectsAllowed()) return;
