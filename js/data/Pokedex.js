@@ -7,7 +7,7 @@ export const V2_MODELS = {
   eevee:       'eevee_skin_v2_compact_alpha.png',
   charmander:  'charmander_v2.glb',
   bulbasaur:   'bulbasaur_v2.glb',
-  squirtle:    'squirtle_skin_v1_alpha.png',
+  squirtle:    'assets/sprites/squirtle.png',
 };
 
 // Map species names to Pokemon3D API pokedex IDs (for CDN loading)
