@@ -722,6 +722,66 @@ window.switchJournalTab = function(tab) {
   _pgRenderJournal();
 };
 
+// Backward-compat alias used by inline HTML handlers
+window.switchJTab = function(tab) {
+  window.switchJournalTab(tab);
+};
+
+// Backward-compat settings handlers used by inline HTML
+window.saveSetting = function(key, value) {
+  _pgSettingSet(key, !!value);
+  // Map legacy key names to active feature flags
+  if (key === 'pg_auto_catch_anim') {
+    _pgSettingSet('pg_auto_catch', !!value);
+  }
+  if (key === 'pg_show_cameos' || key === 'pg_bone_anim') {
+    _pgApplySetting(key, !!value);
+  }
+};
+
+window.toggleCameos = function(value) {
+  window.saveSetting('pg_show_cameos', !!value);
+};
+
+window.toggleBoneAnim = function(value) {
+  window.saveSetting('pg_bone_anim', !!value);
+};
+
+// Backward-compat reset handlers for static settings panel
+let _legacyResetTimer = null;
+window.startReset = function() {
+  const fill = document.getElementById('resetBarFill');
+  const btn = document.getElementById('resetBtn');
+  let elapsed = 0;
+  if (_legacyResetTimer) clearInterval(_legacyResetTimer);
+  _legacyResetTimer = setInterval(() => {
+    elapsed += 0.1;
+    const pct = Math.min(100, (elapsed / 3) * 100);
+    if (fill) fill.style.width = pct + '%';
+    if (btn) btn.textContent = `Hold ${Math.max(0, 3 - elapsed).toFixed(1)}s to Reset Progress`;
+    if (elapsed >= 3) {
+      clearInterval(_legacyResetTimer); _legacyResetTimer = null;
+      store.state.hunger = 80; store.state.happiness = 60; store.state.affection = 50;
+      store.state.steps = 0; store.state.pokemonCaught = 0; store.state.pokestopSpins = 0;
+      store.state.badges = 0; store.state.berries = 0; store.state.toys = 0;
+      store.state.potions = 0; store.state.candy = 0; store.state.journal = [];
+      syncAllHUD();
+      window.closeSettings();
+      if (fill) fill.style.width = '0%';
+      if (btn) btn.textContent = 'Hold 3s to Reset Progress';
+      toast('🗑 Progress reset!', 2500);
+    }
+  }, 100);
+};
+
+window.cancelReset = function() {
+  if (_legacyResetTimer) { clearInterval(_legacyResetTimer); _legacyResetTimer = null; }
+  const fill = document.getElementById('resetBarFill');
+  const btn = document.getElementById('resetBtn');
+  if (fill) fill.style.width = '0%';
+  if (btn) btn.textContent = 'Hold 3s to Reset Progress';
+};
+
 function _pgTimeAgo(ts) {
   const diff = Math.floor((Date.now() - ts) / 1000);
   if (diff < 60) return `${diff}s ago`;

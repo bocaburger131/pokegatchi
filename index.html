@@ -212,7 +212,7 @@
 
     <div class="sett-section">
       <div class="sett-title">🎨 Team</div>
-      <button class="sett-action-btn" onclick="window.closeSettings();document.getElementById('teamOverlay').classList.remove('hidden');">Change Team Color</button>
+      <button class="sett-action-btn" onclick="window.closeSettings();const to=document.getElementById('teamOverlay');if(to){to.classList.remove('hidden');to.style.display='flex';}">Change Team Color</button>
     </div>
 
     <div class="sett-section">
