@@ -6,6 +6,9 @@ This file tells Ziva which assets are already available so it can implement poli
 - This is a **Godot parallel lane** for Pokégatchi.
 - Shipping baseline is still web lane.
 - Team identity is mostly for HUD/theming emphasis right now.
+- The **mode switch stays**: keep both modes explicit and supported:
+  - **PGP Mode** (auto-catch/spin companion behavior)
+  - **Pokégatchi Mode** (pet simulation loop)
 - Goal is to use existing generated assets first, then improve animation/behavior polish.
 
 ## Existing Godot lane active pet sprites (currently mapped)
@@ -27,8 +30,11 @@ These include all currently available web-lane PNGs under `assets/sprites/` and 
 1. Do not rewrite project architecture from scratch.
 2. Keep HUD minimal: Bag / Pokédex / Journal.
 3. Keep team theming simple and consistent (Valor/Mystic/Instinct).
-4. Prioritize animation/feel polish over feature bloat.
-5. Reuse existing art assets before requesting net-new art.
+4. Keep **both gameplay modes** and do not collapse them into one:
+   - PGP Mode
+   - Pokégatchi Mode
+5. Prioritize animation/feel polish over feature bloat.
+6. Reuse existing art assets before requesting net-new art.
 
 ## Suggested immediate tasks for Ziva
 1. Audit `res://assets/sprites/` + `res://assets/sprites/library/` and choose best 6-pet mappings.
