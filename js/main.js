@@ -199,6 +199,8 @@ window.selectSpecies = function(species) {
       console.error('Failed to start expression overlay:', e);
     }
   }
+
+  _pgApplyModeUI();
 };
 
 // === ANIMATION ACTIONS (stat-modifying) ===
@@ -381,6 +383,9 @@ window.demoBoostSteps = function() {
 };
 
 window.demoBoostCaught = function() {
+  if (_pgIsModePgp()) {
+    return window.pgpSample('catch_success');
+  }
   store.addHud('pokemonCaught', 1);
   store.logEvent('catch', 'Caught', '🟢');
   window.triggerCatchAnim();
@@ -388,6 +393,9 @@ window.demoBoostCaught = function() {
 };
 
 window.demoBoostSpin = function() {
+  if (_pgIsModePgp()) {
+    return window.pgpSample('spin_success');
+  }
   store.addHud('pokestopSpins', 1);
   store.addItem('berries', 1);
   store.logEvent('spin', 'Spun Stop', '💠');
@@ -485,6 +493,7 @@ window.toggleDebugOverlay = function() {
 })();
 
 window.triggerCatchAnim = function() {
+  if (!_pgScreenEffectsAllowed()) return;
   const wrap = document.querySelector('.pet-canvas-wrap');
   if (!wrap) return;
   const rect = wrap.getBoundingClientRect();
@@ -533,6 +542,7 @@ window.triggerCatchAnim = function() {
 };
 
 window.triggerSpinAnim = function() {
+  if (!_pgScreenEffectsAllowed()) return;
   const wrap = document.querySelector('.pet-canvas-wrap');
   if (!wrap) return;
   const rect = wrap.getBoundingClientRect();
@@ -621,9 +631,14 @@ function _pgRenderSettings() {
       { key: 'pg_sound_spin',  label: 'Spin Sound',    def: true },
     ]},
     { group: '🎮 Game', items: [
-      { key: 'pg_auto_catch',  label: 'Auto Catch',       def: true },
-      { key: 'pg_show_cameos', label: 'Show Cameos',      def: true },
-      { key: 'pg_bone_anim',   label: 'Bone Animations',  def: true },
+      { key: 'pg_mode_pgp',          label: 'PGP Mode',          def: false },
+      { key: 'pg_watch_sleep',       label: 'Watch Sleep',       def: false },
+      { key: 'pg_auto_catch',        label: 'Auto Catch',        def: true },
+      { key: 'pg_auto_spin',         label: 'Auto Spin',         def: true },
+      { key: 'pg_vibrate',           label: 'Vibrate Alerts',    def: true },
+      { key: 'pg_screen_effects',    label: 'Screen Effects',    def: true },
+      { key: 'pg_show_cameos',       label: 'Show Cameos',       def: true },
+      { key: 'pg_bone_anim',         label: 'Bone Animations',   def: true },
     ]},
   ];
 
@@ -664,6 +679,9 @@ window._pgToggleChange = function(inp) {
   const key = inp.dataset.key;
   _pgSettingSet(key, inp.checked);
   _pgApplySetting(key, inp.checked);
+  if (key === 'pg_mode_pgp' || key === 'pg_watch_sleep' || key === 'pg_screen_effects') {
+    _pgApplyModeUI();
+  }
 };
 
 let _pgResetTimer = null;
@@ -737,6 +755,9 @@ window.saveSetting = function(key, value) {
   if (key === 'pg_show_cameos' || key === 'pg_bone_anim') {
     _pgApplySetting(key, !!value);
   }
+  if (key === 'pg_mode_pgp' || key === 'pg_watch_sleep' || key === 'pg_screen_effects') {
+    _pgApplyModeUI();
+  }
 };
 
 window.toggleCameos = function(value) {
@@ -780,6 +801,88 @@ window.cancelReset = function() {
   const btn = document.getElementById('resetBtn');
   if (fill) fill.style.width = '0%';
   if (btn) btn.textContent = 'Hold 3s to Reset Progress';
+};
+
+function _pgIsModePgp() {
+  return _pgSettingGet('pg_mode_pgp', false);
+}
+
+function _pgIsWatchSleeping() {
+  return _pgSettingGet('pg_watch_sleep', false);
+}
+
+function _pgScreenEffectsAllowed() {
+  if (_pgIsWatchSleeping()) return false;
+  return _pgSettingGet('pg_screen_effects', true);
+}
+
+function _pgVibrateAllowed() {
+  return _pgSettingGet('pg_vibrate', true);
+}
+
+function _pgModeStatusText() {
+  const mode = _pgIsModePgp() ? 'PGP' : 'Pokégatchi';
+  const slp = _pgIsWatchSleeping() ? ' • sleeping' : ' • awake';
+  return `${mode}${slp}`;
+}
+
+function _pgApplyModeUI() {
+  const pgp = _pgIsModePgp();
+  const sleep = _pgIsWatchSleeping();
+  const p = document.getElementById('pokegatchiActions');
+  const g = document.getElementById('pgpActions');
+  if (p) p.style.display = pgp ? 'none' : '';
+  if (g) g.style.display = pgp ? '' : 'none';
+
+  const species = document.getElementById('petSpecies');
+  if (species) {
+    const base = currentSpecies ? `Showing ${currentSpecies}` : 'Showing pet';
+    species.textContent = `${base} · ${_pgModeStatusText()}`;
+  }
+
+  const container = document.getElementById('pet3dContainer');
+  if (container) container.style.opacity = sleep ? '0.55' : '1';
+}
+
+window.pgpSample = function(outcome) {
+  const map = {
+    catch_success: { type: 'catch', ok: true,  icon: '✅', label: 'Catch Success' },
+    catch_fail:    { type: 'catch', ok: false, icon: '❌', label: 'Catch Failed' },
+    spin_success:  { type: 'spin',  ok: true,  icon: '💠', label: 'Spin Success' },
+    spin_fail:     { type: 'spin',  ok: false, icon: '⛔', label: 'Spin Failed' },
+  };
+  const evt = map[outcome];
+  if (!evt) return;
+
+  if (evt.type === 'catch') {
+    if (evt.ok) {
+      store.addHud('pokemonCaught', 1);
+      store.logEvent('catch', evt.label, evt.icon);
+      if (_pgScreenEffectsAllowed()) window.triggerCatchAnim();
+      if (_pgVibrateAllowed()) toast('📳 Vibrate: catch success', 1000);
+      toast(_pgScreenEffectsAllowed() ? '✅ Catch success' : '✅ Catch success (sleep mode: no screen FX)');
+    } else {
+      store.logEvent('fled', evt.label, evt.icon);
+      if (_pgVibrateAllowed()) toast('📳 Vibrate: catch failed', 1000);
+      toast('❌ Catch failed');
+    }
+  }
+
+  if (evt.type === 'spin') {
+    if (evt.ok) {
+      store.addHud('pokestopSpins', 1);
+      store.addItem('berries', 1);
+      store.logEvent('spin', evt.label, evt.icon);
+      if (_pgScreenEffectsAllowed()) window.triggerSpinAnim();
+      if (_pgVibrateAllowed()) toast('📳 Vibrate: spin success', 1000);
+      toast(_pgScreenEffectsAllowed() ? '💠 Spin success' : '💠 Spin success (sleep mode: no screen FX)');
+    } else {
+      store.logEvent('spin', evt.label, evt.icon);
+      if (_pgVibrateAllowed()) toast('📳 Vibrate: spin failed', 1000);
+      toast('⛔ Spin failed');
+    }
+  }
+  _pgRenderJournal();
 };
 
 function _pgTimeAgo(ts) {
@@ -869,3 +972,4 @@ function _pgRenderJournal() {
 
 // Load default species (deferred — all window exports must be defined first)
 window.selectSpecies(store.state.current || 'pikachu');
+_pgApplyModeUI();

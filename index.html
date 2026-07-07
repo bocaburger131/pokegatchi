@@ -87,13 +87,24 @@
     <!-- ACTIONS -->
     <div class="action-sections">
       <!-- Row 1: Interactions -->
-      <div>
-        <div class="action-group-label">Interactions</div>
+      <div id="pokegatchiActions">
+        <div class="action-group-label">Pokégatchi Interactions</div>
         <div class="action-row">
           <button onclick="window.feed()"><span class="btn-icon">🫐</span><span class="btn-label">Feed</span></button>
           <button onclick="window.petAction()"><span class="btn-icon">🫳</span><span class="btn-label">Pet</span></button>
           <button onclick="window.healPet()"><span class="btn-icon">💊</span><span class="btn-label">Heal</span></button>
           <button onclick="window.bounce()" class="primary"><span class="btn-icon">🌟</span><span class="btn-label">Bounce</span></button>
+        </div>
+      </div>
+      <div id="pgpActions" style="display:none;">
+        <div class="action-group-label">PGP Samples (Spin/Catch)</div>
+        <div class="action-row">
+          <button onclick="window.pgpSample('catch_success')" class="primary"><span class="btn-icon">✅</span><span class="btn-label">Catch Success</span></button>
+          <button onclick="window.pgpSample('catch_fail')"><span class="btn-icon">❌</span><span class="btn-label">Catch Fail</span></button>
+        </div>
+        <div class="action-row" style="margin-top:6px;">
+          <button onclick="window.pgpSample('spin_success')" class="primary"><span class="btn-icon">💠</span><span class="btn-label">Spin Success</span></button>
+          <button onclick="window.pgpSample('spin_fail')"><span class="btn-icon">⛔</span><span class="btn-label">Spin Fail</span></button>
         </div>
       </div>
       <!-- Row 2: Bag -->
@@ -224,7 +235,12 @@
 
     <div class="sett-section">
       <div class="sett-title">🎮 Game</div>
-      <label class="tog-row"><span class="tog-label">Catch Animations</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togAutoCatch" checked onchange="window.saveSetting('pg_auto_catch_anim',this.checked)"><span class="tog-pill"></span></span></label>
+      <label class="tog-row"><span class="tog-label">PGP Mode</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togPgpMode" onchange="window.saveSetting('pg_mode_pgp',this.checked)"><span class="tog-pill"></span></span></label>
+      <label class="tog-row"><span class="tog-label">Watch Sleep</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togWatchSleep" onchange="window.saveSetting('pg_watch_sleep',this.checked)"><span class="tog-pill"></span></span></label>
+      <label class="tog-row"><span class="tog-label">Auto Catch</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togAutoCatch" checked onchange="window.saveSetting('pg_auto_catch',this.checked)"><span class="tog-pill"></span></span></label>
+      <label class="tog-row"><span class="tog-label">Auto Spin</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togAutoSpin" checked onchange="window.saveSetting('pg_auto_spin',this.checked)"><span class="tog-pill"></span></span></label>
+      <label class="tog-row"><span class="tog-label">Vibrate Alerts</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togVibrate" checked onchange="window.saveSetting('pg_vibrate',this.checked)"><span class="tog-pill"></span></span></label>
+      <label class="tog-row"><span class="tog-label">Screen Effects</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togScreenFx" checked onchange="window.saveSetting('pg_screen_effects',this.checked)"><span class="tog-pill"></span></span></label>
       <label class="tog-row"><span class="tog-label">Show Cameos</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togCameos" checked onchange="window.toggleCameos(this.checked)"><span class="tog-pill"></span></span></label>
       <label class="tog-row"><span class="tog-label">Bone Animations</span><span class="tog-wrap"><input type="checkbox" class="tog-input" id="togBoneAnim" checked onchange="window.toggleBoneAnim(this.checked)"><span class="tog-pill"></span></span></label>
     </div>
