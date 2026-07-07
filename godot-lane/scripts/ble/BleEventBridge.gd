@@ -5,6 +5,19 @@ signal event_received(event_type: String, payload: Dictionary)
 signal provider_changed(provider_name: String)
 signal transport_status_changed(status_text: String)
 
+const EVENT_CAUGHT := "caught"
+const EVENT_SPUN := "spun"
+const EVENT_FLED := "fled"
+
+# Backwards-compatible aliases used in older demo flows.
+const EVENT_ALIAS_MAP := {
+	"catch": EVENT_CAUGHT,
+	"spin": EVENT_SPUN,
+	"caught": EVENT_CAUGHT,
+	"spun": EVENT_SPUN,
+	"fled": EVENT_FLED,
+}
+
 class BleProviderBase:
 	extends RefCounted
 	signal provider_event(event_type: String, payload: Dictionary)
@@ -14,11 +27,11 @@ class BleProviderBase:
 
 	func simulate_catch(source: String = "provider") -> void:
 		if connected:
-			provider_event.emit("catch", {"source": source, "ts": Time.get_unix_time_from_system()})
+			provider_event.emit(EVENT_CAUGHT, {"source": source, "ts": Time.get_unix_time_from_system()})
 
 	func simulate_spin(source: String = "provider") -> void:
 		if connected:
-			provider_event.emit("spin", {"source": source, "ts": Time.get_unix_time_from_system()})
+			provider_event.emit(EVENT_SPUN, {"source": source, "ts": Time.get_unix_time_from_system()})
 
 	func inject_event(event_type: String, payload: Dictionary = {}) -> void:
 		if connected:
@@ -27,7 +40,7 @@ class BleProviderBase:
 				merged["source"] = provider_name
 			if not merged.has("ts"):
 				merged["ts"] = Time.get_unix_time_from_system()
-			provider_event.emit(event_type, merged)
+			provider_event.emit(_canonical_event(event_type), merged)
 
 	func poll() -> void:
 		pass
@@ -52,13 +65,13 @@ class QueueBleProvider:
 			merged["source"] = provider_name
 		if not merged.has("ts"):
 			merged["ts"] = Time.get_unix_time_from_system()
-		queue.append({"type": event_type, "payload": merged})
+		queue.append({"type": _canonical_event(event_type), "payload": merged})
 
 	func simulate_catch(source: String = "provider") -> void:
-		inject_event("catch", {"source": source})
+		inject_event(EVENT_CAUGHT, {"source": source})
 
 	func simulate_spin(source: String = "provider") -> void:
-		inject_event("spin", {"source": source})
+		inject_event(EVENT_SPUN, {"source": source})
 
 	func poll() -> void:
 		while not queue.is_empty() and connected:
@@ -125,5 +138,11 @@ func get_transport_mode_label() -> String:
 		return "LOCAL"
 	return "SIM"
 
+func _canonical_event(event_type: String) -> String:
+	var key := String(event_type).to_lower()
+	if EVENT_ALIAS_MAP.has(key):
+		return String(EVENT_ALIAS_MAP[key])
+	return key
+
 func _on_provider_event(event_type: String, payload: Dictionary) -> void:
-	event_received.emit(event_type, payload)
+	event_received.emit(_canonical_event(event_type), payload)

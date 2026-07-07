@@ -17,3 +17,27 @@ wearos-app/.gradle
 wearos-app/.idea
 wearos-app/build
 wearos-app/local.properties
+
+# Node / web tooling
+node_modules/
+package-lock.json
+
+# Python caches / venv
+__pycache__/
+*.pyc
+.venv/
+.venv-*/
+
+# Large local assets / archives (keep out of git)
+assets/downloaded/
+assets/extracted_oga/
+assets/models/
+assets/*.zip
+assets/*.7z
+assets/*.apk
+assets/*.img
+
+# Temp recovery/output dirs
+recovery/
+gradle/
+lib/

@@ -290,14 +290,20 @@ func _spin() -> void:
 	ble_bridge.simulate_spin("sample")
 
 func _on_ble_event_received(event_type: String, payload: Dictionary) -> void:
-	if event_type == "catch":
+	if event_type == "caught":
 		happiness = clamp(happiness + 8.0, 0.0, 100.0)
 		energy = clamp(energy - 4.0, 0.0, 100.0)
+		current_action = "catch"
 		_log_event("BLE catch event (%s)" % payload.get("source", "unknown"))
-	elif event_type == "spin":
+	elif event_type == "spun":
 		happiness = clamp(happiness + 5.0, 0.0, 100.0)
 		energy = clamp(energy - 2.0, 0.0, 100.0)
+		current_action = "spin"
 		_log_event("BLE spin event (%s)" % payload.get("source", "unknown"))
+	elif event_type == "fled":
+		happiness = clamp(happiness - 9.0, 0.0, 100.0)
+		current_action = "flee"
+		_log_event("BLE flee event (%s)" % payload.get("source", "unknown"))
 	_update_status_text()
 	_update_bag_text()
 
@@ -309,7 +315,7 @@ func _swap_pet() -> void:
 	_update_status_text()
 
 func _update_bag_text() -> void:
-	bag_text.text = "BLE %s · Last action: %s" % [ble_bridge.get_transport_mode_label(), current_action]
+	bag_text.text = "BLE %s · Last action: %s · Event schema: caught/spun/fled" % [ble_bridge.get_transport_mode_label(), current_action]
 
 func _log_event(message: String) -> void:
 	journal_entries.append(message)
