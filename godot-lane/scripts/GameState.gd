@@ -6,9 +6,6 @@ var current_team: String = ""
 var current_mode: String = "Play"
 # pokegatchi | pgp
 var core_mode: String = "pokegatchi"
-# Settings toggles for catch/spin feedback
-var catch_anim_enabled: bool = true
-var spin_anim_enabled: bool = true
 # PGP behavior settings
 var pgp_auto_catch: bool = true
 var pgp_auto_spin: bool = true
@@ -49,11 +46,6 @@ func set_core_mode(mode: String) -> void:
 	if mode in ["pokegatchi", "pgp"]:
 		core_mode = mode
 		save_state()
-
-func set_anim_toggles(catch_enabled: bool, spin_enabled: bool) -> void:
-	catch_anim_enabled = catch_enabled
-	spin_anim_enabled = spin_enabled
-	save_state()
 
 func set_pgp_settings(auto_catch: bool, auto_spin: bool, alerts_enabled: bool, vibrate_enabled: bool) -> void:
 	pgp_auto_catch = auto_catch
@@ -98,8 +90,6 @@ func load_state() -> void:
 	current_mode = str(cfg.get_value("player", "mode", "Play"))
 	core_mode = str(cfg.get_value("player", "core_mode", "pokegatchi"))
 	layout_shape_mode = str(cfg.get_value("player", "layout_shape_mode", "auto"))
-	catch_anim_enabled = bool(cfg.get_value("settings", "catch_anim_enabled", true))
-	spin_anim_enabled = bool(cfg.get_value("settings", "spin_anim_enabled", true))
 	pgp_auto_catch = bool(cfg.get_value("settings", "pgp_auto_catch", true))
 	pgp_auto_spin = bool(cfg.get_value("settings", "pgp_auto_spin", true))
 	pgp_alerts_enabled = bool(cfg.get_value("settings", "pgp_alerts_enabled", true))
@@ -126,8 +116,6 @@ func save_state() -> void:
 	cfg.set_value("player", "mode", current_mode)
 	cfg.set_value("player", "core_mode", core_mode)
 	cfg.set_value("player", "layout_shape_mode", layout_shape_mode)
-	cfg.set_value("settings", "catch_anim_enabled", catch_anim_enabled)
-	cfg.set_value("settings", "spin_anim_enabled", spin_anim_enabled)
 	cfg.set_value("settings", "pgp_auto_catch", pgp_auto_catch)
 	cfg.set_value("settings", "pgp_auto_spin", pgp_auto_spin)
 	cfg.set_value("settings", "pgp_alerts_enabled", pgp_alerts_enabled)

@@ -470,16 +470,6 @@ text = "Core Mode"
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="CatchAnimToggle" type="CheckButton" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=964789800]
-layout_mode = 2
-text = "Enable Catch Animation"
-button_pressed = true
-
-[node name="SpinAnimToggle" type="CheckButton" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=626472236]
-layout_mode = 2
-text = "Enable Spin Animation"
-button_pressed = true
-
 [node name="PgpAutoCatchToggle" type="CheckButton" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=448143335]
 layout_mode = 2
 text = "PGP: Auto Catch"
@@ -502,7 +492,7 @@ button_pressed = true
 
 [node name="SettingsHint" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=1635321631]
 layout_mode = 2
-text = "Baseline from Go-tcha Evolve manual: manual/auto catch + Pokéstop collect, plus alerts and vibration."
+text = "Feature toggles only: Auto Catch, Auto Spin, Alerts, Vibrate."
 autowrap_mode = 3
 
 [node name="SettingsButtons" type="HBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=473667833]

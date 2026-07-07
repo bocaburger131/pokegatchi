@@ -82,8 +82,6 @@ const ROUND_ASPECT_TOLERANCE := 0.16
 
 @onready var settings_overlay: Control = $SettingsOverlay
 @onready var mode_select: OptionButton = $SettingsOverlay/SettingsPanel/SettingsVBox/ModeRow/ModeSelect
-@onready var catch_anim_toggle: CheckButton = $SettingsOverlay/SettingsPanel/SettingsVBox/CatchAnimToggle
-@onready var spin_anim_toggle: CheckButton = $SettingsOverlay/SettingsPanel/SettingsVBox/SpinAnimToggle
 @onready var pgp_auto_catch_toggle: CheckButton = $SettingsOverlay/SettingsPanel/SettingsVBox/PgpAutoCatchToggle
 @onready var pgp_auto_spin_toggle: CheckButton = $SettingsOverlay/SettingsPanel/SettingsVBox/PgpAutoSpinToggle
 @onready var pgp_alerts_toggle: CheckButton = $SettingsOverlay/SettingsPanel/SettingsVBox/PgpAlertsToggle
@@ -95,8 +93,6 @@ var current_mode := "Play"
 var current_team := "mystic"
 var layout_shape_mode := "auto"
 var core_mode := "pokegatchi"
-var catch_anim_enabled := true
-var spin_anim_enabled := true
 var pgp_auto_catch := true
 var pgp_auto_spin := true
 var pgp_alerts_enabled := true
@@ -161,8 +157,6 @@ func _ready() -> void:
 		current_team = GameState.get_team()
 		current_mode = GameState.current_mode
 		core_mode = String(GameState.core_mode)
-		catch_anim_enabled = bool(GameState.catch_anim_enabled)
-		spin_anim_enabled = bool(GameState.spin_anim_enabled)
 		pgp_auto_catch = bool(GameState.pgp_auto_catch)
 		pgp_auto_spin = bool(GameState.pgp_auto_spin)
 		pgp_alerts_enabled = bool(GameState.pgp_alerts_enabled)
@@ -281,8 +275,6 @@ func _sync_settings_ui() -> void:
 	mode_select.add_item("Pokégatchi Mode", 0)
 	mode_select.add_item("PGP Mode", 1)
 	mode_select.select(1 if core_mode == "pgp" else 0)
-	catch_anim_toggle.button_pressed = catch_anim_enabled
-	spin_anim_toggle.button_pressed = spin_anim_enabled
 	pgp_auto_catch_toggle.button_pressed = pgp_auto_catch
 	pgp_auto_spin_toggle.button_pressed = pgp_auto_spin
 	pgp_alerts_toggle.button_pressed = pgp_alerts_enabled
@@ -291,19 +283,16 @@ func _sync_settings_ui() -> void:
 func _save_settings() -> void:
 	var selected := mode_select.get_selected_id()
 	core_mode = "pgp" if selected == 1 else "pokegatchi"
-	catch_anim_enabled = catch_anim_toggle.button_pressed
-	spin_anim_enabled = spin_anim_toggle.button_pressed
 	pgp_auto_catch = pgp_auto_catch_toggle.button_pressed
 	pgp_auto_spin = pgp_auto_spin_toggle.button_pressed
 	pgp_alerts_enabled = pgp_alerts_toggle.button_pressed
 	pgp_vibrate_enabled = pgp_vibrate_toggle.button_pressed
 	if Engine.has_singleton("GameState"):
 		GameState.set_core_mode(core_mode)
-		GameState.set_anim_toggles(catch_anim_enabled, spin_anim_enabled)
 		GameState.set_pgp_settings(pgp_auto_catch, pgp_auto_spin, pgp_alerts_enabled, pgp_vibrate_enabled)
 	_apply_mode_visibility()
 	_update_status_text()
-	_log_event("Settings saved: mode=%s catch_anim=%s spin_anim=%s auto_catch=%s auto_spin=%s alerts=%s vibrate=%s" % [core_mode, str(catch_anim_enabled), str(spin_anim_enabled), str(pgp_auto_catch), str(pgp_auto_spin), str(pgp_alerts_enabled), str(pgp_vibrate_enabled)])
+	_log_event("Settings saved: mode=%s auto_catch=%s auto_spin=%s alerts=%s vibrate=%s" % [core_mode, str(pgp_auto_catch), str(pgp_auto_spin), str(pgp_alerts_enabled), str(pgp_vibrate_enabled)])
 	settings_overlay.visible = false
 
 func _apply_mode_visibility() -> void:
@@ -419,10 +408,7 @@ func _catch() -> void:
 		_log_event("PGP Auto Catch is OFF")
 		_update_status_text()
 		return
-	if catch_anim_enabled:
-		_action_timer = 0.6
-	else:
-		_action_timer = 0.0
+	_action_timer = 0.6
 	if core_mode == "pgp":
 		happiness = clamp(happiness + 4.0, 0.0, 100.0)
 		energy = clamp(energy - 1.0, 0.0, 100.0)
@@ -439,10 +425,7 @@ func _spin() -> void:
 		_log_event("PGP Auto Spin is OFF")
 		_update_status_text()
 		return
-	if spin_anim_enabled:
-		_action_timer = 0.55
-	else:
-		_action_timer = 0.0
+	_action_timer = 0.55
 	if core_mode == "pgp":
 		happiness = clamp(happiness + 3.0, 0.0, 100.0)
 		energy = clamp(energy - 0.8, 0.0, 100.0)
@@ -547,13 +530,11 @@ func _apply_sprite_animation(_delta: float) -> void:
 		elif current_action == "heal":
 			anim_scale += Vector2(0.06 * sin(_anim_time * 8.0), 0.02)
 		elif current_action == "catch":
-			if catch_anim_enabled:
-				pet_texture.rotation = sin(_anim_time * 26.0) * 0.06
-				anim_scale += Vector2(0.08, 0.08) * (1.0 - t)
+			pet_texture.rotation = sin(_anim_time * 26.0) * 0.06
+			anim_scale += Vector2(0.08, 0.08) * (1.0 - t)
 		elif current_action == "spin":
-			if spin_anim_enabled:
-				pet_texture.rotation = sin(_anim_time * 30.0) * 0.08
-				anim_scale += Vector2(0.05, 0.05)
+			pet_texture.rotation = sin(_anim_time * 30.0) * 0.08
+			anim_scale += Vector2(0.05, 0.05)
 		elif current_action == "swap":
 			pet_texture.rotation = sin(_anim_time * 22.0) * 0.04
 			anim_scale += Vector2(0.04, 0.04)
