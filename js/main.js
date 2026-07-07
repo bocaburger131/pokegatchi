@@ -1,9 +1,9 @@
 // js/main.js — Complete with HUD sync, Bag system, Demo Boost, stat-modifying actions, collapsible sections
 import * as THREE from 'three';
-import { store } from './core/Store.js';
+import { store } from './core/Store.js?v=2';
 import { SceneManager } from './scene/SceneManager.js?v=11';
-import { ExpressionOverlay } from './scene/ExpressionOverlay.js';
-import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js';
+import { ExpressionOverlay } from './scene/ExpressionOverlay.js?v=2';
+import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js?v=2';
 
 // === GLOBALS ===
 const ANIMS = {
@@ -18,8 +18,9 @@ let _hudFlashTimer = null;
 
 // Per-sprite visual centering tweaks (only for PNG skin mode)
 const SPRITE_BG_POS = {
-  eevee: '49% 60%',     // pull slightly left
-  psyduck: '50% 58%',   // lift slightly up
+  eevee: '49% 60%',      // pull slightly left
+  psyduck: '50% 58%',    // lift slightly up
+  squirtle: '50% 58%',   // centered like psyduck skin framing
 };
 
 // === TOAST ===
@@ -213,6 +214,9 @@ function playAnimation(name) {
 window.feed = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
   playAnimation(ANIMS.FEED);
+  const wrap = document.getElementById('petWrap');
+  if (wrap) { wrap.classList.add('wiggle'); setTimeout(() => wrap.classList.remove('wiggle'), 350); }
+  _spawnGeneratedFx(GENERATED_VFX.feed, { label: '🍽 Feed', size: 72, duration: 900, radius: 36 });
   store.addStat('hunger', 15);
   store.addStat('happiness', -5);
   exprOverlay.showTempMood(0, 2); // happy
@@ -223,6 +227,9 @@ window.feed = function() {
 window.petAction = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
   playAnimation(ANIMS.PET);
+  const wrap = document.getElementById('petWrap');
+  if (wrap) { wrap.classList.add('sparkle'); setTimeout(() => wrap.classList.remove('sparkle'), 650); }
+  _spawnGeneratedFx(GENERATED_VFX.pet, { label: '🫳 Pet', size: 68, duration: 980, radius: 44 });
   store.addStat('affection', 10);
   store.addStat('happiness', 5);
   exprOverlay.showTempMood(0, 1.5); // happy
@@ -233,6 +240,9 @@ window.petAction = function() {
 window.healPet = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
   playAnimation(ANIMS.HEAL);
+  const wrap = document.getElementById('petWrap');
+  if (wrap) { wrap.classList.add('celebrate'); setTimeout(() => wrap.classList.remove('celebrate'), 850); }
+  _spawnGeneratedFx(GENERATED_VFX.heal, { label: '💊 Heal', size: 74, duration: 1100, radius: 52 });
   store.addStat('happiness', 25);
   const hungerToAdd = 100 - store.state.hunger;
   store.addStat('hunger', hungerToAdd); // refill to 100
@@ -244,6 +254,9 @@ window.healPet = function() {
 window.bounce = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
   playAnimation(ANIMS.BOUNCE);
+  const wrap = document.getElementById('petWrap');
+  if (wrap) { wrap.classList.add('bounce'); setTimeout(() => wrap.classList.remove('bounce'), 450); }
+  _spawnGeneratedFx(GENERATED_VFX.bounce, { label: '🌟 Bounce', size: 70, duration: 850, radius: 40 });
   store.addStat('happiness', 10);
   exprOverlay.showTempMood(4, 1.5); // excited
   store.logEvent('bounce', 'Bounced', '⭐');
@@ -448,6 +461,55 @@ window.toggleDebugOverlay = function() {
 // =====================================================================
 // === FEATURE 1: CATCH & SPIN CELEBRATION OVERLAYS ====================
 // =====================================================================
+const GENERATED_VFX = {
+  catch_success: ['assets/vfx/generated/catch_success_set_b_transparent.png','assets/vfx/generated/catch_success_set_a_alpha.png'],
+  catch_fail: ['assets/vfx/generated/catch_fail_set_b_transparent.png','assets/vfx/generated/catch_fail_set_a_alpha.png'],
+  spin_success: ['assets/vfx/generated/pokestop_spin_outcomes_set_b_transparent.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha.png'],
+  spin_fail: ['assets/vfx/generated/pokestop_spin_outcomes_set_b_transparent.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha.png'],
+  feed: ['assets/sprites/generated/squirtle_skin_v1_alpha.png'],
+  pet: ['assets/sprites/generated/eevee_skin_v2_compact_alpha.png'],
+  heal: ['assets/sprites/generated/psyduck_skin_v1_alpha.png'],
+  bounce: ['assets/sprites/generated/squirtle_skin_v1_alpha.png'],
+};
+
+function _spawnGeneratedFx(images, options = {}) {
+  if (!_pgScreenEffectsAllowed()) return;
+  const wrap = document.querySelector('.pet-canvas-wrap');
+  if (!wrap || !images || images.length === 0) return;
+  const rect = wrap.getBoundingClientRect();
+  const ov = document.createElement('div');
+  ov.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;pointer-events:none;z-index:11;overflow:visible;border-radius:50%;`;
+  document.body.appendChild(ov);
+
+  images.forEach((src, i) => {
+    const img = document.createElement('img');
+    const ang = (i / Math.max(images.length,1)) * Math.PI * 2;
+    const r = (options.radius || 42) + i * 8;
+    const tx = Math.round(Math.cos(ang) * r);
+    const ty = Math.round(Math.sin(ang) * r);
+    const size = options.size || 64;
+    img.src = src;
+    img.style.cssText = `position:absolute;left:50%;top:50%;width:${size}px;height:${size}px;object-fit:contain;transform:translate(-50%,-50%);filter:drop-shadow(0 0 10px rgba(255,255,255,.4));opacity:0;`;
+    ov.appendChild(img);
+    img.animate([
+      { transform: 'translate(-50%,-50%) scale(0.3) rotate(0deg)', opacity: 0 },
+      { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(1) rotate(${(i%2?1:-1)*12}deg)`, opacity: 1, offset: 0.45 },
+      { transform: `translate(calc(-50% + ${Math.round(tx*1.3)}px), calc(-50% + ${Math.round(ty*1.3)}px)) scale(0.55) rotate(${(i%2?1:-1)*28}deg)`, opacity: 0 }
+    ], { duration: options.duration || 1100, delay: i * 70, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' });
+  });
+
+  const label = document.createElement('div');
+  label.textContent = options.label || '✨';
+  label.style.cssText = `position:absolute;left:50%;bottom:16%;transform:translateX(-50%);font-size:.95rem;font-weight:900;color:#fff;text-shadow:0 0 10px rgba(255,255,255,.7),0 2px 4px rgba(0,0,0,.8);`;
+  ov.appendChild(label);
+  label.animate([
+    { transform: 'translateX(-50%) translateY(10px)', opacity: 0 },
+    { transform: 'translateX(-50%) translateY(-8px)', opacity: 1, offset: 0.5 },
+    { transform: 'translateX(-50%) translateY(-30px)', opacity: 0 }
+  ], { duration: 1000, easing: 'ease-out', fill: 'forwards' });
+
+  setTimeout(() => ov.remove(), (options.duration || 1100) + 500 + images.length * 60);
+}
 
 // Inject CSS keyframes for catch + spin animations
 (function injectAnimStyles() {
@@ -494,6 +556,7 @@ window.toggleDebugOverlay = function() {
 
 window.triggerCatchAnim = function() {
   if (!_pgScreenEffectsAllowed()) return;
+  _spawnGeneratedFx(GENERATED_VFX.catch_success, { label: '✨ Caught!', size: 84, duration: 1200, radius: 56 });
   const wrap = document.querySelector('.pet-canvas-wrap');
   if (!wrap) return;
   const rect = wrap.getBoundingClientRect();
@@ -543,6 +606,7 @@ window.triggerCatchAnim = function() {
 
 window.triggerSpinAnim = function() {
   if (!_pgScreenEffectsAllowed()) return;
+  _spawnGeneratedFx(GENERATED_VFX.spin_success, { label: '💠 Spin!', size: 82, duration: 1000, radius: 52 });
   const wrap = document.querySelector('.pet-canvas-wrap');
   if (!wrap) return;
   const rect = wrap.getBoundingClientRect();
@@ -863,6 +927,7 @@ window.pgpSample = function(outcome) {
       toast(_pgScreenEffectsAllowed() ? '✅ Catch success' : '✅ Catch success (sleep mode: no screen FX)');
     } else {
       store.logEvent('fled', evt.label, evt.icon);
+      if (_pgScreenEffectsAllowed()) _spawnGeneratedFx(GENERATED_VFX.catch_fail, { label: '❌ Missed', size: 80, duration: 950, radius: 48 });
       if (_pgVibrateAllowed()) toast('📳 Vibrate: catch failed', 1000);
       toast('❌ Catch failed');
     }
@@ -878,6 +943,7 @@ window.pgpSample = function(outcome) {
       toast(_pgScreenEffectsAllowed() ? '💠 Spin success' : '💠 Spin success (sleep mode: no screen FX)');
     } else {
       store.logEvent('spin', evt.label, evt.icon);
+      if (_pgScreenEffectsAllowed()) _spawnGeneratedFx(GENERATED_VFX.spin_fail, { label: '⛔ No Loot', size: 80, duration: 900, radius: 48 });
       if (_pgVibrateAllowed()) toast('📳 Vibrate: spin failed', 1000);
       toast('⛔ Spin failed');
     }
@@ -971,5 +1037,5 @@ function _pgRenderJournal() {
 }
 
 // Load default species (deferred — all window exports must be defined first)
-window.selectSpecies(store.state.current || 'pikachu');
+window.selectSpecies(store.state.current || 'squirtle');
 _pgApplyModeUI();

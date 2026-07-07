@@ -362,6 +362,9 @@ body {
 #pet3dContainer[data-skin="psyduck"] {
   background-position: 50% 58% !important;
 }
+#pet3dContainer[data-skin="squirtle"] {
+  background-position: 50% 58% !important;
+}
 
 /* Sprite float animation — gentle levitation with background shift */
 @keyframes spriteFloat {

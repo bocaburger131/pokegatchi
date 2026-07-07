@@ -1,7 +1,7 @@
 // js/core/Store.js — Full store with stats, HUD, and inventory
 export const store = {
   state: {
-    current: 'pikachu',
+    current: 'squirtle',
     // === PET STATS ===
     hunger: 80,
     happiness: 60,
