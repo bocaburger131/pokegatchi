@@ -362,7 +362,7 @@ func _update_mood_text() -> void:
 
 	expression_state = expression
 	pet_mood.text = "Mood: %s" % expression
-	action_state.text = "State: %s" % current_action.capitalize()
+	action_state.text = "State: %s %s" % [current_action.capitalize(), _action_emote()]
 	_apply_expression_visuals()
 
 func _apply_pet() -> void:
@@ -441,15 +441,18 @@ func _on_ble_event_received(event_type: String, payload: Dictionary) -> void:
 		happiness = clamp(happiness + 8.0, 0.0, 100.0)
 		energy = clamp(energy - 4.0, 0.0, 100.0)
 		current_action = "catch"
+		_action_timer = 0.6
 		_log_event("BLE catch event (%s)" % payload.get("source", "unknown"))
 	elif event_type == "spun":
 		happiness = clamp(happiness + 5.0, 0.0, 100.0)
 		energy = clamp(energy - 2.0, 0.0, 100.0)
 		current_action = "spin"
+		_action_timer = 0.55
 		_log_event("BLE spin event (%s)" % payload.get("source", "unknown"))
 	elif event_type == "fled":
 		happiness = clamp(happiness - 9.0, 0.0, 100.0)
 		current_action = "flee"
+		_action_timer = 0.65
 		_log_event("BLE flee event (%s)" % payload.get("source", "unknown"))
 	_update_status_text()
 	_update_bag_text()
@@ -505,10 +508,45 @@ func _apply_expression_visuals() -> void:
 		tint = tint.lerp(Color(0.92, 1.0, 1.0, 1), 0.45)
 	elif current_action in ["catch", "spin"]:
 		scale = Vector2(1.03, 1.03)
+	elif current_action == "flee":
+		tint = tint.lerp(Color(0.80, 0.72, 0.72, 1), 0.55)
 
 	pet_texture.modulate = tint
 	if _action_timer <= 0.0:
 		pet_texture.scale = scale
+
+func _action_emote() -> String:
+	match current_action:
+		"idle":
+			match expression_state:
+				"Excited":
+					return "✨"
+				"Hungry":
+					return "🍎"
+				"Sleepy":
+					return "😴"
+				"Sad":
+					return "💧"
+				"Determined":
+					return "⚡"
+				_:
+					return "🙂"
+		"feed":
+			return "🍓"
+		"pet":
+			return "💖"
+		"heal":
+			return "🩹"
+		"catch":
+			return "🎯"
+		"spin":
+			return "🌀"
+		"swap":
+			return "🔁"
+		"flee":
+			return "💨"
+		_:
+			return ""
 
 func _apply_sprite_animation(_delta: float) -> void:
 	var pet: Dictionary = PETS[pet_index]
@@ -522,7 +560,24 @@ func _apply_sprite_animation(_delta: float) -> void:
 	pet_texture.position.y = bob * 4.0
 
 	if _action_timer > 0.0:
-		var t := 1.0 - (_action_timer / maxf(_action_timer, 0.0001))
+		var action_len := 0.85
+		match current_action:
+			"feed":
+				action_len = 0.75
+			"pet":
+				action_len = 0.7
+			"heal":
+				action_len = 0.85
+			"catch":
+				action_len = 0.6
+			"spin":
+				action_len = 0.55
+			"swap":
+				action_len = 0.45
+			"flee":
+				action_len = 0.65
+
+		var prog: float = clampf(1.0 - (_action_timer / maxf(action_len, 0.001)), 0.0, 1.0)
 		if current_action == "feed":
 			anim_scale += Vector2(0.045 * sin(_anim_time * 13.0), 0.03)
 		elif current_action == "pet":
@@ -531,14 +586,22 @@ func _apply_sprite_animation(_delta: float) -> void:
 			anim_scale += Vector2(0.06 * sin(_anim_time * 8.0), 0.02)
 		elif current_action == "catch":
 			pet_texture.rotation = sin(_anim_time * 26.0) * 0.06
-			anim_scale += Vector2(0.08, 0.08) * (1.0 - t)
+			anim_scale += Vector2(0.08, 0.08) * (1.0 - prog)
+			pet_texture.position.y = bob * 4.0 - (sin(prog * PI) * 14.0)
 		elif current_action == "spin":
 			pet_texture.rotation = sin(_anim_time * 30.0) * 0.08
 			anim_scale += Vector2(0.05, 0.05)
+			pet_texture.position.y = bob * 4.0 + cos(_anim_time * 24.0) * 3.0
 		elif current_action == "swap":
 			pet_texture.rotation = sin(_anim_time * 22.0) * 0.04
 			anim_scale += Vector2(0.04, 0.04)
+		elif current_action == "flee":
+			var dash := sin(prog * PI)
+			pet_texture.position.x = 18.0 * dash
+			pet_texture.rotation = -0.08 * dash
+			anim_scale += Vector2(-0.04 * dash, 0.02 * dash)
 	else:
+		pet_texture.position.x = lerp(pet_texture.position.x, 0.0, 0.25)
 		pet_texture.rotation = lerp(pet_texture.rotation, 0.0, 0.18)
 
 	pet_texture.scale = anim_scale
