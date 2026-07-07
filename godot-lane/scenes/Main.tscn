@@ -480,9 +480,29 @@ layout_mode = 2
 text = "Enable Spin Animation"
 button_pressed = true
 
+[node name="PgpAutoCatchToggle" type="CheckButton" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=448143335]
+layout_mode = 2
+text = "PGP: Auto Catch"
+button_pressed = true
+
+[node name="PgpAutoSpinToggle" type="CheckButton" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=214660973]
+layout_mode = 2
+text = "PGP: Auto Spin Pokéstops"
+button_pressed = true
+
+[node name="PgpAlertsToggle" type="CheckButton" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=1777144240]
+layout_mode = 2
+text = "PGP: Screen Alerts"
+button_pressed = true
+
+[node name="PgpVibrateToggle" type="CheckButton" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=1703902247]
+layout_mode = 2
+text = "PGP: Vibrate Feedback"
+button_pressed = true
+
 [node name="SettingsHint" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=1635321631]
 layout_mode = 2
-text = "PGP mode focuses Catch + Spin actions (like auto-catcher flow)."
+text = "Baseline from Go-tcha Evolve manual: manual/auto catch + Pokéstop collect, plus alerts and vibration."
 autowrap_mode = 3
 
 [node name="SettingsButtons" type="HBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=473667833]

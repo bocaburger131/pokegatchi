@@ -84,6 +84,10 @@ const ROUND_ASPECT_TOLERANCE := 0.16
 @onready var mode_select: OptionButton = $SettingsOverlay/SettingsPanel/SettingsVBox/ModeRow/ModeSelect
 @onready var catch_anim_toggle: CheckButton = $SettingsOverlay/SettingsPanel/SettingsVBox/CatchAnimToggle
 @onready var spin_anim_toggle: CheckButton = $SettingsOverlay/SettingsPanel/SettingsVBox/SpinAnimToggle
+@onready var pgp_auto_catch_toggle: CheckButton = $SettingsOverlay/SettingsPanel/SettingsVBox/PgpAutoCatchToggle
+@onready var pgp_auto_spin_toggle: CheckButton = $SettingsOverlay/SettingsPanel/SettingsVBox/PgpAutoSpinToggle
+@onready var pgp_alerts_toggle: CheckButton = $SettingsOverlay/SettingsPanel/SettingsVBox/PgpAlertsToggle
+@onready var pgp_vibrate_toggle: CheckButton = $SettingsOverlay/SettingsPanel/SettingsVBox/PgpVibrateToggle
 @onready var close_settings_button: Button = $SettingsOverlay/SettingsPanel/SettingsVBox/SettingsButtons/CloseSettingsButton
 @onready var save_settings_button: Button = $SettingsOverlay/SettingsPanel/SettingsVBox/SettingsButtons/SaveSettingsButton
 
@@ -93,6 +97,10 @@ var layout_shape_mode := "auto"
 var core_mode := "pokegatchi"
 var catch_anim_enabled := true
 var spin_anim_enabled := true
+var pgp_auto_catch := true
+var pgp_auto_spin := true
+var pgp_alerts_enabled := true
+var pgp_vibrate_enabled := true
 var expression_state := "Neutral"
 var hunger := 72.0
 var happiness := 80.0
@@ -155,6 +163,10 @@ func _ready() -> void:
 		core_mode = String(GameState.core_mode)
 		catch_anim_enabled = bool(GameState.catch_anim_enabled)
 		spin_anim_enabled = bool(GameState.spin_anim_enabled)
+		pgp_auto_catch = bool(GameState.pgp_auto_catch)
+		pgp_auto_spin = bool(GameState.pgp_auto_spin)
+		pgp_alerts_enabled = bool(GameState.pgp_alerts_enabled)
+		pgp_vibrate_enabled = bool(GameState.pgp_vibrate_enabled)
 		layout_shape_mode = GameState.layout_shape_mode
 		hunger = float(GameState.hunger)
 		happiness = float(GameState.happiness)
@@ -271,18 +283,27 @@ func _sync_settings_ui() -> void:
 	mode_select.select(1 if core_mode == "pgp" else 0)
 	catch_anim_toggle.button_pressed = catch_anim_enabled
 	spin_anim_toggle.button_pressed = spin_anim_enabled
+	pgp_auto_catch_toggle.button_pressed = pgp_auto_catch
+	pgp_auto_spin_toggle.button_pressed = pgp_auto_spin
+	pgp_alerts_toggle.button_pressed = pgp_alerts_enabled
+	pgp_vibrate_toggle.button_pressed = pgp_vibrate_enabled
 
 func _save_settings() -> void:
 	var selected := mode_select.get_selected_id()
 	core_mode = "pgp" if selected == 1 else "pokegatchi"
 	catch_anim_enabled = catch_anim_toggle.button_pressed
 	spin_anim_enabled = spin_anim_toggle.button_pressed
+	pgp_auto_catch = pgp_auto_catch_toggle.button_pressed
+	pgp_auto_spin = pgp_auto_spin_toggle.button_pressed
+	pgp_alerts_enabled = pgp_alerts_toggle.button_pressed
+	pgp_vibrate_enabled = pgp_vibrate_toggle.button_pressed
 	if Engine.has_singleton("GameState"):
 		GameState.set_core_mode(core_mode)
 		GameState.set_anim_toggles(catch_anim_enabled, spin_anim_enabled)
+		GameState.set_pgp_settings(pgp_auto_catch, pgp_auto_spin, pgp_alerts_enabled, pgp_vibrate_enabled)
 	_apply_mode_visibility()
 	_update_status_text()
-	_log_event("Settings saved: mode=%s catch_anim=%s spin_anim=%s" % [core_mode, str(catch_anim_enabled), str(spin_anim_enabled)])
+	_log_event("Settings saved: mode=%s catch_anim=%s spin_anim=%s auto_catch=%s auto_spin=%s alerts=%s vibrate=%s" % [core_mode, str(catch_anim_enabled), str(spin_anim_enabled), str(pgp_auto_catch), str(pgp_auto_spin), str(pgp_alerts_enabled), str(pgp_vibrate_enabled)])
 	settings_overlay.visible = false
 
 func _apply_mode_visibility() -> void:
@@ -290,6 +311,12 @@ func _apply_mode_visibility() -> void:
 	feed_button.visible = not pgp
 	pet_button.visible = not pgp
 	heal_button.visible = not pgp
+	if pgp:
+		catch_button.text = "Auto Catch" if pgp_auto_catch else "Catch"
+		spin_button.text = "Auto Spin" if pgp_auto_spin else "Spin"
+	else:
+		catch_button.text = "Catch"
+		spin_button.text = "Spin"
 
 func _open_ziva_panel() -> void:
 	var has_installer := FileAccess.file_exists("res://addons/ziva_installer/plugin.cfg")
@@ -388,6 +415,10 @@ func _heal() -> void:
 
 func _catch() -> void:
 	current_action = "catch"
+	if core_mode == "pgp" and not pgp_auto_catch:
+		_log_event("PGP Auto Catch is OFF")
+		_update_status_text()
+		return
 	if catch_anim_enabled:
 		_action_timer = 0.6
 	else:
@@ -395,11 +426,19 @@ func _catch() -> void:
 	if core_mode == "pgp":
 		happiness = clamp(happiness + 4.0, 0.0, 100.0)
 		energy = clamp(energy - 1.0, 0.0, 100.0)
+		if pgp_alerts_enabled:
+			_log_event("PGP alert: Pokémon nearby")
+		if pgp_vibrate_enabled:
+			_log_event("PGP vibrate: catch pulse")
 	ble_bridge.simulate_catch("sample")
 	_update_status_text()
 
 func _spin() -> void:
 	current_action = "spin"
+	if core_mode == "pgp" and not pgp_auto_spin:
+		_log_event("PGP Auto Spin is OFF")
+		_update_status_text()
+		return
 	if spin_anim_enabled:
 		_action_timer = 0.55
 	else:
@@ -407,6 +446,10 @@ func _spin() -> void:
 	if core_mode == "pgp":
 		happiness = clamp(happiness + 3.0, 0.0, 100.0)
 		energy = clamp(energy - 0.8, 0.0, 100.0)
+		if pgp_alerts_enabled:
+			_log_event("PGP alert: Pokéstop in range")
+		if pgp_vibrate_enabled:
+			_log_event("PGP vibrate: spin pulse")
 	ble_bridge.simulate_spin("sample")
 	_update_status_text()
 

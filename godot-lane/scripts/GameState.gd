@@ -9,6 +9,11 @@ var core_mode: String = "pokegatchi"
 # Settings toggles for catch/spin feedback
 var catch_anim_enabled: bool = true
 var spin_anim_enabled: bool = true
+# PGP behavior settings
+var pgp_auto_catch: bool = true
+var pgp_auto_spin: bool = true
+var pgp_alerts_enabled: bool = true
+var pgp_vibrate_enabled: bool = true
 # auto | round | rect
 var layout_shape_mode: String = "auto"
 
@@ -50,6 +55,13 @@ func set_anim_toggles(catch_enabled: bool, spin_enabled: bool) -> void:
 	spin_anim_enabled = spin_enabled
 	save_state()
 
+func set_pgp_settings(auto_catch: bool, auto_spin: bool, alerts_enabled: bool, vibrate_enabled: bool) -> void:
+	pgp_auto_catch = auto_catch
+	pgp_auto_spin = auto_spin
+	pgp_alerts_enabled = alerts_enabled
+	pgp_vibrate_enabled = vibrate_enabled
+	save_state()
+
 func set_layout_shape_mode(mode: String) -> void:
 	if mode in ["auto", "round", "rect"]:
 		layout_shape_mode = mode
@@ -88,6 +100,10 @@ func load_state() -> void:
 	layout_shape_mode = str(cfg.get_value("player", "layout_shape_mode", "auto"))
 	catch_anim_enabled = bool(cfg.get_value("settings", "catch_anim_enabled", true))
 	spin_anim_enabled = bool(cfg.get_value("settings", "spin_anim_enabled", true))
+	pgp_auto_catch = bool(cfg.get_value("settings", "pgp_auto_catch", true))
+	pgp_auto_spin = bool(cfg.get_value("settings", "pgp_auto_spin", true))
+	pgp_alerts_enabled = bool(cfg.get_value("settings", "pgp_alerts_enabled", true))
+	pgp_vibrate_enabled = bool(cfg.get_value("settings", "pgp_vibrate_enabled", true))
 	hunger = int(cfg.get_value("pet", "hunger", 50))
 	happiness = int(cfg.get_value("pet", "happiness", 70))
 	energy = int(cfg.get_value("pet", "energy", 80))
@@ -112,6 +128,10 @@ func save_state() -> void:
 	cfg.set_value("player", "layout_shape_mode", layout_shape_mode)
 	cfg.set_value("settings", "catch_anim_enabled", catch_anim_enabled)
 	cfg.set_value("settings", "spin_anim_enabled", spin_anim_enabled)
+	cfg.set_value("settings", "pgp_auto_catch", pgp_auto_catch)
+	cfg.set_value("settings", "pgp_auto_spin", pgp_auto_spin)
+	cfg.set_value("settings", "pgp_alerts_enabled", pgp_alerts_enabled)
+	cfg.set_value("settings", "pgp_vibrate_enabled", pgp_vibrate_enabled)
 	cfg.set_value("pet", "hunger", hunger)
 	cfg.set_value("pet", "happiness", happiness)
 	cfg.set_value("pet", "energy", energy)
