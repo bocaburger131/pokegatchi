@@ -44,6 +44,7 @@ const ROUND_ASPECT_TOLERANCE := 0.16
 @onready var scene_button: Button = $ModeBar/SceneButton
 @onready var shape_button: Button = $ModeBar/ShapeButton
 @onready var ble_mode_button: Button = $ModeBar/BleModeButton
+@onready var ziva_button: Button = $ModeBar/ZivaButton
 
 @onready var bag_button: Button = $HudTabs/BagButton
 @onready var pokedex_button: Button = $HudTabs/PokedexButton
@@ -112,6 +113,7 @@ func _ready() -> void:
 	scene_button.pressed.connect(func(): _set_mode("Scene"))
 	shape_button.pressed.connect(_cycle_shape_mode)
 	ble_mode_button.pressed.connect(_toggle_ble_transport)
+	ziva_button.pressed.connect(_open_ziva_panel)
 
 	# HUD tabs (Task 4)
 	bag_button.pressed.connect(func(): _show_panel("bag"))
@@ -228,6 +230,23 @@ func _toggle_ble_transport() -> void:
 	var mode: String = ble_bridge.toggle_transport_mode()
 	_update_ble_mode_button_text()
 	_log_event("BLE transport: %s" % mode.to_upper())
+
+func _open_ziva_panel() -> void:
+	var has_installer := FileAccess.file_exists("res://addons/ziva_installer/plugin.cfg")
+	var has_agent := DirAccess.dir_exists_absolute("res://addons/ziva_agent")
+
+	if has_agent:
+		_log_event("Ziva Agent detected. Open it from right dock: Ziva Agent panel.")
+		status_label.text = "Ziva Agent ready · Open dock panel"
+		return
+
+	if has_installer:
+		_log_event("Ziva installer ready: Project > Project Settings > Plugins > Enable ziva_installer, then click Install Ziva AI Agent in dock.")
+		status_label.text = "Ziva installer present · Enable plugin + install"
+		return
+
+	_log_event("Ziva not installed in this project yet.")
+	status_label.text = "Ziva missing"
 
 func _show_panel(panel_name: String) -> void:
 	active_panel = panel_name
