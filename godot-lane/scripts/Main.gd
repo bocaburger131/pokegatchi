@@ -45,6 +45,7 @@ const ROUND_ASPECT_TOLERANCE := 0.16
 @onready var shape_button: Button = $ModeBar/ShapeButton
 @onready var ble_mode_button: Button = $ModeBar/BleModeButton
 @onready var ziva_button: Button = $ModeBar/ZivaButton
+@onready var settings_button: Button = $ModeBar/SettingsButton
 
 @onready var bag_button: Button = $HudTabs/BagButton
 @onready var pokedex_button: Button = $HudTabs/PokedexButton
@@ -79,9 +80,19 @@ const ROUND_ASPECT_TOLERANCE := 0.16
 @onready var instinct_button: Button = $TeamOverlay/TeamButtons/InstinctButton
 @onready var close_overlay_button: Button = $TeamOverlay/CloseOverlayButton
 
+@onready var settings_overlay: Control = $SettingsOverlay
+@onready var mode_select: OptionButton = $SettingsOverlay/SettingsPanel/SettingsVBox/ModeRow/ModeSelect
+@onready var catch_anim_toggle: CheckButton = $SettingsOverlay/SettingsPanel/SettingsVBox/CatchAnimToggle
+@onready var spin_anim_toggle: CheckButton = $SettingsOverlay/SettingsPanel/SettingsVBox/SpinAnimToggle
+@onready var close_settings_button: Button = $SettingsOverlay/SettingsPanel/SettingsVBox/SettingsButtons/CloseSettingsButton
+@onready var save_settings_button: Button = $SettingsOverlay/SettingsPanel/SettingsVBox/SettingsButtons/SaveSettingsButton
+
 var current_mode := "Play"
 var current_team := "mystic"
 var layout_shape_mode := "auto"
+var core_mode := "pokegatchi"
+var catch_anim_enabled := true
+var spin_anim_enabled := true
 var expression_state := "Neutral"
 var hunger := 72.0
 var happiness := 80.0
@@ -114,6 +125,7 @@ func _ready() -> void:
 	shape_button.pressed.connect(_cycle_shape_mode)
 	ble_mode_button.pressed.connect(_toggle_ble_transport)
 	ziva_button.pressed.connect(_open_ziva_panel)
+	settings_button.pressed.connect(_open_settings)
 
 	# HUD tabs (Task 4)
 	bag_button.pressed.connect(func(): _show_panel("bag"))
@@ -128,6 +140,10 @@ func _ready() -> void:
 	spin_button.pressed.connect(_spin)
 	swap_pet_button.pressed.connect(_swap_pet)
 
+	# Settings controls
+	save_settings_button.pressed.connect(_save_settings)
+	close_settings_button.pressed.connect(_close_settings)
+
 	# Task 5 BLE bridge simulation hooks
 	ble_bridge = BLE_BRIDGE_SCRIPT.new()
 	ble_bridge.event_received.connect(_on_ble_event_received)
@@ -136,6 +152,9 @@ func _ready() -> void:
 	if Engine.has_singleton("GameState"):
 		current_team = GameState.get_team()
 		current_mode = GameState.current_mode
+		core_mode = String(GameState.core_mode)
+		catch_anim_enabled = bool(GameState.catch_anim_enabled)
+		spin_anim_enabled = bool(GameState.spin_anim_enabled)
 		layout_shape_mode = GameState.layout_shape_mode
 		hunger = float(GameState.hunger)
 		happiness = float(GameState.happiness)
@@ -153,6 +172,8 @@ func _ready() -> void:
 	_apply_watch_layout()
 	_update_shape_button_text()
 	_update_ble_mode_button_text()
+	_apply_mode_visibility()
+	_sync_settings_ui()
 
 	# runtime responsive pass
 	resized.connect(_on_resized)
@@ -174,6 +195,10 @@ func _process(delta: float) -> void:
 		happiness = clamp(happiness + 0.4 * delta, 0.0, 100.0)
 	else:
 		happiness = clamp(happiness - 0.45 * delta, 0.0, 100.0)
+
+	if core_mode == "pgp":
+		hunger = clamp(hunger + 0.25 * delta, 0.0, 100.0)
+		energy = clamp(energy + 0.15 * delta, 0.0, 100.0)
 
 	if Engine.has_singleton("GameState"):
 		GameState.set_stats(int(hunger), int(happiness), int(energy))
@@ -209,6 +234,7 @@ func _set_mode(mode: String) -> void:
 	play_button.disabled = mode == "Play"
 	auto_button.disabled = mode == "Auto"
 	scene_button.disabled = mode == "Scene"
+	_apply_mode_visibility()
 	_update_status_text()
 
 func _cycle_shape_mode() -> void:
@@ -230,6 +256,40 @@ func _toggle_ble_transport() -> void:
 	var mode: String = ble_bridge.toggle_transport_mode()
 	_update_ble_mode_button_text()
 	_log_event("BLE transport: %s" % mode.to_upper())
+
+func _open_settings() -> void:
+	_sync_settings_ui()
+	settings_overlay.visible = true
+
+func _close_settings() -> void:
+	settings_overlay.visible = false
+
+func _sync_settings_ui() -> void:
+	mode_select.clear()
+	mode_select.add_item("Pokégatchi Mode", 0)
+	mode_select.add_item("PGP Mode", 1)
+	mode_select.select(1 if core_mode == "pgp" else 0)
+	catch_anim_toggle.button_pressed = catch_anim_enabled
+	spin_anim_toggle.button_pressed = spin_anim_enabled
+
+func _save_settings() -> void:
+	var selected := mode_select.get_selected_id()
+	core_mode = "pgp" if selected == 1 else "pokegatchi"
+	catch_anim_enabled = catch_anim_toggle.button_pressed
+	spin_anim_enabled = spin_anim_toggle.button_pressed
+	if Engine.has_singleton("GameState"):
+		GameState.set_core_mode(core_mode)
+		GameState.set_anim_toggles(catch_anim_enabled, spin_anim_enabled)
+	_apply_mode_visibility()
+	_update_status_text()
+	_log_event("Settings saved: mode=%s catch_anim=%s spin_anim=%s" % [core_mode, str(catch_anim_enabled), str(spin_anim_enabled)])
+	settings_overlay.visible = false
+
+func _apply_mode_visibility() -> void:
+	var pgp := core_mode == "pgp"
+	feed_button.visible = not pgp
+	pet_button.visible = not pgp
+	heal_button.visible = not pgp
 
 func _open_ziva_panel() -> void:
 	var has_installer := FileAccess.file_exists("res://addons/ziva_installer/plugin.cfg")
@@ -263,7 +323,8 @@ func _populate_pokedex() -> void:
 		pokedex_list.add_item("#%s %s — %s" % [pet.get("id", "???"), pet.get("name", "Unknown"), pet.get("type", "Normal")])
 
 func _update_status_text() -> void:
-	status_label.text = "Mode: %s · Team: %s · Action: %s" % [current_mode, _pretty_team(current_team), current_action]
+	var mode_label := "PGP" if core_mode == "pgp" else "Pokégatchi"
+	status_label.text = "Mode: %s · Core: %s · Team: %s · Action: %s" % [current_mode, mode_label, _pretty_team(current_team), current_action]
 
 func _update_stats_ui() -> void:
 	hunger_bar.value = hunger
@@ -327,13 +388,27 @@ func _heal() -> void:
 
 func _catch() -> void:
 	current_action = "catch"
-	_action_timer = 0.6
+	if catch_anim_enabled:
+		_action_timer = 0.6
+	else:
+		_action_timer = 0.0
+	if core_mode == "pgp":
+		happiness = clamp(happiness + 4.0, 0.0, 100.0)
+		energy = clamp(energy - 1.0, 0.0, 100.0)
 	ble_bridge.simulate_catch("sample")
+	_update_status_text()
 
 func _spin() -> void:
 	current_action = "spin"
-	_action_timer = 0.55
+	if spin_anim_enabled:
+		_action_timer = 0.55
+	else:
+		_action_timer = 0.0
+	if core_mode == "pgp":
+		happiness = clamp(happiness + 3.0, 0.0, 100.0)
+		energy = clamp(energy - 0.8, 0.0, 100.0)
 	ble_bridge.simulate_spin("sample")
+	_update_status_text()
 
 func _on_ble_event_received(event_type: String, payload: Dictionary) -> void:
 	if event_type == "caught":
@@ -429,11 +504,13 @@ func _apply_sprite_animation(_delta: float) -> void:
 		elif current_action == "heal":
 			anim_scale += Vector2(0.06 * sin(_anim_time * 8.0), 0.02)
 		elif current_action == "catch":
-			pet_texture.rotation = sin(_anim_time * 26.0) * 0.06
-			anim_scale += Vector2(0.08, 0.08) * (1.0 - t)
+			if catch_anim_enabled:
+				pet_texture.rotation = sin(_anim_time * 26.0) * 0.06
+				anim_scale += Vector2(0.08, 0.08) * (1.0 - t)
 		elif current_action == "spin":
-			pet_texture.rotation = sin(_anim_time * 30.0) * 0.08
-			anim_scale += Vector2(0.05, 0.05)
+			if spin_anim_enabled:
+				pet_texture.rotation = sin(_anim_time * 30.0) * 0.08
+				anim_scale += Vector2(0.05, 0.05)
 		elif current_action == "swap":
 			pet_texture.rotation = sin(_anim_time * 22.0) * 0.04
 			anim_scale += Vector2(0.04, 0.04)

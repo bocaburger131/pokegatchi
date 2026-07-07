@@ -4,6 +4,11 @@ const SAVE_PATH := "user://game_state.cfg"
 
 var current_team: String = ""
 var current_mode: String = "Play"
+# pokegatchi | pgp
+var core_mode: String = "pokegatchi"
+# Settings toggles for catch/spin feedback
+var catch_anim_enabled: bool = true
+var spin_anim_enabled: bool = true
 # auto | round | rect
 var layout_shape_mode: String = "auto"
 
@@ -33,6 +38,16 @@ func set_team(team: String) -> void:
 
 func set_mode(mode: String) -> void:
 	current_mode = mode
+	save_state()
+
+func set_core_mode(mode: String) -> void:
+	if mode in ["pokegatchi", "pgp"]:
+		core_mode = mode
+		save_state()
+
+func set_anim_toggles(catch_enabled: bool, spin_enabled: bool) -> void:
+	catch_anim_enabled = catch_enabled
+	spin_anim_enabled = spin_enabled
 	save_state()
 
 func set_layout_shape_mode(mode: String) -> void:
@@ -69,7 +84,10 @@ func load_state() -> void:
 
 	current_team = str(cfg.get_value("player", "team", ""))
 	current_mode = str(cfg.get_value("player", "mode", "Play"))
+	core_mode = str(cfg.get_value("player", "core_mode", "pokegatchi"))
 	layout_shape_mode = str(cfg.get_value("player", "layout_shape_mode", "auto"))
+	catch_anim_enabled = bool(cfg.get_value("settings", "catch_anim_enabled", true))
+	spin_anim_enabled = bool(cfg.get_value("settings", "spin_anim_enabled", true))
 	hunger = int(cfg.get_value("pet", "hunger", 50))
 	happiness = int(cfg.get_value("pet", "happiness", 70))
 	energy = int(cfg.get_value("pet", "energy", 80))
@@ -90,7 +108,10 @@ func save_state() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("player", "team", current_team)
 	cfg.set_value("player", "mode", current_mode)
+	cfg.set_value("player", "core_mode", core_mode)
 	cfg.set_value("player", "layout_shape_mode", layout_shape_mode)
+	cfg.set_value("settings", "catch_anim_enabled", catch_anim_enabled)
+	cfg.set_value("settings", "spin_anim_enabled", spin_anim_enabled)
 	cfg.set_value("pet", "hunger", hunger)
 	cfg.set_value("pet", "happiness", happiness)
 	cfg.set_value("pet", "energy", energy)

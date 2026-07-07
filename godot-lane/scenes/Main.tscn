@@ -1,8 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://2ytcnnl7l7x6"]
 
-[ext_resource type="Script" path="res://scripts/Main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://cnrwjsen5j71l" path="res://scripts/Main.gd" id="1_main"]
 
-[node name="Main" type="Control"]
+[node name="Main" type="Control" unique_id=1046464136]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,7 +11,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_main")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=978518397]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -20,20 +20,19 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.08, 0.09, 0.17, 1)
 
-[node name="AccentBar" type="ColorRect" parent="."]
+[node name="AccentBar" type="ColorRect" parent="." unique_id=804553685]
 layout_mode = 1
-anchors_preset = 10
+anchors_preset = 5
 anchor_left = 0.5
-anchor_top = 0.0
 anchor_right = 0.5
-anchor_bottom = 0.0
 offset_left = -240.0
 offset_top = 14.0
 offset_right = 240.0
 offset_bottom = 20.0
+grow_horizontal = 2
 color = Color(0.42, 0.39, 1, 0.65)
 
-[node name="Title" type="Label" parent="."]
+[node name="Title" type="Label" parent="." unique_id=389926616]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
@@ -42,10 +41,11 @@ offset_left = -260.0
 offset_top = 24.0
 offset_right = 260.0
 offset_bottom = 64.0
-horizontal_alignment = 1
+grow_horizontal = 2
 text = "Pokegatchi — Godot Sample"
+horizontal_alignment = 1
 
-[node name="TeamBadge" type="Button" parent="."]
+[node name="TeamBadge" type="Button" parent="." unique_id=359539558]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
@@ -54,9 +54,10 @@ offset_left = -90.0
 offset_top = 72.0
 offset_right = 90.0
 offset_bottom = 108.0
+grow_horizontal = 2
 text = "🔵 Mystic"
 
-[node name="ModeBar" type="HBoxContainer" parent="."]
+[node name="ModeBar" type="HBoxContainer" parent="." unique_id=1325394300]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
@@ -65,34 +66,39 @@ offset_left = -220.0
 offset_top = 118.0
 offset_right = 220.0
 offset_bottom = 152.0
-alignment = 1
+grow_horizontal = 2
 theme_override_constants/separation = 10
+alignment = 1
 
-[node name="PlayButton" type="Button" parent="ModeBar"]
+[node name="PlayButton" type="Button" parent="ModeBar" unique_id=1244965729]
 layout_mode = 2
 text = "Play"
 
-[node name="AutoButton" type="Button" parent="ModeBar"]
+[node name="AutoButton" type="Button" parent="ModeBar" unique_id=589295534]
 layout_mode = 2
 text = "Auto"
 
-[node name="SceneButton" type="Button" parent="ModeBar"]
+[node name="SceneButton" type="Button" parent="ModeBar" unique_id=675964934]
 layout_mode = 2
 text = "Scene"
 
-[node name="ShapeButton" type="Button" parent="ModeBar"]
+[node name="ShapeButton" type="Button" parent="ModeBar" unique_id=1409196932]
 layout_mode = 2
 text = "Shape: AUTO"
 
-[node name="BleModeButton" type="Button" parent="ModeBar"]
+[node name="BleModeButton" type="Button" parent="ModeBar" unique_id=277987160]
 layout_mode = 2
 text = "BLE: SIM"
 
-[node name="ZivaButton" type="Button" parent="ModeBar"]
+[node name="ZivaButton" type="Button" parent="ModeBar" unique_id=888750371]
 layout_mode = 2
 text = "🤖 Ziva"
 
-[node name="HudTabs" type="HBoxContainer" parent="."]
+[node name="SettingsButton" type="Button" parent="ModeBar" unique_id=2070451831]
+layout_mode = 2
+text = "⚙ Settings"
+
+[node name="HudTabs" type="HBoxContainer" parent="." unique_id=1119081956]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
@@ -101,22 +107,23 @@ offset_left = -240.0
 offset_top = 160.0
 offset_right = 240.0
 offset_bottom = 196.0
-alignment = 1
+grow_horizontal = 2
 theme_override_constants/separation = 10
+alignment = 1
 
-[node name="BagButton" type="Button" parent="HudTabs"]
+[node name="BagButton" type="Button" parent="HudTabs" unique_id=1267169599]
 layout_mode = 2
 text = "🎒 Bag"
 
-[node name="PokedexButton" type="Button" parent="HudTabs"]
+[node name="PokedexButton" type="Button" parent="HudTabs" unique_id=687499432]
 layout_mode = 2
 text = "📖 Pokédex"
 
-[node name="JournalButton" type="Button" parent="HudTabs"]
+[node name="JournalButton" type="Button" parent="HudTabs" unique_id=889798583]
 layout_mode = 2
 text = "📓 Journal"
 
-[node name="PetPanel" type="PanelContainer" parent="."]
+[node name="PetPanel" type="PanelContainer" parent="." unique_id=343500817]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
@@ -125,98 +132,95 @@ offset_left = -240.0
 offset_top = 205.0
 offset_right = 240.0
 offset_bottom = 590.0
+grow_horizontal = 2
 
-[node name="VBox" type="VBoxContainer" parent="PetPanel"]
+[node name="VBox" type="VBoxContainer" parent="PetPanel" unique_id=449031815]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="PetName" type="Label" parent="PetPanel/VBox"]
+[node name="PetName" type="Label" parent="PetPanel/VBox" unique_id=580409727]
 layout_mode = 2
-horizontal_alignment = 1
 text = "Buddy: Eevee"
-
-[node name="PetMood" type="Label" parent="PetPanel/VBox"]
-layout_mode = 2
 horizontal_alignment = 1
+
+[node name="PetMood" type="Label" parent="PetPanel/VBox" unique_id=830893382]
+layout_mode = 2
 text = "Mood: Happy"
-
-[node name="ActionState" type="Label" parent="PetPanel/VBox"]
-layout_mode = 2
 horizontal_alignment = 1
-text = "State: Idle"
 
-[node name="PetSprite" type="TextureRect" parent="PetPanel/VBox"]
+[node name="ActionState" type="Label" parent="PetPanel/VBox" unique_id=1241197902]
+layout_mode = 2
+text = "State: Idle"
+horizontal_alignment = 1
+
+[node name="PetSprite" type="TextureRect" parent="PetPanel/VBox" unique_id=1053833014]
 custom_minimum_size = Vector2(220, 170)
 layout_mode = 2
 size_flags_horizontal = 4
-texture = null
 expand_mode = 2
 stretch_mode = 5
 
-[node name="Stats" type="VBoxContainer" parent="PetPanel/VBox"]
+[node name="Stats" type="VBoxContainer" parent="PetPanel/VBox" unique_id=1642997215]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="HungerLabel" type="Label" parent="PetPanel/VBox/Stats"]
+[node name="HungerLabel" type="Label" parent="PetPanel/VBox/Stats" unique_id=1284070201]
 layout_mode = 2
 text = "Hunger"
 
-[node name="HungerBar" type="ProgressBar" parent="PetPanel/VBox/Stats"]
+[node name="HungerBar" type="ProgressBar" parent="PetPanel/VBox/Stats" unique_id=1562848270]
 layout_mode = 2
-max_value = 100.0
 value = 72.0
 show_percentage = false
 
-[node name="HappyLabel" type="Label" parent="PetPanel/VBox/Stats"]
+[node name="HappyLabel" type="Label" parent="PetPanel/VBox/Stats" unique_id=1722435530]
 layout_mode = 2
 text = "Happiness"
 
-[node name="HappyBar" type="ProgressBar" parent="PetPanel/VBox/Stats"]
+[node name="HappyBar" type="ProgressBar" parent="PetPanel/VBox/Stats" unique_id=1387131492]
 layout_mode = 2
-max_value = 100.0
 value = 80.0
 show_percentage = false
 
-[node name="EnergyLabel" type="Label" parent="PetPanel/VBox/Stats"]
+[node name="EnergyLabel" type="Label" parent="PetPanel/VBox/Stats" unique_id=437699882]
 layout_mode = 2
 text = "Energy"
 
-[node name="EnergyBar" type="ProgressBar" parent="PetPanel/VBox/Stats"]
+[node name="EnergyBar" type="ProgressBar" parent="PetPanel/VBox/Stats" unique_id=1408617322]
 layout_mode = 2
-max_value = 100.0
 value = 66.0
 show_percentage = false
 
-[node name="Actions" type="HBoxContainer" parent="PetPanel/VBox"]
+[node name="Actions" type="HBoxContainer" parent="PetPanel/VBox" unique_id=1983743204]
 layout_mode = 2
-alignment = 1
 theme_override_constants/separation = 8
+alignment = 1
 
-[node name="FeedButton" type="Button" parent="PetPanel/VBox/Actions"]
+[node name="FeedButton" type="Button" parent="PetPanel/VBox/Actions" unique_id=700777250]
 layout_mode = 2
 text = "Feed"
 
-[node name="PetButton" type="Button" parent="PetPanel/VBox/Actions"]
+[node name="PetButton" type="Button" parent="PetPanel/VBox/Actions" unique_id=1464671367]
 layout_mode = 2
 text = "Pet"
 
-[node name="HealButton" type="Button" parent="PetPanel/VBox/Actions"]
+[node name="HealButton" type="Button" parent="PetPanel/VBox/Actions" unique_id=1361289517]
 layout_mode = 2
 text = "Heal"
 
-[node name="CatchButton" type="Button" parent="PetPanel/VBox/Actions"]
+[node name="CatchButton" type="Button" parent="PetPanel/VBox/Actions" unique_id=1445009617]
 layout_mode = 2
 text = "Catch"
 
-[node name="SpinButton" type="Button" parent="PetPanel/VBox/Actions"]
+[node name="SpinButton" type="Button" parent="PetPanel/VBox/Actions" unique_id=1118102140]
 layout_mode = 2
 text = "Spin"
 
-[node name="SwapPetButton" type="Button" parent="PetPanel/VBox"]
+[node name="SwapPetButton" type="Button" parent="PetPanel/VBox" unique_id=1367005227]
 layout_mode = 2
 text = "Swap Sample Pet (Eevee/Psyduck)"
 
-[node name="HudPanels" type="Control" parent="."]
+[node name="HudPanels" type="Control" parent="." unique_id=386189161]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -224,7 +228,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="BagPanel" type="PanelContainer" parent="HudPanels"]
+[node name="BagPanel" type="PanelContainer" parent="HudPanels" unique_id=1550240249]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -236,22 +240,24 @@ offset_left = -250.0
 offset_top = -110.0
 offset_right = 250.0
 offset_bottom = 110.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="BagVBox" type="VBoxContainer" parent="HudPanels/BagPanel"]
+[node name="BagVBox" type="VBoxContainer" parent="HudPanels/BagPanel" unique_id=1929840226]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="BagTitle" type="Label" parent="HudPanels/BagPanel/BagVBox"]
+[node name="BagTitle" type="Label" parent="HudPanels/BagPanel/BagVBox" unique_id=419119736]
 layout_mode = 2
-horizontal_alignment = 1
 text = "🎒 Bag"
-
-[node name="BagText" type="Label" parent="HudPanels/BagPanel/BagVBox"]
-layout_mode = 2
 horizontal_alignment = 1
-text = "Loading inventory..."
 
-[node name="PokedexPanel" type="PanelContainer" parent="HudPanels"]
+[node name="BagText" type="Label" parent="HudPanels/BagPanel/BagVBox" unique_id=1850417563]
+layout_mode = 2
+text = "Loading inventory..."
+horizontal_alignment = 1
+
+[node name="PokedexPanel" type="PanelContainer" parent="HudPanels" unique_id=1996034714]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -263,21 +269,23 @@ offset_left = -250.0
 offset_top = -140.0
 offset_right = 250.0
 offset_bottom = 140.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="PokedexVBox" type="VBoxContainer" parent="HudPanels/PokedexPanel"]
+[node name="PokedexVBox" type="VBoxContainer" parent="HudPanels/PokedexPanel" unique_id=20410498]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="PokedexTitle" type="Label" parent="HudPanels/PokedexPanel/PokedexVBox"]
+[node name="PokedexTitle" type="Label" parent="HudPanels/PokedexPanel/PokedexVBox" unique_id=264929401]
 layout_mode = 2
-horizontal_alignment = 1
 text = "📖 Pokédex"
+horizontal_alignment = 1
 
-[node name="PokedexList" type="ItemList" parent="HudPanels/PokedexPanel/PokedexVBox"]
+[node name="PokedexList" type="ItemList" parent="HudPanels/PokedexPanel/PokedexVBox" unique_id=67639649]
 custom_minimum_size = Vector2(420, 180)
 layout_mode = 2
 
-[node name="JournalPanel" type="PanelContainer" parent="HudPanels"]
+[node name="JournalPanel" type="PanelContainer" parent="HudPanels" unique_id=525650532]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -289,25 +297,26 @@ offset_left = -280.0
 offset_top = -160.0
 offset_right = 280.0
 offset_bottom = 160.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="JournalVBox" type="VBoxContainer" parent="HudPanels/JournalPanel"]
+[node name="JournalVBox" type="VBoxContainer" parent="HudPanels/JournalPanel" unique_id=388753407]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="JournalTitle" type="Label" parent="HudPanels/JournalPanel/JournalVBox"]
+[node name="JournalTitle" type="Label" parent="HudPanels/JournalPanel/JournalVBox" unique_id=737258255]
 layout_mode = 2
-horizontal_alignment = 1
 text = "📓 Journal"
+horizontal_alignment = 1
 
-[node name="JournalLog" type="RichTextLabel" parent="HudPanels/JournalPanel/JournalVBox"]
+[node name="JournalLog" type="RichTextLabel" parent="HudPanels/JournalPanel/JournalVBox" unique_id=984791433]
 custom_minimum_size = Vector2(500, 220)
 layout_mode = 2
 bbcode_enabled = true
-scroll_active = true
 
-[node name="Status" type="Label" parent="."]
+[node name="Status" type="Label" parent="." unique_id=816767683]
 layout_mode = 1
-anchors_preset = 8
+anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
@@ -316,10 +325,12 @@ offset_left = -350.0
 offset_top = -34.0
 offset_right = 350.0
 offset_bottom = -8.0
-horizontal_alignment = 1
+grow_horizontal = 2
+grow_vertical = 2
 text = "Mode: Play · Team: Mystic"
+horizontal_alignment = 1
 
-[node name="TeamOverlay" type="Control" parent="."]
+[node name="TeamOverlay" type="Control" parent="." unique_id=1881445093]
 visible = false
 layout_mode = 1
 anchors_preset = 15
@@ -328,16 +339,16 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="OverlayBG" type="ColorRect" parent="TeamOverlay"]
+[node name="OverlayBG" type="ColorRect" parent="TeamOverlay" unique_id=10247145]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.02, 0.02, 0.06, 0.90)
+color = Color(0.02, 0.02, 0.06, 0.9)
 
-[node name="OverlayTitle" type="Label" parent="TeamOverlay"]
+[node name="OverlayTitle" type="Label" parent="TeamOverlay" unique_id=1741508153]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
@@ -346,10 +357,11 @@ offset_left = -260.0
 offset_top = 180.0
 offset_right = 260.0
 offset_bottom = 230.0
-horizontal_alignment = 1
+grow_horizontal = 2
 text = "Choose Your Team"
+horizontal_alignment = 1
 
-[node name="OverlaySubtitle" type="Label" parent="TeamOverlay"]
+[node name="OverlaySubtitle" type="Label" parent="TeamOverlay" unique_id=2012515946]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
@@ -358,10 +370,11 @@ offset_left = -260.0
 offset_top = 224.0
 offset_right = 260.0
 offset_bottom = 264.0
-horizontal_alignment = 1
+grow_horizontal = 2
 text = "Team colors theme the whole scene"
+horizontal_alignment = 1
 
-[node name="TeamButtons" type="HBoxContainer" parent="TeamOverlay"]
+[node name="TeamButtons" type="HBoxContainer" parent="TeamOverlay" unique_id=581645316]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -372,22 +385,24 @@ offset_left = -280.0
 offset_top = -10.0
 offset_right = 280.0
 offset_bottom = 70.0
-alignment = 1
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_constants/separation = 10
+alignment = 1
 
-[node name="ValorButton" type="Button" parent="TeamOverlay/TeamButtons"]
+[node name="ValorButton" type="Button" parent="TeamOverlay/TeamButtons" unique_id=1961612572]
 layout_mode = 2
 text = "🔴 Valor"
 
-[node name="MysticButton" type="Button" parent="TeamOverlay/TeamButtons"]
+[node name="MysticButton" type="Button" parent="TeamOverlay/TeamButtons" unique_id=291125246]
 layout_mode = 2
 text = "🔵 Mystic"
 
-[node name="InstinctButton" type="Button" parent="TeamOverlay/TeamButtons"]
+[node name="InstinctButton" type="Button" parent="TeamOverlay/TeamButtons" unique_id=507080394]
 layout_mode = 2
 text = "🟡 Instinct"
 
-[node name="CloseOverlayButton" type="Button" parent="TeamOverlay"]
+[node name="CloseOverlayButton" type="Button" parent="TeamOverlay" unique_id=1586533327]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -398,4 +413,87 @@ offset_left = -80.0
 offset_top = 86.0
 offset_right = 80.0
 offset_bottom = 122.0
+grow_horizontal = 2
+grow_vertical = 2
 text = "Close"
+
+[node name="SettingsOverlay" type="Control" parent="." unique_id=1914805303]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SettingsBG" type="ColorRect" parent="SettingsOverlay" unique_id=1104403392]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.02, 0.06, 0.88)
+
+[node name="SettingsPanel" type="PanelContainer" parent="SettingsOverlay" unique_id=271140983]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -150.0
+offset_right = 220.0
+offset_bottom = 150.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SettingsVBox" type="VBoxContainer" parent="SettingsOverlay/SettingsPanel" unique_id=207043300]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SettingsTitle" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=1976745953]
+layout_mode = 2
+text = "⚙ Settings"
+horizontal_alignment = 1
+
+[node name="ModeRow" type="HBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=1980111798]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ModeLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsVBox/ModeRow" unique_id=1708684468]
+layout_mode = 2
+text = "Core Mode"
+
+[node name="ModeSelect" type="OptionButton" parent="SettingsOverlay/SettingsPanel/SettingsVBox/ModeRow" unique_id=46020254]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CatchAnimToggle" type="CheckButton" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=964789800]
+layout_mode = 2
+text = "Enable Catch Animation"
+button_pressed = true
+
+[node name="SpinAnimToggle" type="CheckButton" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=626472236]
+layout_mode = 2
+text = "Enable Spin Animation"
+button_pressed = true
+
+[node name="SettingsHint" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=1635321631]
+layout_mode = 2
+text = "PGP mode focuses Catch + Spin actions (like auto-catcher flow)."
+autowrap_mode = 3
+
+[node name="SettingsButtons" type="HBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsVBox" unique_id=473667833]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="CloseSettingsButton" type="Button" parent="SettingsOverlay/SettingsPanel/SettingsVBox/SettingsButtons" unique_id=1151570888]
+layout_mode = 2
+text = "Cancel"
+
+[node name="SaveSettingsButton" type="Button" parent="SettingsOverlay/SettingsPanel/SettingsVBox/SettingsButtons" unique_id=1190643721]
+layout_mode = 2
+text = "Save"
