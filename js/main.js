@@ -1,7 +1,7 @@
 // js/main.js — Complete with HUD sync, Bag system, Demo Boost, stat-modifying actions, collapsible sections
 import * as THREE from 'three';
 import { store } from './core/Store.js?v=2';
-import { SceneManager } from './scene/SceneManager.js?v=15';
+import { SceneManager } from './scene/SceneManager.js?v=16';
 import { ExpressionOverlay } from './scene/ExpressionOverlay.js?v=2';
 import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js?v=2';
 
@@ -12,19 +12,7 @@ const ANIMS = {
   HEAL: 'heal',
   BOUNCE: 'bounce',
   EAT: 'eat',
-  SAD: 'sad',
-};
-const DOWNLOAD_PIKACHU_MODELS = {
-  regular: [
-    'assets/models_v2/pikachu_downloaded_regular_25.glb',
-    'https://cdn.jsdelivr.net/gh/bocaburger131/pokegatchi@main/assets/models_v2/pikachu_downloaded_regular_25.glb',
-    'https://raw.githubusercontent.com/bocaburger131/pokegatchi/main/assets/models_v2/pikachu_downloaded_regular_25.glb'
-  ],
-  shiny: [
-    'assets/models_v2/pikachu_downloaded_shiny_25.glb',
-    'https://cdn.jsdelivr.net/gh/bocaburger131/pokegatchi@main/assets/models_v2/pikachu_downloaded_shiny_25.glb',
-    'https://raw.githubusercontent.com/bocaburger131/pokegatchi/main/assets/models_v2/pikachu_downloaded_shiny_25.glb'
-  ]
+  WAVE: 'wave',
 };
 let sceneMan, exprOverlay;
 let currentSpecies = null;
@@ -293,47 +281,10 @@ window.emoteEat = function() {
   toast(`🍽️ ${currentSpecies.charAt(0).toUpperCase() + currentSpecies.slice(1)} eating emote`);
 };
 
-window.emoteSad = function() {
+window.emoteWave = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
-  playAnimation(ANIMS.SAD); // true model animation (bones/tween), not face overlay
-  toast(`😢 ${currentSpecies.charAt(0).toUpperCase() + currentSpecies.slice(1)} sad emote`);
-};
-
-window.loadDownloadedPikachu = async function(variant = 'regular') {
-  if (!sceneMan) return toast('Scene not ready', 2500);
-  sceneMan.init(); // ensure renderer/scene exists if sprite mode disposed it
-  const candidates = DOWNLOAD_PIKACHU_MODELS[variant] || DOWNLOAD_PIKACHU_MODELS.regular;
-  const files = Array.isArray(candidates) ? candidates : [candidates];
-  currentSpecies = 'pikachu';
-  store.set('current', 'pikachu');
-
-  let lastErr = null;
-  for (const file of files) {
-    try {
-      await sceneMan.loadV2Model(file);
-      const clips = sceneMan.listBuiltInClips ? sceneMan.listBuiltInClips() : [];
-      const sourceName = file.startsWith('http') ? 'cdn' : 'local';
-      toast(`⚡ Downloaded Pikachu (${variant}) loaded [${sourceName}]${clips.length ? ` — clips: ${clips.join(', ')}` : ''}`, 3200);
-      return;
-    } catch (e) {
-      lastErr = e;
-      console.warn('loadDownloadedPikachu candidate failed:', file, e);
-    }
-  }
-
-  console.error('loadDownloadedPikachu failed (all candidates):', lastErr);
-  toast('⚠ Failed to load downloaded Pikachu (all sources)', 3500);
-};
-
-window.playDownloadedPikachuMove = function(clipName = 'Impactrueno') {
-  if (!sceneMan || !sceneMan.playBuiltInClip) return toast('Clip API not ready', 2500);
-  const ok = sceneMan.playBuiltInClip(clipName, false);
-  if (ok) {
-    toast(`🎬 Playing downloaded move: ${clipName}`);
-  } else {
-    const clips = sceneMan.listBuiltInClips ? sceneMan.listBuiltInClips() : [];
-    toast(`⚠ Clip not found (${clipName}). Available: ${clips.join(', ') || 'none'}`, 3500);
-  }
+  playAnimation(ANIMS.WAVE); // true model animation (bones/tween), not face overlay
+  toast(`👋 ${currentSpecies.charAt(0).toUpperCase() + currentSpecies.slice(1)} waving emote`);
 };
 
 // === BAG SYSTEM ===

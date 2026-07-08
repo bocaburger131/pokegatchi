@@ -455,6 +455,11 @@ export class SceneManager {
   playAnimation(type) {
     if (!this.model || this.model.userData.ring) return; // No animations on egg
 
+    if (type === 'wave') {
+      this._playBuiltInWave();
+      return;
+    }
+
     if (type === 'builtin' || type === 'impactrueno') {
       this.playBuiltInClip(type === 'impactrueno' ? 'Impactrueno' : undefined, false);
       return;
@@ -465,6 +470,19 @@ export class SceneManager {
     } else {
       this._playLegacyTween(type);
     }
+  }
+
+  _playBuiltInWave() {
+    // Use native GLB clip when available (Pikachu v2 has Impactrueno)
+    if (this.playBuiltInClip('Impactrueno', false)) {
+      return;
+    }
+    // Fallback for species without built-in clips
+    if (this.hasBones && this.useV2) {
+      this._playBoneAnimation('pet');
+      return;
+    }
+    this._playLegacyTween('pet');
   }
 
   /**
