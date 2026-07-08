@@ -1,7 +1,7 @@
 // js/main.js — Complete with HUD sync, Bag system, Demo Boost, stat-modifying actions, collapsible sections
 import * as THREE from 'three';
 import { store } from './core/Store.js?v=2';
-import { SceneManager } from './scene/SceneManager.js?v=15';
+import { SceneManager } from './scene/SceneManager.js?v=17';
 import { ExpressionOverlay } from './scene/ExpressionOverlay.js?v=2';
 import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js?v=2';
 
@@ -13,18 +13,9 @@ const ANIMS = {
   BOUNCE: 'bounce',
   EAT: 'eat',
   SAD: 'sad',
-};
-const DOWNLOAD_PIKACHU_MODELS = {
-  regular: [
-    'assets/models_v2/pikachu_downloaded_regular_25.glb',
-    'https://cdn.jsdelivr.net/gh/bocaburger131/pokegatchi@main/assets/models_v2/pikachu_downloaded_regular_25.glb',
-    'https://raw.githubusercontent.com/bocaburger131/pokegatchi/main/assets/models_v2/pikachu_downloaded_regular_25.glb'
-  ],
-  shiny: [
-    'assets/models_v2/pikachu_downloaded_shiny_25.glb',
-    'https://cdn.jsdelivr.net/gh/bocaburger131/pokegatchi@main/assets/models_v2/pikachu_downloaded_shiny_25.glb',
-    'https://raw.githubusercontent.com/bocaburger131/pokegatchi/main/assets/models_v2/pikachu_downloaded_shiny_25.glb'
-  ]
+  WAVE: 'wave',
+  RUN: 'run',
+  PLAY: 'play',
 };
 let sceneMan, exprOverlay;
 let currentSpecies = null;
@@ -180,6 +171,8 @@ window.selectSpecies = function(species) {
   const btn = document.querySelector(`.pick-btn[data-species="${species}"]`);
   if (btn) btn.classList.add('active');
 
+  const exprCanvas = document.getElementById('expressionCanvas');
+
   // Load V2 model from local assets/models_v2 OR sprite fallback from assets/sprites/generated
   const modelOrSprite = V2_MODELS[species];
   if (modelOrSprite) {
@@ -193,6 +186,7 @@ window.selectSpecies = function(species) {
           c.style.setProperty('background-position', SPRITE_BG_POS[species] || '50% 60%', 'important');
           c.style.setProperty('background-size', SPRITE_BG_SIZE[species] || '92%', 'important');
         }
+        if (exprCanvas) exprCanvas.style.opacity = '1';
         toast(`✨ Loaded ${species} skin`);
       } else {
         sceneMan.init(); // ensure 3D renderer exists in case we switched from sprite mode
@@ -203,6 +197,8 @@ window.selectSpecies = function(species) {
           c.style.setProperty('background-position', '50% 55%', 'important'); // reset default for 3D mode
           c.style.setProperty('background-size', 'contain', 'important');
         }
+        // Pikachu 3D polish lane: hide 2D expression overlay for cleaner 3D presentation
+        if (exprCanvas) exprCanvas.style.opacity = species === 'pikachu' ? '0' : '1';
         sceneMan.loadV2Model(modelOrSprite);
         toast(`✨ Loading ${species}...`);
       }
@@ -216,13 +212,15 @@ window.selectSpecies = function(species) {
 
   // Face data for expression overlay
   const fd = FACE_DATA[species];
-  if (fd) {
+  if (fd && species !== 'pikachu') {
     try {
       exprOverlay._getFaceData = () => fd;
       exprOverlay.start(species, 0);
     } catch (e) {
       console.error('Failed to start expression overlay:', e);
     }
+  } else {
+    try { exprOverlay.stop(); } catch (_) {}
   }
 
   _pgApplyModeUI();
@@ -240,10 +238,12 @@ window.feed = function() {
   playAnimation(ANIMS.FEED);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('wiggle'); setTimeout(() => wrap.classList.remove('wiggle'), 350); }
-  _spawnGeneratedFx(_getActionFrames('feed'), { label: '🍽 Feed', size: 72, duration: 900, radius: 36, action: 'feed', heroSize: 136 });
+  if (currentSpecies !== 'pikachu') {
+    _spawnGeneratedFx(_getActionFrames('feed'), { label: '🍽 Feed', size: 72, duration: 900, radius: 36, action: 'feed', heroSize: 136 });
+    exprOverlay.showTempMood(0, 2); // happy
+  }
   store.addStat('hunger', 15);
   store.addStat('happiness', -5);
-  exprOverlay.showTempMood(0, 2); // happy
   store.logEvent('feed', 'Fed', '🍽');
   toast('🍽 Feeding... +15 hunger, -5 happiness');
 };
@@ -253,10 +253,12 @@ window.petAction = function() {
   playAnimation(ANIMS.PET);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('sparkle'); setTimeout(() => wrap.classList.remove('sparkle'), 650); }
-  _spawnGeneratedFx(_getActionFrames('pet'), { label: '🫳 Pet', size: 68, duration: 980, radius: 44, action: 'pet', heroSize: 138 });
+  if (currentSpecies !== 'pikachu') {
+    _spawnGeneratedFx(_getActionFrames('pet'), { label: '🫳 Pet', size: 68, duration: 980, radius: 44, action: 'pet', heroSize: 138 });
+    exprOverlay.showTempMood(0, 1.5); // happy
+  }
   store.addStat('affection', 10);
   store.addStat('happiness', 5);
-  exprOverlay.showTempMood(0, 1.5); // happy
   store.logEvent('pet', 'Petted', '🫳');
   toast('🫳 Petting... +10 affection, +5 happiness');
 };
@@ -266,11 +268,13 @@ window.healPet = function() {
   playAnimation(ANIMS.HEAL);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('celebrate'); setTimeout(() => wrap.classList.remove('celebrate'), 850); }
-  _spawnGeneratedFx(_getActionFrames('heal'), { label: '💊 Heal', size: 74, duration: 1100, radius: 52, action: 'heal', heroSize: 142 });
+  if (currentSpecies !== 'pikachu') {
+    _spawnGeneratedFx(_getActionFrames('heal'), { label: '💊 Heal', size: 74, duration: 1100, radius: 52, action: 'heal', heroSize: 142 });
+    exprOverlay.showTempMood(4, 2); // excited
+  }
   store.addStat('happiness', 25);
   const hungerToAdd = 100 - store.state.hunger;
   store.addStat('hunger', hungerToAdd); // refill to 100
-  exprOverlay.showTempMood(4, 2); // excited
   store.logEvent('heal', 'Healed', '💊');
   toast('💊 Healing... +25 happiness, hunger restored!');
 };
@@ -280,9 +284,11 @@ window.bounce = function() {
   playAnimation(ANIMS.BOUNCE);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('bounce'); setTimeout(() => wrap.classList.remove('bounce'), 450); }
-  _spawnGeneratedFx(_getActionFrames('bounce'), { label: '🌟 Bounce', size: 70, duration: 850, radius: 40, action: 'bounce', heroSize: 140 });
+  if (currentSpecies !== 'pikachu') {
+    _spawnGeneratedFx(_getActionFrames('bounce'), { label: '🌟 Bounce', size: 70, duration: 850, radius: 40, action: 'bounce', heroSize: 140 });
+    exprOverlay.showTempMood(4, 1.5); // excited
+  }
   store.addStat('happiness', 10);
-  exprOverlay.showTempMood(4, 1.5); // excited
   store.logEvent('bounce', 'Bounced', '⭐');
   toast('🌟 Bounce! +10 happiness');
 };
@@ -293,47 +299,32 @@ window.emoteEat = function() {
   toast(`🍽️ ${currentSpecies.charAt(0).toUpperCase() + currentSpecies.slice(1)} eating emote`);
 };
 
+window.emoteWave = function() {
+  if (!currentSpecies) return toast('Pick a Pokémon first!');
+  if (currentSpecies !== 'pikachu') return toast('👋 Wave polish is currently Pikachu-only');
+  playAnimation(ANIMS.WAVE); // true model animation (bones/tween), not face overlay
+  toast('👋 Pikachu wave emote');
+};
+
 window.emoteSad = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
-  playAnimation(ANIMS.SAD); // true model animation (bones/tween), not face overlay
-  toast(`😢 ${currentSpecies.charAt(0).toUpperCase() + currentSpecies.slice(1)} sad emote`);
+  if (currentSpecies !== 'pikachu') return toast('😢 Sad polish is currently Pikachu-only');
+  playAnimation(ANIMS.SAD);
+  toast('😢 Pikachu sad emote');
 };
 
-window.loadDownloadedPikachu = async function(variant = 'regular') {
-  if (!sceneMan) return toast('Scene not ready', 2500);
-  sceneMan.init(); // ensure renderer/scene exists if sprite mode disposed it
-  const candidates = DOWNLOAD_PIKACHU_MODELS[variant] || DOWNLOAD_PIKACHU_MODELS.regular;
-  const files = Array.isArray(candidates) ? candidates : [candidates];
-  currentSpecies = 'pikachu';
-  store.set('current', 'pikachu');
-
-  let lastErr = null;
-  for (const file of files) {
-    try {
-      await sceneMan.loadV2Model(file);
-      const clips = sceneMan.listBuiltInClips ? sceneMan.listBuiltInClips() : [];
-      const sourceName = file.startsWith('http') ? 'cdn' : 'local';
-      toast(`⚡ Downloaded Pikachu (${variant}) loaded [${sourceName}]${clips.length ? ` — clips: ${clips.join(', ')}` : ''}`, 3200);
-      return;
-    } catch (e) {
-      lastErr = e;
-      console.warn('loadDownloadedPikachu candidate failed:', file, e);
-    }
-  }
-
-  console.error('loadDownloadedPikachu failed (all candidates):', lastErr);
-  toast('⚠ Failed to load downloaded Pikachu (all sources)', 3500);
+window.emoteRun = function() {
+  if (!currentSpecies) return toast('Pick a Pokémon first!');
+  if (currentSpecies !== 'pikachu') return toast('🏃 Run polish is currently Pikachu-only');
+  playAnimation(ANIMS.RUN);
+  toast('🏃 Pikachu running in place');
 };
 
-window.playDownloadedPikachuMove = function(clipName = 'Impactrueno') {
-  if (!sceneMan || !sceneMan.playBuiltInClip) return toast('Clip API not ready', 2500);
-  const ok = sceneMan.playBuiltInClip(clipName, false);
-  if (ok) {
-    toast(`🎬 Playing downloaded move: ${clipName}`);
-  } else {
-    const clips = sceneMan.listBuiltInClips ? sceneMan.listBuiltInClips() : [];
-    toast(`⚠ Clip not found (${clipName}). Available: ${clips.join(', ') || 'none'}`, 3500);
-  }
+window.emotePlay = function() {
+  if (!currentSpecies) return toast('Pick a Pokémon first!');
+  if (currentSpecies !== 'pikachu') return toast('🎾 Play polish is currently Pikachu-only');
+  playAnimation(ANIMS.PLAY);
+  toast('🎾 Pikachu play emote');
 };
 
 // === BAG SYSTEM ===
