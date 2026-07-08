@@ -622,8 +622,8 @@ export class SceneManager {
       case 'hatch': return 0.8;
       case 'celebrate': return 0.8;
       case 'bounce': return 0.5;
-      case 'eat': return 0.95;
-      case 'sad': return 1.15;
+      case 'eat': return 1.05;
+      case 'sad': return 1.45;
       default: return 0.6;
     }
   }
@@ -716,8 +716,16 @@ export class SceneManager {
       const t = Math.min(elapsed / a.duration, 1);
 
       if (a.useBones && this.hasBones) {
-        // Bone animation: triangle wave 0→1→0 with 20% peak hold at 1
-        const f = t < 0.4 ? t / 0.4 : t < 0.6 ? 1 : (1 - t) / 0.4;
+        // Bone animation blend amount
+        // Default: triangle wave 0→1→0 with 20% peak hold at 1
+        // Eat: two bite pulses (two peaks) across one emote
+        let f;
+        if (a.type === 'eat') {
+          const pulse = Math.sin(t * Math.PI * 2); // two peaks over [0,1]
+          f = pulse * pulse; // keep positive [0..1]
+        } else {
+          f = t < 0.4 ? t / 0.4 : t < 0.6 ? 1 : (1 - t) / 0.4;
+        }
         this._applyBoneTargets(f);
 
         // Heal/celebrate spin on whole model (can't spin individual bones)
