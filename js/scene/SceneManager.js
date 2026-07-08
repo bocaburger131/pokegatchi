@@ -1,6 +1,7 @@
 // js/scene/SceneManager.js — V2 with Bone Animation
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 export class SceneManager {
   constructor(containerId) {
@@ -19,6 +20,8 @@ export class SceneManager {
     this._activeAnim = null;
     this._idleBobOffset = 0;
     this._armature = null;
+    this._clips = [];
+    this._currentClipAction = null;
   }
   _detectWebGL() {
     try {
@@ -71,6 +74,14 @@ export class SceneManager {
   setFallbackCallback(cb) { this._fallbackCallback = cb; }
   setSuccessCallback(cb) { this._successCallback = cb; }
 
+  _makeLoader() {
+    const loader = new GLTFLoader();
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+    loader.setDRACOLoader(dracoLoader);
+    return loader;
+  }
+
   /**
    * Load a V2 rigged GLB from local assets/models_v2/
    * @param {string} filename - e.g. 'pikachu_v2.glb'
@@ -89,7 +100,7 @@ export class SceneManager {
 
     const url = `assets/models_v2/${filename}`;
 
-    const loader = new GLTFLoader();
+    const loader = this._makeLoader();
     let timedOut = false;
     this._loadingTimeout = setTimeout(() => {
       timedOut = true;
@@ -155,10 +166,14 @@ export class SceneManager {
       this._modelRestScale.copy(this.model.scale);
 
       this.mixer = new THREE.AnimationMixer(this.model);
-      if (gltf.animations && gltf.animations.length > 0) {
-        const clip = gltf.animations[0];
+      this._clips = gltf.animations || [];
+      this._currentClipAction = null;
+      if (this._clips.length > 0) {
+        const clip = this._clips[0];
         const action = this.mixer.clipAction(clip);
+        action.reset();
         action.play();
+        this._currentClipAction = action;
         console.log(`Playing default animation clip: "${clip.name}"`);
       }
 
@@ -227,7 +242,7 @@ export class SceneManager {
     }
 
     const url = `https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/${category}/${pokedexId}.glb`;
-    const loader = new GLTFLoader();
+    const loader = this._makeLoader();
     
     let timedOut = false;
     this._loadingTimeout = setTimeout(() => {
@@ -352,6 +367,8 @@ export class SceneManager {
     }
     this.model = null;
     this.mixer = null;
+    this._currentClipAction = null;
+    this._clips = [];
     this._armature = null;
     this.bones = {};
     this.hasBones = false;
@@ -436,6 +453,11 @@ export class SceneManager {
    */
   playAnimation(type) {
     if (!this.model || this.model.userData.ring) return; // No animations on egg
+
+    if (type === 'builtin' || type === 'impactrueno') {
+      this.playBuiltInClip(type === 'impactrueno' ? 'Impactrueno' : undefined, false);
+      return;
+    }
 
     if (this.hasBones && this.useV2) {
       this._playBoneAnimation(type);
@@ -626,6 +648,42 @@ export class SceneManager {
       case 'sad': return 1.45;
       default: return 0.6;
     }
+  }
+
+  /**
+   * List built-in clips on currently loaded GLB.
+   */
+  listBuiltInClips() {
+    return (this._clips || []).map(c => c?.name || '(unnamed)');
+  }
+
+  /**
+   * Play a built-in GLB clip from downloaded model (e.g. Impactrueno).
+   * @param {string|undefined} clipName Optional specific clip name.
+   * @param {boolean} loop Whether to loop forever (default false => one-shot)
+   */
+  playBuiltInClip(clipName, loop = false) {
+    if (!this.model || !this.mixer || !this._clips || this._clips.length === 0) return false;
+
+    const clip = clipName
+      ? this._clips.find(c => c && c.name === clipName)
+      : this._clips[0];
+    if (!clip) return false;
+
+    this._activeAnim = null;
+    this._clearBoneTargets();
+
+    if (this._currentClipAction) {
+      this._currentClipAction.stop();
+    }
+
+    const action = this.mixer.clipAction(clip);
+    action.reset();
+    action.clampWhenFinished = true;
+    action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
+    action.play();
+    this._currentClipAction = action;
+    return true;
   }
 
   // ══════════════════════════════════════════════════════════

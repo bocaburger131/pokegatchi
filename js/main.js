@@ -1,7 +1,7 @@
 // js/main.js — Complete with HUD sync, Bag system, Demo Boost, stat-modifying actions, collapsible sections
 import * as THREE from 'three';
 import { store } from './core/Store.js?v=2';
-import { SceneManager } from './scene/SceneManager.js?v=12';
+import { SceneManager } from './scene/SceneManager.js?v=14';
 import { ExpressionOverlay } from './scene/ExpressionOverlay.js?v=2';
 import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js?v=2';
 
@@ -13,6 +13,10 @@ const ANIMS = {
   BOUNCE: 'bounce',
   EAT: 'eat',
   SAD: 'sad',
+};
+const DOWNLOAD_PIKACHU_MODELS = {
+  regular: 'pikachu_downloaded_regular_25.glb',
+  shiny: 'pikachu_downloaded_shiny_25.glb',
 };
 let sceneMan, exprOverlay;
 let currentSpecies = null;
@@ -285,6 +289,33 @@ window.emoteSad = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
   playAnimation(ANIMS.SAD); // true model animation (bones/tween), not face overlay
   toast(`😢 ${currentSpecies.charAt(0).toUpperCase() + currentSpecies.slice(1)} sad emote`);
+};
+
+window.loadDownloadedPikachu = async function(variant = 'regular') {
+  if (!sceneMan) return toast('Scene not ready', 2500);
+  sceneMan.init(); // ensure renderer/scene exists if sprite mode disposed it
+  const file = DOWNLOAD_PIKACHU_MODELS[variant] || DOWNLOAD_PIKACHU_MODELS.regular;
+  currentSpecies = 'pikachu';
+  store.set('current', 'pikachu');
+  try {
+    await sceneMan.loadV2Model(file);
+    const clips = sceneMan.listBuiltInClips ? sceneMan.listBuiltInClips() : [];
+    toast(`⚡ Downloaded Pikachu (${variant}) loaded${clips.length ? ` — clips: ${clips.join(', ')}` : ''}`, 2800);
+  } catch (e) {
+    console.error('loadDownloadedPikachu failed:', e);
+    toast('⚠ Failed to load downloaded Pikachu', 3200);
+  }
+};
+
+window.playDownloadedPikachuMove = function(clipName = 'Impactrueno') {
+  if (!sceneMan || !sceneMan.playBuiltInClip) return toast('Clip API not ready', 2500);
+  const ok = sceneMan.playBuiltInClip(clipName, false);
+  if (ok) {
+    toast(`🎬 Playing downloaded move: ${clipName}`);
+  } else {
+    const clips = sceneMan.listBuiltInClips ? sceneMan.listBuiltInClips() : [];
+    toast(`⚠ Clip not found (${clipName}). Available: ${clips.join(', ') || 'none'}`, 3500);
+  }
 };
 
 // === BAG SYSTEM ===
