@@ -278,7 +278,7 @@ body {
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   transition: transform 0.3s, box-shadow 0.5s ease;
-  overflow: hidden;
+  overflow: visible;
   box-shadow:
     0 0 20px var(--accent-glow),
     0 0 60px rgba(0,0,0,0.25),
@@ -294,6 +294,7 @@ body {
   z-index: 0;
   pointer-events: none;
   transition: opacity 0.5s ease;
+  display: none;
 }
 /* Inner vignette — darkens the edges behind the sprite for depth */
 .pet-canvas-wrap::after {
@@ -303,6 +304,7 @@ body {
   background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.35) 100%);
   z-index: 0;
   pointer-events: none;
+  display: none;
 }
 .pet-canvas-wrap.bounce { animation: petBounce 0.4s ease; }
 .pet-canvas-wrap.wiggle { animation: petWiggle 0.3s ease; }
