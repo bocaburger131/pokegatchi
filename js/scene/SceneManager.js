@@ -566,6 +566,45 @@ export class SceneManager {
         this._bounceAnimData = { startY: this.model.position.y };
         break;
       }
+      case 'eat': {
+        // Lean head down + one paw/arm to mouth + happy tail curl
+        const headDownEat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.28, 0.06, 0.04));
+        this._boneTargets['Head'] = { q: headDownEat, p: null, weight: 0.5 };
+
+        const lArmEat = this._boneAny('LArm', 'LForeArm');
+        const rArmEat = this._boneAny('RArm', 'RForeArm');
+        const pawToMouthL = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.45, 0.05, 0.45));
+        const pawToMouthR = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.20, -0.08, -0.18));
+        if (lArmEat) this._boneTargets[lArmEat.bone.name] = { q: pawToMouthL, p: null, weight: 0.55 };
+        if (rArmEat) this._boneTargets[rArmEat.bone.name] = { q: pawToMouthR, p: null, weight: 0.4 };
+
+        if (this._bone('Jaw1')) this._boneTargets['Jaw1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12, 0, 0)), p: null, weight: 0.4 };
+        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.22)), p: null, weight: 0.5 };
+        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.30)), p: null, weight: 0.45 };
+        if (this._bone('Tail3')) this._boneTargets['Tail3'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.36)), p: null, weight: 0.45 };
+        break;
+      }
+      case 'sad': {
+        // Droop pose: head down, ears down/back, tail low, slight body sink
+        const headSad = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.32, 0, -0.05));
+        this._boneTargets['Head'] = { q: headSad, p: null, weight: 0.55 };
+
+        if (this._bone('LEar1')) this._boneTargets['LEar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0.10, 0.20, 0.26)), p: null, weight: 0.55 };
+        if (this._bone('REar1')) this._boneTargets['REar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0.10, -0.20, -0.26)), p: null, weight: 0.55 };
+
+        const lArmSad = this._boneAny('LArm', 'LForeArm');
+        const rArmSad = this._boneAny('RArm', 'RForeArm');
+        const armDrop = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.10, 0, -0.14));
+        if (lArmSad) this._boneTargets[lArmSad.bone.name] = { q: armDrop, p: null, weight: 0.35 };
+        if (rArmSad) this._boneTargets[rArmSad.bone.name] = { q: armDrop, p: null, weight: 0.35 };
+
+        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -0.18)), p: null, weight: 0.55 };
+        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -0.26)), p: null, weight: 0.5 };
+        if (this._bone('Tail3')) this._boneTargets['Tail3'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -0.34)), p: null, weight: 0.5 };
+
+        this._sadAnimData = { startY: this.model.position.y };
+        break;
+      }
     }
 
     this._activeAnim = {
@@ -583,6 +622,8 @@ export class SceneManager {
       case 'hatch': return 0.8;
       case 'celebrate': return 0.8;
       case 'bounce': return 0.5;
+      case 'eat': return 0.95;
+      case 'sad': return 1.15;
       default: return 0.6;
     }
   }
@@ -638,6 +679,16 @@ export class SceneManager {
         peakR = { ...fromR };
         peakP = { x: fromP.x, y: fromP.y + 0.1, z: fromP.z };
         break;
+      case 'eat':
+        peakS = { x: fromS.x * 1.06, y: fromS.y * 1.06, z: fromS.z * 1.06 };
+        peakR = { x: fromR.x + 0.18, y: fromR.y + 0.10, z: fromR.z + 0.06 };
+        peakP = { x: fromP.x, y: fromP.y + 0.03, z: fromP.z };
+        break;
+      case 'sad':
+        peakS = { ...fromS };
+        peakR = { x: fromR.x + 0.22, y: fromR.y, z: fromR.z - 0.08 };
+        peakP = { x: fromP.x, y: fromP.y - 0.06, z: fromP.z };
+        break;
       default:
         return;
     }
@@ -681,6 +732,13 @@ export class SceneManager {
         if (a.type === 'bounce' && this.model && this._bounceAnimData) {
           const hopT = t < 0.5 ? t * 2 : 2 - t * 2;
           this.model.position.y = this._bounceAnimData.startY + hopT * 0.15;
+        }
+
+        // Sad full-body slump via model.position.y
+        if (a.type === 'sad' && this.model && this._sadAnimData) {
+          // Ease into slump then recover: 0→1 by 55%, hold briefly, then 1→0
+          const slumpT = t < 0.55 ? (t / 0.55) : (t < 0.75 ? 1 : Math.max(0, 1 - ((t - 0.75) / 0.25)));
+          this.model.position.y = this._sadAnimData.startY - slumpT * 0.08;
         }
 
         // Brightness flash for heal
@@ -747,9 +805,10 @@ export class SceneManager {
         if (a.useBones && this.hasBones) {
           this._clearBoneTargets();
           this._bounceAnimData = null;
+          this._sadAnimData = null;
           if (this.model) {
             this.model.rotation.y = this._modelRestRot?.y || 0; // Reset spin
-            this.model.position.y = this._modelRestPos?.y || 0; // Reset Y after bounce
+            this.model.position.y = this._modelRestPos?.y || 0; // Reset Y after bounce/sad slump
             this.model.scale.copy(this._modelRestScale || new THREE.Vector3(1, 1, 1)); // Reset scale
           }
           // Reset emissive flash

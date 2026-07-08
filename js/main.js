@@ -1,7 +1,7 @@
 // js/main.js — Complete with HUD sync, Bag system, Demo Boost, stat-modifying actions, collapsible sections
 import * as THREE from 'three';
 import { store } from './core/Store.js?v=2';
-import { SceneManager } from './scene/SceneManager.js?v=11';
+import { SceneManager } from './scene/SceneManager.js?v=12';
 import { ExpressionOverlay } from './scene/ExpressionOverlay.js?v=2';
 import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js?v=2';
 
@@ -11,6 +11,8 @@ const ANIMS = {
   PET: 'pet',
   HEAL: 'heal',
   BOUNCE: 'bounce',
+  EAT: 'eat',
+  SAD: 'sad',
 };
 let sceneMan, exprOverlay;
 let currentSpecies = null;
@@ -133,6 +135,7 @@ try {
 function init() {
   sceneMan = new SceneManager('pet3dContainer');
   sceneMan.init();
+  window.__sceneMan = sceneMan; // debug hook for runtime animation verification
 
   exprOverlay = new ExpressionOverlay('expressionCanvas');
 
@@ -274,21 +277,14 @@ window.bounce = function() {
 
 window.emoteEat = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
-  playAnimation(ANIMS.FEED);
-  const wrap = document.getElementById('petWrap');
-  if (wrap) { wrap.classList.add('wiggle'); setTimeout(() => wrap.classList.remove('wiggle'), 420); }
-  // mood 2 = hungry/eating eyes + mouth
-  exprOverlay.showTempMood(2, 2.2);
-  toast(`🍽️ ${currentSpecies.charAt(0).toUpperCase() + currentSpecies.slice(1)} is eating!`);
+  playAnimation(ANIMS.EAT); // true model animation (bones/tween), not face overlay
+  toast(`🍽️ ${currentSpecies.charAt(0).toUpperCase() + currentSpecies.slice(1)} eating emote`);
 };
 
 window.emoteSad = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
-  const wrap = document.getElementById('petWrap');
-  if (wrap) { wrap.classList.add('wiggle'); setTimeout(() => wrap.classList.remove('wiggle'), 280); }
-  // mood 3 = sad eyes + tears
-  exprOverlay.showTempMood(3, 2.4);
-  toast(`😢 ${currentSpecies.charAt(0).toUpperCase() + currentSpecies.slice(1)} looks sad...`);
+  playAnimation(ANIMS.SAD); // true model animation (bones/tween), not face overlay
+  toast(`😢 ${currentSpecies.charAt(0).toUpperCase() + currentSpecies.slice(1)} sad emote`);
 };
 
 // === BAG SYSTEM ===
