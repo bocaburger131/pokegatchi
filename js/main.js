@@ -168,6 +168,8 @@ window.selectSpecies = function(species) {
   const btn = document.querySelector(`.pick-btn[data-species="${species}"]`);
   if (btn) btn.classList.add('active');
 
+  const exprCanvas = document.getElementById('expressionCanvas');
+
   // Load V2 model from local assets/models_v2 OR sprite fallback from assets/sprites/generated
   const modelOrSprite = V2_MODELS[species];
   if (modelOrSprite) {
@@ -181,6 +183,7 @@ window.selectSpecies = function(species) {
           c.style.setProperty('background-position', SPRITE_BG_POS[species] || '50% 60%', 'important');
           c.style.setProperty('background-size', SPRITE_BG_SIZE[species] || '92%', 'important');
         }
+        if (exprCanvas) exprCanvas.style.opacity = '1';
         toast(`✨ Loaded ${species} skin`);
       } else {
         sceneMan.init(); // ensure 3D renderer exists in case we switched from sprite mode
@@ -191,6 +194,8 @@ window.selectSpecies = function(species) {
           c.style.setProperty('background-position', '50% 55%', 'important'); // reset default for 3D mode
           c.style.setProperty('background-size', 'contain', 'important');
         }
+        // Pikachu 3D polish lane: hide 2D expression overlay for cleaner 3D presentation
+        if (exprCanvas) exprCanvas.style.opacity = species === 'pikachu' ? '0' : '1';
         sceneMan.loadV2Model(modelOrSprite);
         toast(`✨ Loading ${species}...`);
       }
@@ -204,13 +209,15 @@ window.selectSpecies = function(species) {
 
   // Face data for expression overlay
   const fd = FACE_DATA[species];
-  if (fd) {
+  if (fd && species !== 'pikachu') {
     try {
       exprOverlay._getFaceData = () => fd;
       exprOverlay.start(species, 0);
     } catch (e) {
       console.error('Failed to start expression overlay:', e);
     }
+  } else {
+    try { exprOverlay.stop(); } catch (_) {}
   }
 
   _pgApplyModeUI();
@@ -228,10 +235,12 @@ window.feed = function() {
   playAnimation(ANIMS.FEED);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('wiggle'); setTimeout(() => wrap.classList.remove('wiggle'), 350); }
-  _spawnGeneratedFx(_getActionFrames('feed'), { label: '🍽 Feed', size: 72, duration: 900, radius: 36, action: 'feed', heroSize: 136 });
+  if (currentSpecies !== 'pikachu') {
+    _spawnGeneratedFx(_getActionFrames('feed'), { label: '🍽 Feed', size: 72, duration: 900, radius: 36, action: 'feed', heroSize: 136 });
+    exprOverlay.showTempMood(0, 2); // happy
+  }
   store.addStat('hunger', 15);
   store.addStat('happiness', -5);
-  exprOverlay.showTempMood(0, 2); // happy
   store.logEvent('feed', 'Fed', '🍽');
   toast('🍽 Feeding... +15 hunger, -5 happiness');
 };
@@ -241,10 +250,12 @@ window.petAction = function() {
   playAnimation(ANIMS.PET);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('sparkle'); setTimeout(() => wrap.classList.remove('sparkle'), 650); }
-  _spawnGeneratedFx(_getActionFrames('pet'), { label: '🫳 Pet', size: 68, duration: 980, radius: 44, action: 'pet', heroSize: 138 });
+  if (currentSpecies !== 'pikachu') {
+    _spawnGeneratedFx(_getActionFrames('pet'), { label: '🫳 Pet', size: 68, duration: 980, radius: 44, action: 'pet', heroSize: 138 });
+    exprOverlay.showTempMood(0, 1.5); // happy
+  }
   store.addStat('affection', 10);
   store.addStat('happiness', 5);
-  exprOverlay.showTempMood(0, 1.5); // happy
   store.logEvent('pet', 'Petted', '🫳');
   toast('🫳 Petting... +10 affection, +5 happiness');
 };
@@ -254,11 +265,13 @@ window.healPet = function() {
   playAnimation(ANIMS.HEAL);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('celebrate'); setTimeout(() => wrap.classList.remove('celebrate'), 850); }
-  _spawnGeneratedFx(_getActionFrames('heal'), { label: '💊 Heal', size: 74, duration: 1100, radius: 52, action: 'heal', heroSize: 142 });
+  if (currentSpecies !== 'pikachu') {
+    _spawnGeneratedFx(_getActionFrames('heal'), { label: '💊 Heal', size: 74, duration: 1100, radius: 52, action: 'heal', heroSize: 142 });
+    exprOverlay.showTempMood(4, 2); // excited
+  }
   store.addStat('happiness', 25);
   const hungerToAdd = 100 - store.state.hunger;
   store.addStat('hunger', hungerToAdd); // refill to 100
-  exprOverlay.showTempMood(4, 2); // excited
   store.logEvent('heal', 'Healed', '💊');
   toast('💊 Healing... +25 happiness, hunger restored!');
 };
@@ -268,9 +281,11 @@ window.bounce = function() {
   playAnimation(ANIMS.BOUNCE);
   const wrap = document.getElementById('petWrap');
   if (wrap) { wrap.classList.add('bounce'); setTimeout(() => wrap.classList.remove('bounce'), 450); }
-  _spawnGeneratedFx(_getActionFrames('bounce'), { label: '🌟 Bounce', size: 70, duration: 850, radius: 40, action: 'bounce', heroSize: 140 });
+  if (currentSpecies !== 'pikachu') {
+    _spawnGeneratedFx(_getActionFrames('bounce'), { label: '🌟 Bounce', size: 70, duration: 850, radius: 40, action: 'bounce', heroSize: 140 });
+    exprOverlay.showTempMood(4, 1.5); // excited
+  }
   store.addStat('happiness', 10);
-  exprOverlay.showTempMood(4, 1.5); // excited
   store.logEvent('bounce', 'Bounced', '⭐');
   toast('🌟 Bounce! +10 happiness');
 };
@@ -283,8 +298,9 @@ window.emoteEat = function() {
 
 window.emoteWave = function() {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
+  if (currentSpecies !== 'pikachu') return toast('👋 Wave polish is currently Pikachu-only');
   playAnimation(ANIMS.WAVE); // true model animation (bones/tween), not face overlay
-  toast(`👋 ${currentSpecies.charAt(0).toUpperCase() + currentSpecies.slice(1)} waving emote`);
+  toast('👋 Pikachu wave emote');
 };
 
 // === BAG SYSTEM ===
