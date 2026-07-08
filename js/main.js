@@ -16,11 +16,16 @@ let sceneMan, exprOverlay;
 let currentSpecies = null;
 let _hudFlashTimer = null;
 
-// Per-sprite visual centering tweaks (only for PNG skin mode)
+// Per-sprite visual centering/scale tweaks (only for PNG skin mode)
 const SPRITE_BG_POS = {
-  eevee: '49% 60%',      // pull slightly left
-  psyduck: '50% 58%',    // lift slightly up
-  squirtle: '50% 58%',   // centered like psyduck skin framing
+  eevee: '50% 56%',      // center + lift for Eevee generated sheet crop
+  psyduck: '50% 58%',
+  squirtle: '50% 58%',
+};
+const SPRITE_BG_SIZE = {
+  eevee: '94%',          // slightly larger so face reads better
+  psyduck: '92%',
+  squirtle: '92%',
 };
 
 // === TOAST ===
@@ -171,6 +176,7 @@ window.selectSpecies = function(species) {
         if (c) {
           c.dataset.skin = species;
           c.style.setProperty('background-position', SPRITE_BG_POS[species] || '50% 60%', 'important');
+          c.style.setProperty('background-size', SPRITE_BG_SIZE[species] || '92%', 'important');
         }
         toast(`✨ Loaded ${species} skin`);
       } else {
@@ -180,6 +186,7 @@ window.selectSpecies = function(species) {
           c.dataset.skin = '';
           c.style.backgroundImage = 'none';
           c.style.setProperty('background-position', '50% 55%', 'important'); // reset default for 3D mode
+          c.style.setProperty('background-size', 'contain', 'important');
         }
         sceneMan.loadV2Model(modelOrSprite);
         toast(`✨ Loading ${species}...`);
