@@ -272,6 +272,25 @@ window.bounce = function() {
   toast('🌟 Bounce! +10 happiness');
 };
 
+window.emoteEat = function() {
+  if (!currentSpecies) return toast('Pick a Pokémon first!');
+  playAnimation(ANIMS.FEED);
+  const wrap = document.getElementById('petWrap');
+  if (wrap) { wrap.classList.add('wiggle'); setTimeout(() => wrap.classList.remove('wiggle'), 420); }
+  // mood 2 = hungry/eating eyes + mouth
+  exprOverlay.showTempMood(2, 2.2);
+  toast(`🍽️ ${currentSpecies.charAt(0).toUpperCase() + currentSpecies.slice(1)} is eating!`);
+};
+
+window.emoteSad = function() {
+  if (!currentSpecies) return toast('Pick a Pokémon first!');
+  const wrap = document.getElementById('petWrap');
+  if (wrap) { wrap.classList.add('wiggle'); setTimeout(() => wrap.classList.remove('wiggle'), 280); }
+  // mood 3 = sad eyes + tears
+  exprOverlay.showTempMood(3, 2.4);
+  toast(`😢 ${currentSpecies.charAt(0).toUpperCase() + currentSpecies.slice(1)} looks sad...`);
+};
+
 // === BAG SYSTEM ===
 window.openBag = function() {
   // Collapse demo section if open
