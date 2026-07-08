@@ -98,7 +98,8 @@ export class SceneManager {
       this._loadingTimeout = null;
     }
 
-    const url = `assets/models_v2/${filename}`;
+    const isAbsolute = typeof filename === 'string' && (filename.includes('://') || filename.startsWith('/') || filename.startsWith('assets/'));
+    const url = isAbsolute ? filename : `assets/models_v2/${filename}`;
 
     const loader = this._makeLoader();
     let timedOut = false;
