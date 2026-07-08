@@ -891,6 +891,10 @@ export class SceneManager {
         } else if (a.type === 'play') {
           const pulse = Math.sin(t * Math.PI * 3); // playful bounce rhythm
           f = 0.30 + 0.70 * (pulse * pulse);
+        } else if (a.type === 'sad') {
+          const down = t < 0.65 ? (t / 0.65) : 1;
+          const recover = t > 0.82 ? (1 - (t - 0.82) / 0.18) : 1;
+          f = Math.max(0, Math.min(1, down * recover));
         } else {
           f = t < 0.4 ? t / 0.4 : t < 0.6 ? 1 : (1 - t) / 0.4;
         }
@@ -929,6 +933,19 @@ export class SceneManager {
           const hop = Math.sin(t * Math.PI);
           this.model.position.y = this._playAnimData.startY + Math.max(0, hop) * 0.15;
           this.model.rotation.y = this._playAnimData.startRotY + Math.sin(t * Math.PI * 2) * 0.35;
+        }
+
+        // Eat emote body accent (subtle bob so movement is clearly visible)
+        if (a.type === 'eat' && this.model && this._modelRestPos) {
+          const chew = Math.sin(t * Math.PI * 2);
+          this.model.position.y = this._modelRestPos.y + Math.abs(chew) * 0.06;
+        }
+
+        // Sad emote body slump (hold longer before recovery)
+        if (a.type === 'sad' && this.model && this._sadAnimData) {
+          const down = t < 0.62 ? (t / 0.62) : 1;
+          const hold = t < 0.82 ? 1 : Math.max(0, 1 - ((t - 0.82) / 0.18));
+          this.model.position.y = this._sadAnimData.startY - down * hold * 0.11;
         }
 
         // Brightness flash for heal
