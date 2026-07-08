@@ -18,11 +18,13 @@ let _hudFlashTimer = null;
 
 // Per-sprite visual centering/scale tweaks (only for PNG skin mode)
 const SPRITE_BG_POS = {
-  eevee: '50% 56%',      // center + lift for Eevee generated sheet crop
+  pikachu: '50% 56%',
+  eevee: '50% 56%',      // center + lift for generated sheet crops
   psyduck: '50% 58%',
   squirtle: '50% 58%',
 };
 const SPRITE_BG_SIZE = {
+  pikachu: '94%',
   eevee: '94%',          // slightly larger so face reads better
   psyduck: '92%',
   squirtle: '92%',

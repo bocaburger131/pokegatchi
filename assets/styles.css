@@ -358,6 +358,10 @@ body {
   /* Gentle floating idle animation for sprite-only mode */
   animation: spriteFloat 4s ease-in-out infinite;
 }
+#pet3dContainer[data-skin="pikachu"] {
+  background-position: 50% 56% !important;
+  background-size: 94% !important;
+}
 #pet3dContainer[data-skin="eevee"] {
   background-position: 50% 56% !important;
   background-size: 94% !important;
