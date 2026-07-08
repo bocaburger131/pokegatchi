@@ -90,11 +90,15 @@
       <!-- Row 1: Interactions -->
       <div id="pokegatchiActions">
         <div class="action-group-label">Pokégatchi Interactions</div>
-        <div class="action-row">
+        <div class="action-row" id="petActionsRow">
           <button onclick="window.feed()"><span class="btn-icon">🫐</span><span class="btn-label">Feed</span></button>
           <button onclick="window.petAction()"><span class="btn-icon">🫳</span><span class="btn-label">Pet</span></button>
           <button onclick="window.healPet()"><span class="btn-icon">💊</span><span class="btn-label">Heal</span></button>
           <button onclick="window.bounce()" class="primary"><span class="btn-icon">🌟</span><span class="btn-label">Bounce</span></button>
+        </div>
+        <div class="action-row" id="emoteActionsRow" style="margin-top:6px;">
+          <button onclick="window.emoteEat()"><span class="btn-icon">🍽️</span><span class="btn-label">Emote Eat</span></button>
+          <button onclick="window.emoteSad()"><span class="btn-icon">😢</span><span class="btn-label">Emote Sad</span></button>
         </div>
       </div>
       <div id="pgpActions" style="display:none;">
@@ -278,6 +282,6 @@
 </div>
 
 <!-- Cache-buster v=13 -->
-<script type="module" src="js/main.js?v=17"></script>
+<script type="module" src="js/main.js?v=18"></script>
 </body>
 </html>
