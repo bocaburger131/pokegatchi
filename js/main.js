@@ -1,7 +1,7 @@
 // js/main.js — Complete with HUD sync, Bag system, Demo Boost, stat-modifying actions, collapsible sections
 import * as THREE from 'three';
 import { store } from './core/Store.js?v=2';
-import { SceneManager } from './scene/SceneManager.js?v=14';
+import { SceneManager } from './scene/SceneManager.js?v=15';
 import { ExpressionOverlay } from './scene/ExpressionOverlay.js?v=2';
 import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js?v=2';
 
@@ -15,8 +15,16 @@ const ANIMS = {
   SAD: 'sad',
 };
 const DOWNLOAD_PIKACHU_MODELS = {
-  regular: 'pikachu_downloaded_regular_25.glb',
-  shiny: 'pikachu_downloaded_shiny_25.glb',
+  regular: [
+    'assets/models_v2/pikachu_downloaded_regular_25.glb',
+    'https://cdn.jsdelivr.net/gh/bocaburger131/pokegatchi@main/assets/models_v2/pikachu_downloaded_regular_25.glb',
+    'https://raw.githubusercontent.com/bocaburger131/pokegatchi/main/assets/models_v2/pikachu_downloaded_regular_25.glb'
+  ],
+  shiny: [
+    'assets/models_v2/pikachu_downloaded_shiny_25.glb',
+    'https://cdn.jsdelivr.net/gh/bocaburger131/pokegatchi@main/assets/models_v2/pikachu_downloaded_shiny_25.glb',
+    'https://raw.githubusercontent.com/bocaburger131/pokegatchi/main/assets/models_v2/pikachu_downloaded_shiny_25.glb'
+  ]
 };
 let sceneMan, exprOverlay;
 let currentSpecies = null;
@@ -294,17 +302,27 @@ window.emoteSad = function() {
 window.loadDownloadedPikachu = async function(variant = 'regular') {
   if (!sceneMan) return toast('Scene not ready', 2500);
   sceneMan.init(); // ensure renderer/scene exists if sprite mode disposed it
-  const file = DOWNLOAD_PIKACHU_MODELS[variant] || DOWNLOAD_PIKACHU_MODELS.regular;
+  const candidates = DOWNLOAD_PIKACHU_MODELS[variant] || DOWNLOAD_PIKACHU_MODELS.regular;
+  const files = Array.isArray(candidates) ? candidates : [candidates];
   currentSpecies = 'pikachu';
   store.set('current', 'pikachu');
-  try {
-    await sceneMan.loadV2Model(file);
-    const clips = sceneMan.listBuiltInClips ? sceneMan.listBuiltInClips() : [];
-    toast(`⚡ Downloaded Pikachu (${variant}) loaded${clips.length ? ` — clips: ${clips.join(', ')}` : ''}`, 2800);
-  } catch (e) {
-    console.error('loadDownloadedPikachu failed:', e);
-    toast('⚠ Failed to load downloaded Pikachu', 3200);
+
+  let lastErr = null;
+  for (const file of files) {
+    try {
+      await sceneMan.loadV2Model(file);
+      const clips = sceneMan.listBuiltInClips ? sceneMan.listBuiltInClips() : [];
+      const sourceName = file.startsWith('http') ? 'cdn' : 'local';
+      toast(`⚡ Downloaded Pikachu (${variant}) loaded [${sourceName}]${clips.length ? ` — clips: ${clips.join(', ')}` : ''}`, 3200);
+      return;
+    } catch (e) {
+      lastErr = e;
+      console.warn('loadDownloadedPikachu candidate failed:', file, e);
+    }
   }
+
+  console.error('loadDownloadedPikachu failed (all candidates):', lastErr);
+  toast('⚠ Failed to load downloaded Pikachu (all sources)', 3500);
 };
 
 window.playDownloadedPikachuMove = function(clipName = 'Impactrueno') {
