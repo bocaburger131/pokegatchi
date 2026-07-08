@@ -1,7 +1,7 @@
 // js/main.js — Complete with HUD sync, Bag system, Demo Boost, stat-modifying actions, collapsible sections
 import * as THREE from 'three';
 import { store } from './core/Store.js?v=2';
-import { SceneManager } from './scene/SceneManager.js?v=17';
+import { SceneManager } from './scene/SceneManager.js?v=18';
 import { ExpressionOverlay } from './scene/ExpressionOverlay.js?v=2';
 import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js?v=2';
 
@@ -325,6 +325,13 @@ window.emotePlay = function() {
   if (currentSpecies !== 'pikachu') return toast('🎾 Play polish is currently Pikachu-only');
   playAnimation(ANIMS.PLAY);
   toast('🎾 Pikachu play emote');
+};
+
+window.emoteHappy = function() {
+  if (!currentSpecies) return toast('Pick a Pokémon first!');
+  if (currentSpecies !== 'pikachu') return toast('😄 Happy polish is currently Pikachu-only');
+  playAnimation('celebrate');
+  toast('😄 Pikachu happy emote');
 };
 
 // === BAG SYSTEM ===
