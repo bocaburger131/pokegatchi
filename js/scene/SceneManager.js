@@ -459,6 +459,14 @@ export class SceneManager {
       this._playBuiltInWave();
       return;
     }
+    if (type === 'run') {
+      this._playBuiltInRun();
+      return;
+    }
+    if (type === 'play') {
+      this._playBuiltInPlay();
+      return;
+    }
 
     if (type === 'builtin' || type === 'impactrueno') {
       this.playBuiltInClip(type === 'impactrueno' ? 'Impactrueno' : undefined, false);
@@ -483,6 +491,30 @@ export class SceneManager {
       return;
     }
     this._playLegacyTween('pet');
+  }
+
+  _playBuiltInRun() {
+    // Prefer custom run cycle so it is distinct from wave/clip motions
+    if (this.hasBones && this.useV2) {
+      this._playBoneAnimation('run');
+      return;
+    }
+    if (this.playBuiltInClip('Impactrueno', false)) {
+      return;
+    }
+    this._playLegacyTween('run');
+  }
+
+  _playBuiltInPlay() {
+    // Prefer custom playful cycle so it is distinct from wave/clip motions
+    if (this.hasBones && this.useV2) {
+      this._playBoneAnimation('play');
+      return;
+    }
+    if (this.playBuiltInClip('Impactrueno', false)) {
+      return;
+    }
+    this._playLegacyTween('play');
   }
 
   /**
@@ -646,6 +678,47 @@ export class SceneManager {
         this._sadAnimData = { startY: this.model.position.y };
         break;
       }
+      case 'run': {
+        // Energetic running-in-place pose: forward lean + pumping arms + springy tail
+        const headRun = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.14, 0.06, 0));
+        this._boneTargets['Head'] = { q: headRun, p: null, weight: 0.45 };
+
+        const lArmRun = this._boneAny('LArm', 'LForeArm');
+        const rArmRun = this._boneAny('RArm', 'RForeArm');
+        const lPump = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.75, 0.08, 0.30));
+        const rPump = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.45, -0.10, -0.25));
+        if (lArmRun) this._boneTargets[lArmRun.bone.name] = { q: lPump, p: null, weight: 0.6 };
+        if (rArmRun) this._boneTargets[rArmRun.bone.name] = { q: rPump, p: null, weight: 0.6 };
+
+        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.24)), p: null, weight: 0.55 };
+        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.34)), p: null, weight: 0.5 };
+        if (this._bone('Tail3')) this._boneTargets['Tail3'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.46)), p: null, weight: 0.5 };
+
+        this._runAnimData = { startY: this.model.position.y };
+        break;
+      }
+      case 'play': {
+        // Playful hop/spin: happy posture with ear flick and tail whip
+        const headPlay = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.20, -0.08, 0.10));
+        this._boneTargets['Head'] = { q: headPlay, p: null, weight: 0.5 };
+
+        if (this._bone('LEar1')) this._boneTargets['LEar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.12, 0.20, -0.22)), p: null, weight: 0.55 };
+        if (this._bone('REar1')) this._boneTargets['REar1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.10, -0.18, 0.24)), p: null, weight: 0.55 };
+
+        const lArmPlay = this._boneAny('LArm', 'LForeArm');
+        const rArmPlay = this._boneAny('RArm', 'RForeArm');
+        const armPlayL = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.35, 0.06, 0.45));
+        const armPlayR = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.18, -0.06, -0.40));
+        if (lArmPlay) this._boneTargets[lArmPlay.bone.name] = { q: armPlayL, p: null, weight: 0.55 };
+        if (rArmPlay) this._boneTargets[rArmPlay.bone.name] = { q: armPlayR, p: null, weight: 0.55 };
+
+        if (this._bone('Tail1')) this._boneTargets['Tail1'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.32)), p: null, weight: 0.6 };
+        if (this._bone('Tail2')) this._boneTargets['Tail2'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.44)), p: null, weight: 0.55 };
+        if (this._bone('Tail3')) this._boneTargets['Tail3'] = { q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.58)), p: null, weight: 0.5 };
+
+        this._playAnimData = { startY: this.model.position.y, startRotY: this.model.rotation.y };
+        break;
+      }
     }
 
     this._activeAnim = {
@@ -665,6 +738,8 @@ export class SceneManager {
       case 'bounce': return 0.5;
       case 'eat': return 1.05;
       case 'sad': return 1.45;
+      case 'run': return 1.25;
+      case 'play': return 1.3;
       default: return 0.6;
     }
   }
@@ -766,6 +841,16 @@ export class SceneManager {
         peakR = { x: fromR.x + 0.22, y: fromR.y, z: fromR.z - 0.08 };
         peakP = { x: fromP.x, y: fromP.y - 0.06, z: fromP.z };
         break;
+      case 'run':
+        peakS = { x: fromS.x * 1.03, y: fromS.y * 1.03, z: fromS.z * 1.03 };
+        peakR = { x: fromR.x - 0.10, y: fromR.y, z: fromR.z };
+        peakP = { x: fromP.x, y: fromP.y + 0.07, z: fromP.z };
+        break;
+      case 'play':
+        peakS = { x: fromS.x * 1.08, y: fromS.y * 1.08, z: fromS.z * 1.08 };
+        peakR = { x: fromR.x - 0.08, y: fromR.y + 0.35, z: fromR.z + 0.10 };
+        peakP = { x: fromP.x, y: fromP.y + 0.11, z: fromP.z };
+        break;
       default:
         return;
     }
@@ -800,6 +885,12 @@ export class SceneManager {
         if (a.type === 'eat') {
           const pulse = Math.sin(t * Math.PI * 2); // two peaks over [0,1]
           f = pulse * pulse; // keep positive [0..1]
+        } else if (a.type === 'run') {
+          const pulse = Math.sin(t * Math.PI * 8); // fast leg/arm cadence
+          f = 0.35 + 0.65 * (pulse * pulse);
+        } else if (a.type === 'play') {
+          const pulse = Math.sin(t * Math.PI * 3); // playful bounce rhythm
+          f = 0.30 + 0.70 * (pulse * pulse);
         } else {
           f = t < 0.4 ? t / 0.4 : t < 0.6 ? 1 : (1 - t) / 0.4;
         }
@@ -826,6 +917,20 @@ export class SceneManager {
           this.model.position.y = this._sadAnimData.startY - slumpT * 0.08;
         }
 
+        // Run in place cadence (body bob + slight yaw sway)
+        if (a.type === 'run' && this.model && this._runAnimData) {
+          const stride = Math.sin(t * Math.PI * 8);
+          this.model.position.y = this._runAnimData.startY + Math.abs(stride) * 0.09;
+          this.model.rotation.y = (this._modelRestRot?.y || 0) + Math.sin(t * Math.PI * 4) * 0.08;
+        }
+
+        // Play emote (big hop + playful turn)
+        if (a.type === 'play' && this.model && this._playAnimData) {
+          const hop = Math.sin(t * Math.PI);
+          this.model.position.y = this._playAnimData.startY + Math.max(0, hop) * 0.15;
+          this.model.rotation.y = this._playAnimData.startRotY + Math.sin(t * Math.PI * 2) * 0.35;
+        }
+
         // Brightness flash for heal
         if (a.type === 'heal' && this._animFlashBrightness) {
           const flashIntensity = Math.sin(t * Math.PI);
@@ -850,7 +955,15 @@ export class SceneManager {
             );
           }
         } else {
-          f = t < 0.5 ? t * 2 : 2 - t * 2;
+          if (a.type === 'run') {
+            const pulse = Math.sin(t * Math.PI * 8);
+            f = 0.35 + 0.65 * (pulse * pulse);
+          } else if (a.type === 'play') {
+            const pulse = Math.sin(t * Math.PI * 3);
+            f = 0.25 + 0.75 * (pulse * pulse);
+          } else {
+            f = t < 0.5 ? t * 2 : 2 - t * 2;
+          }
           if (this.model) {
             this.model.rotation.set(
               this._lerp(a.fromR.x, a.peakR.x, f),
@@ -891,6 +1004,8 @@ export class SceneManager {
           this._clearBoneTargets();
           this._bounceAnimData = null;
           this._sadAnimData = null;
+          this._runAnimData = null;
+          this._playAnimData = null;
           if (this.model) {
             this.model.rotation.y = this._modelRestRot?.y || 0; // Reset spin
             this.model.position.y = this._modelRestPos?.y || 0; // Reset Y after bounce/sad slump

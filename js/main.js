@@ -1,7 +1,7 @@
 // js/main.js — Complete with HUD sync, Bag system, Demo Boost, stat-modifying actions, collapsible sections
 import * as THREE from 'three';
 import { store } from './core/Store.js?v=2';
-import { SceneManager } from './scene/SceneManager.js?v=16';
+import { SceneManager } from './scene/SceneManager.js?v=17';
 import { ExpressionOverlay } from './scene/ExpressionOverlay.js?v=2';
 import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js?v=2';
 
@@ -12,7 +12,10 @@ const ANIMS = {
   HEAL: 'heal',
   BOUNCE: 'bounce',
   EAT: 'eat',
+  SAD: 'sad',
   WAVE: 'wave',
+  RUN: 'run',
+  PLAY: 'play',
 };
 let sceneMan, exprOverlay;
 let currentSpecies = null;
@@ -301,6 +304,27 @@ window.emoteWave = function() {
   if (currentSpecies !== 'pikachu') return toast('👋 Wave polish is currently Pikachu-only');
   playAnimation(ANIMS.WAVE); // true model animation (bones/tween), not face overlay
   toast('👋 Pikachu wave emote');
+};
+
+window.emoteSad = function() {
+  if (!currentSpecies) return toast('Pick a Pokémon first!');
+  if (currentSpecies !== 'pikachu') return toast('😢 Sad polish is currently Pikachu-only');
+  playAnimation(ANIMS.SAD);
+  toast('😢 Pikachu sad emote');
+};
+
+window.emoteRun = function() {
+  if (!currentSpecies) return toast('Pick a Pokémon first!');
+  if (currentSpecies !== 'pikachu') return toast('🏃 Run polish is currently Pikachu-only');
+  playAnimation(ANIMS.RUN);
+  toast('🏃 Pikachu running in place');
+};
+
+window.emotePlay = function() {
+  if (!currentSpecies) return toast('Pick a Pokémon first!');
+  if (currentSpecies !== 'pikachu') return toast('🎾 Play polish is currently Pikachu-only');
+  playAnimation(ANIMS.PLAY);
+  toast('🎾 Pikachu play emote');
 };
 
 // === BAG SYSTEM ===
