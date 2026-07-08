@@ -2,7 +2,7 @@
 
 // Map species names to V2 model filenames (local assets)
 export const V2_MODELS = {
-  pikachu:     'pikachu_v2.glb',
+  pikachu:     'pikachu_skin_v1_alpha.png',
   psyduck:     'psyduck_skin_v1_alpha.png',
   eevee:       'eevee_skin_v2_compact_alpha.png',
   charmander:  'charmander_v2.glb',
