@@ -359,13 +359,16 @@ body {
   animation: spriteFloat 4s ease-in-out infinite;
 }
 #pet3dContainer[data-skin="eevee"] {
-  background-position: 49% 60% !important;
+  background-position: 50% 56% !important;
+  background-size: 94% !important;
 }
 #pet3dContainer[data-skin="psyduck"] {
   background-position: 50% 58% !important;
+  background-size: 92% !important;
 }
 #pet3dContainer[data-skin="squirtle"] {
   background-position: 50% 58% !important;
+  background-size: 92% !important;
 }
 
 /* Sprite float animation — gentle levitation with background shift */
