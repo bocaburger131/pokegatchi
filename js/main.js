@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { store } from './core/Store.js?v=2';
 import { SceneManager } from './scene/SceneManager.js?v=11';
 import { ExpressionOverlay } from './scene/ExpressionOverlay.js?v=2';
-import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js?v=2';
+import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js?v=3';
 
 // === GLOBALS ===
 const ANIMS = {
@@ -18,6 +18,7 @@ let _hudFlashTimer = null;
 
 // Per-sprite visual centering tweaks (only for PNG skin mode)
 const SPRITE_BG_POS = {
+  pikachu: '50% 56%',    // center storybook pikachu in pet viewport
   eevee: '49% 60%',      // pull slightly left
   psyduck: '50% 58%',    // lift slightly up
   squirtle: '50% 58%',   // centered like psyduck skin framing
