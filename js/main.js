@@ -33,6 +33,13 @@ const SPRITE_BG_SIZE = {
   squirtle: '92%',
 };
 
+const GENERATED_BG_ROTATION = [
+  'assets/backgrounds/cats-soup/magical-forest.png',
+  'assets/backgrounds/cats-soup/sunlit-forest.png',
+  'assets/backgrounds/cats-soup/day-forest.png',
+  'assets/backgrounds/cats-soup/enchanted-night.png',
+];
+
 // === TOAST ===
 function toast(msg, dur) {
   const el = document.getElementById('toast');
@@ -158,9 +165,26 @@ function init() {
   // Sync all HUD elements from initial store state
   syncAllHUD();
   const currentTeam = localStorage.getItem('pg_team') || 'mystic';
-  window.setTeamTheme(currentTeam, true);
+  setTeamTheme(currentTeam, true);
+  setGeneratedBackgroundByTime();
   // NOTE: default species loaded below after all window exports are defined
 }
+
+function setGeneratedBackgroundByTime() {
+  const sky = document.getElementById('skyLayer');
+  if (!sky) return;
+  const hr = new Date().getHours();
+  let idx = 0;
+  if (hr >= 6 && hr < 11) idx = 1;        // sunlit
+  else if (hr >= 11 && hr < 17) idx = 2;  // day
+  else if (hr >= 17 && hr < 21) idx = 0;  // magical dusk
+  else idx = 3;                           // enchanted night
+  const bg = GENERATED_BG_ROTATION[idx];
+  sky.style.backgroundImage = `linear-gradient(180deg, rgba(20,16,42,0.16) 0%, rgba(20,16,42,0.28) 58%, rgba(20,16,42,0.34) 100%), url('${bg}')`;
+  sky.style.backgroundSize = 'cover';
+  sky.style.backgroundPosition = 'center center';
+}
+window.setGeneratedBackgroundByTime = setGeneratedBackgroundByTime;
 
 function teamMeta(team) {
   const map = {
@@ -179,7 +203,7 @@ window.updateTeamStreak = function() {
   streakEl.textContent = Math.max(1, Math.floor((catches + spins) / 4));
 };
 
-window.setTeamTheme = function(team, silent) {
+function setTeamTheme(team, silent) {
   const t = ['valor','mystic','instinct'].includes(team) ? team : 'mystic';
   document.body.setAttribute('data-team', t);
   localStorage.setItem('pg_team', t);
@@ -200,7 +224,8 @@ window.setTeamTheme = function(team, silent) {
     b.classList.add(`team-${t}`);
   });
   if (!silent) toast(`🎨 Team set to ${meta.name}`);
-};
+}
+window.setTeamTheme = setTeamTheme;
 
 window.updateNeedAlert = function() {
   const el = document.getElementById('hudNeedAlert');
