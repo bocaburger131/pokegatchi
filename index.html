@@ -33,33 +33,32 @@
 <!-- ─── UI ─── -->
 <div class="ui-layer">
 
-  <!-- ─── TOP BAR ─── -->
-  <div class="top-bar">
-    <span class="logo">✦ PG</span>
-    <span class="top-icon-btn" onclick="window.toggleDebugOverlay()" id="debugToggle" title="Debug overlay">🔍</span>
-    <span class="top-icon-btn" onclick="window.openJournal()" title="Activity Journal">📓</span>
-    <a class="top-icon-btn" href="pgp.html" title="Open PGP Home" style="text-decoration:none;">🛰️</a>
-    <span class="top-icon-btn" onclick="window.openSettings()" title="Settings">⚙️</span>
-    <span class="pet-name" id="petNameDisplay">Squirtle</span>
-    <span class="spacer">
-      <!-- HUD COUNTERS -->
-      <span class="hud-group" data-store-key="steps">
-        <span class="hud-icon">👟</span>
-        <span class="hud-val" id="hudSteps">0</span>
-      </span>
-      <span class="hud-group" data-store-key="pokemonCaught">
-        <span class="hud-icon">⚡</span>
-        <span class="hud-val" id="hudCaught">12</span>
-      </span>
-      <span class="hud-group" data-store-key="pokestopSpins">
-        <span class="hud-icon">💠</span>
-        <span class="hud-val" id="hudSpins">7</span>
-      </span>
-      <span class="hud-group" data-store-key="badges">
-        <span class="hud-icon">🏅</span>
-        <span class="hud-val" id="hudBadges">3</span>
-      </span>
-    </span>
+  <!-- ─── TOP HUD ─── -->
+  <div class="hud-header">
+    <div class="team-card-mini" id="teamCardMini">
+      <div class="team-line-1">
+        <span class="team-dot" id="teamDot">🔵</span>
+        <span id="teamNameTxt">Mystic</span>
+        <span class="team-user" id="teamUserTxt">SHIFT4FUNDING</span>
+      </div>
+      <div class="team-line-2">
+        <span>🔥 Streak <b id="streakVal">15</b></span>
+        <span class="team-pick-mini">
+          <button onclick="window.setTeamTheme('valor')" title="Valor">🔴</button>
+          <button onclick="window.setTeamTheme('mystic')" title="Mystic">🔵</button>
+          <button onclick="window.setTeamTheme('instinct')" title="Instinct">🟡</button>
+        </span>
+      </div>
+    </div>
+    <button class="hud-gear" onclick="window.openSettings()" title="Settings">⚙️</button>
+  </div>
+
+  <div class="hud-stats-row">
+    <span class="hud-group" data-store-key="steps"><span class="hud-icon">👟</span><span class="hud-val" id="hudSteps">0</span><span class="hud-lbl">Steps</span></span>
+    <span class="hud-group" data-store-key="pokestopSpins"><span class="hud-icon">💠</span><span class="hud-val" id="hudSpins">7</span><span class="hud-lbl">Spins</span></span>
+    <span class="hud-group" data-store-key="pokemonCaught"><span class="hud-icon">⚡</span><span class="hud-val" id="hudCaught">12</span><span class="hud-lbl">Catches</span></span>
+    <span class="hud-group" data-store-key="badges"><span class="hud-icon">🏅</span><span class="hud-val" id="hudBadges">3</span><span class="hud-lbl">Achievements</span></span>
+    <span class="hud-alert" id="hudNeedAlert" title="Needs attention">⚠️</span>
   </div>
 
   <!-- ─── PET CARD ─── -->
@@ -208,6 +207,36 @@
     </div>
   </div>
 
+  <!-- ─── BOTTOM LAUNCHER NAV ─── -->
+  <div class="bottom-launcher-wrap">
+    <div class="unlock-balls" id="unlockBalls">
+      <span class="unlock-ball"></span>
+      <span class="unlock-ball"></span>
+      <span class="unlock-ball"></span>
+      <span class="unlock-ball"></span>
+      <span class="unlock-ball"></span>
+    </div>
+
+    <div class="quick-menu" id="quickMenu" aria-hidden="true">
+      <button class="quick-menu-item pokedex" onclick="window.openPokedexFromMenu()">
+        <span class="icon dex-icon" aria-hidden="true"></span>
+        <span class="label">Pokédex</span>
+      </button>
+      <button class="quick-menu-item journal" onclick="window.openJournal()">
+        <span class="icon book-icon" aria-hidden="true">📕</span>
+        <span class="label">Journal</span>
+      </button>
+      <button class="quick-menu-item bag" id="quickBagBtn" onclick="window.openBagFromMenu()">
+        <span class="icon bag-icon" aria-hidden="true">🎒</span>
+        <span class="label">Bag</span>
+      </button>
+    </div>
+
+    <button class="pokeball-launcher" id="pokeballLauncher" onclick="window.toggleQuickMenu()" aria-label="Open quick menu">
+      <span class="pokeball-core"></span>
+    </button>
+  </div>
+
   <div class="footer">Pokégatchi · <kbd>D</kbd> debug</div>
 
 </div><!-- end .ui-layer -->
@@ -285,7 +314,7 @@
   </div>
 </div>
 
-<!-- Cache-buster v=13 -->
-<script type="module" src="js/main.js?v=28"></script>
+<!-- Cache-buster v=14 -->
+<script type="module" src="js/main.js?v=29"></script>
 </body>
 </html>

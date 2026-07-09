@@ -86,6 +86,8 @@ window._onStoreChange = function(key, value) {
       }
     }
   });
+  if (window.updateNeedAlert) window.updateNeedAlert();
+  if (window.updateTeamStreak) window.updateTeamStreak();
 
   // Also update bag count badges
   const bagMap = {
@@ -112,6 +114,8 @@ function syncAllHUD() {
       valEl.textContent = val;
     }
   });
+  if (window.updateNeedAlert) window.updateNeedAlert();
+  if (window.updateTeamStreak) window.updateTeamStreak();
   // Sync bag count badges
   const bagItems = ['berries', 'toys', 'potions', 'candy'];
   const bagMap = {
@@ -153,8 +157,96 @@ function init() {
 
   // Sync all HUD elements from initial store state
   syncAllHUD();
+  const currentTeam = localStorage.getItem('pg_team') || 'mystic';
+  window.setTeamTheme(currentTeam, true);
   // NOTE: default species loaded below after all window exports are defined
 }
+
+function teamMeta(team) {
+  const map = {
+    valor: { name: 'Valor', dot: '🔴' },
+    mystic: { name: 'Mystic', dot: '🔵' },
+    instinct: { name: 'Instinct', dot: '🟡' },
+  };
+  return map[team] || map.mystic;
+}
+
+window.updateTeamStreak = function() {
+  const streakEl = document.getElementById('streakVal');
+  if (!streakEl) return;
+  const catches = store.state.pokemonCaught || 0;
+  const spins = store.state.pokestopSpins || 0;
+  streakEl.textContent = Math.max(1, Math.floor((catches + spins) / 4));
+};
+
+window.setTeamTheme = function(team, silent) {
+  const t = ['valor','mystic','instinct'].includes(team) ? team : 'mystic';
+  document.body.setAttribute('data-team', t);
+  localStorage.setItem('pg_team', t);
+
+  const meta = teamMeta(t);
+  const dot = document.getElementById('teamDot');
+  const name = document.getElementById('teamNameTxt');
+  const bag = document.getElementById('quickBagBtn');
+  const balls = document.querySelectorAll('.unlock-ball');
+  if (dot) dot.textContent = meta.dot;
+  if (name) name.textContent = meta.name;
+  if (bag) {
+    bag.classList.remove('team-valor','team-mystic','team-instinct');
+    bag.classList.add(`team-${t}`);
+  }
+  balls.forEach(b => {
+    b.classList.remove('team-valor','team-mystic','team-instinct');
+    b.classList.add(`team-${t}`);
+  });
+  if (!silent) toast(`🎨 Team set to ${meta.name}`);
+};
+
+window.updateNeedAlert = function() {
+  const el = document.getElementById('hudNeedAlert');
+  if (!el) return;
+  const hungry = (store.state.hunger || 0) < 40;
+  const bored = (store.state.happiness || 0) < 40;
+  const need = hungry || bored;
+  el.classList.toggle('active', need);
+  if (need) {
+    el.textContent = hungry ? '🍽️' : '🧸';
+    el.title = hungry ? 'Hungry' : 'Bored';
+    if (_pgVibrateAllowed && _pgVibrateAllowed() && navigator.vibrate) {
+      try { navigator.vibrate([80, 50, 80]); } catch(_) {}
+    }
+  } else {
+    el.textContent = '✅';
+    el.title = 'All good';
+  }
+};
+
+window.toggleQuickMenu = function() {
+  const menu = document.getElementById('quickMenu');
+  const launcher = document.getElementById('pokeballLauncher');
+  if (!menu || !launcher) return;
+  const open = menu.classList.toggle('open');
+  launcher.classList.toggle('open', open);
+  menu.setAttribute('aria-hidden', open ? 'false' : 'true');
+};
+
+window.openPokedexFromMenu = function() {
+  window.toggleQuickMenu();
+  const picker = document.getElementById('pickerGrid');
+  if (picker) picker.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  toast('📱 Pokédex opened');
+};
+
+window.openBagFromMenu = function() {
+  const menu = document.getElementById('quickMenu');
+  const launcher = document.getElementById('pokeballLauncher');
+  if (menu && menu.classList.contains('open')) {
+    menu.classList.remove('open');
+    menu.setAttribute('aria-hidden', 'true');
+  }
+  if (launcher) launcher.classList.remove('open');
+  window.openBag();
+};
 
 // === ALL WINDOW EXPORTS (defined BEFORE init runs) ===
 window.selectSpecies = function(species) {
@@ -524,8 +616,10 @@ window.toggleDebugOverlay = function() {
   if (!exprOverlay) return;
   const on = exprOverlay.toggleDebug();
   const btn = document.getElementById('debugToggle');
-  btn.textContent = on ? '🔍 ON' : '🔍';
-  btn.style.background = on ? 'var(--accent)' : 'var(--accent-dim)';
+  if (btn) {
+    btn.textContent = on ? '🔍 ON' : '🔍';
+    btn.style.background = on ? 'var(--accent)' : 'var(--accent-dim)';
+  }
   toast(on ? '🔍 Debug ON' : '🔍 Debug OFF');
 };
 

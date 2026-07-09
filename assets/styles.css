@@ -1332,19 +1332,256 @@ button,
    TOP BAR ICON BUTTONS
    ════════════════════════════════════════════════════════════ */
 .top-icon-btn {
-  cursor: pointer;
-  font-size: 0.85rem;
-  padding: 2px 6px;
-  border-radius: 8px;
-  background: var(--accent-dim);
-  color: var(--accent);
-  font-weight: 700;
-  margin-left: 3px;
-  transition: background 0.2s, transform 0.15s;
-  user-select: none;
+  display: none !important;
 }
-.top-icon-btn:hover  { background: var(--accent); color: #fff; transform: scale(1.1); }
-.top-icon-btn:active { transform: scale(0.94); }
+
+/* ─── TOP HUD REDESIGN ─── */
+.ui-layer { padding-bottom: 124px; }
+
+.hud-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: start;
+  margin-bottom: 8px;
+}
+
+.team-card-mini {
+  background: rgba(17, 21, 38, 0.72);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 8px 10px;
+  box-shadow: var(--shadow);
+}
+.team-line-1, .team-line-2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.team-line-1 {
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.team-user {
+  color: var(--text-dim);
+  font-size: 0.68rem;
+}
+.team-line-2 {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+.team-pick-mini { display:flex; gap:4px; }
+.team-pick-mini button {
+  width: 24px; height: 24px; min-height: 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-size: 0.75rem;
+}
+
+.hud-gear {
+  width: 40px; height: 40px; min-height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(17, 21, 38, 0.72);
+  color: var(--text);
+  font-size: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.hud-stats-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.hud-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(17, 21, 38, 0.62);
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 5px 8px;
+  border-radius: 999px;
+}
+.hud-group .hud-lbl {
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.hud-alert {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  opacity: 0.8;
+}
+.hud-alert.active {
+  background: rgba(255, 173, 96, 0.2);
+  border-color: rgba(255, 173, 96, 0.55);
+  animation: hudAlertShake .55s ease-in-out infinite, hudAlertPulse 1.2s ease-in-out infinite;
+}
+@keyframes hudAlertShake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+@keyframes hudAlertPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,173,96,.45); }
+  50% { box-shadow: 0 0 0 8px rgba(255,173,96,0); }
+}
+
+/* ─── BOTTOM POKEBALL LAUNCHER + QUICK MENU ─── */
+.bottom-launcher-wrap {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 24px));
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.unlock-balls {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+.unlock-ball {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.6px solid #fff;
+  background: linear-gradient(to bottom, var(--accent) 0 50%, #fff 50% 100%);
+  box-shadow: 0 0 7px var(--accent-glow);
+}
+
+.quick-menu {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  background: rgba(12, 19, 34, 0.92);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: var(--shadow);
+  transform: translateY(14px) scale(.98);
+  opacity: 0;
+  pointer-events: none;
+  transition: all .2s ease;
+}
+.quick-menu.open {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+.quick-menu-item {
+  min-height: 64px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-weight: 800;
+}
+.quick-menu-item .icon { font-size: 1.12rem; line-height: 1; }
+.quick-menu-item .label { font-size: .67rem; letter-spacing: .02em; }
+
+/* Pokedex icon = red smartphone back with camera/back lines */
+.dex-icon {
+  width: 16px;
+  height: 22px;
+  border-radius: 5px;
+  background: linear-gradient(145deg, #ff5c5c, #cf2f2f);
+  border: 1px solid rgba(255,255,255,0.38);
+  position: relative;
+  display: inline-block;
+}
+.dex-icon::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.25);
+}
+.dex-icon::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  height: 7px;
+  border-radius: 3px;
+  border-top: 1.5px solid rgba(255,255,255,.82);
+  border-bottom: 1.5px solid rgba(255,255,255,.62);
+}
+
+.quick-menu-item.bag.team-valor { border-color: rgba(255,68,68,.55); }
+.quick-menu-item.bag.team-mystic { border-color: rgba(68,136,255,.55); }
+.quick-menu-item.bag.team-instinct { border-color: rgba(255,215,0,.55); }
+
+.pokeball-launcher {
+  width: 68px;
+  height: 68px;
+  min-height: 68px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: linear-gradient(to bottom, var(--accent) 0 50%, #ffffff 50% 100%);
+  box-shadow: 0 10px 24px rgba(0,0,0,.45), 0 0 16px var(--accent-glow);
+  position: relative;
+}
+.pokeball-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid #111;
+  background: #fff;
+}
+.pokeball-launcher::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  transform: translateY(-50%);
+  background: #111;
+}
+.pokeball-launcher.open { transform: scale(1.03); }
+
+/* Team color utility classes for unlocks + bag accents */
+.unlock-ball.team-valor    { background: linear-gradient(to bottom, #FF4444 0 50%, #fff 50% 100%); }
+.unlock-ball.team-mystic   { background: linear-gradient(to bottom, #4488FF 0 50%, #fff 50% 100%); }
+.unlock-ball.team-instinct { background: linear-gradient(to bottom, #FFD700 0 50%, #fff 50% 100%); }
+
 
 /* ════════════════════════════════════════════════════════════
    CATCH ANIMATION
