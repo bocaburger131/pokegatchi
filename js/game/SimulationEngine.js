@@ -9,6 +9,7 @@ import {
   UNLOCK_TABLE,
   XP_LEVEL_TABLE,
 } from './balance.js';
+import { BAG_GAME_EVENTS } from './bag/events.js';
 
 function clampByRule(key, value) {
   const rule = CLAMP_RULES[key];
@@ -135,6 +136,20 @@ export class SimulationEngine {
     patch[itemName] = (patch[itemName] || 0) - itemCfg.consume;
     this.applyPatch(patch, { reason: 'action.use_item', itemName });
 
+    const txId = payload.txId || `use-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`;
+    this.eventBus.emit(BAG_GAME_EVENTS.ITEM_CONSUMED, {
+      txId,
+      itemName,
+      amount: itemCfg.consume,
+      inventory: {
+        berries: Number(this.store.get('berries') || 0),
+        toys: Number(this.store.get('toys') || 0),
+        potions: Number(this.store.get('potions') || 0),
+        candy: Number(this.store.get('candy') || 0),
+      },
+    });
+    this.eventBus.emit(BAG_GAME_EVENTS.TX_APPLIED, { txId, itemName });
+
     this.recomputeLevel();
     this.checkUnlocks();
     this.store.set('sim.lastTickTs', Date.now());
@@ -142,6 +157,7 @@ export class SimulationEngine {
     return this.eventBus.emit('gameplay.event', {
       actionType: 'use_item',
       itemName,
+      txId,
       journal: itemCfg.journal,
       ui: itemCfg.ui || {},
       animation: itemCfg.animation,
@@ -163,6 +179,22 @@ export class SimulationEngine {
     });
 
     this.applyPatch(patch, { reason: `action.${actionType}`, payload });
+
+    if (actionCfg.itemDrops) {
+      Object.entries(actionCfg.itemDrops).forEach(([itemName, amount]) => {
+        this.eventBus.emit(BAG_GAME_EVENTS.ITEM_GRANTED, {
+          source: actionType,
+          itemName,
+          amount,
+          inventory: {
+            berries: Number(this.store.get('berries') || 0),
+            toys: Number(this.store.get('toys') || 0),
+            potions: Number(this.store.get('potions') || 0),
+            candy: Number(this.store.get('candy') || 0),
+          },
+        });
+      });
+    }
 
     (actionCfg.setToMax || []).forEach((key) => {
       this.store.set(key, 100);

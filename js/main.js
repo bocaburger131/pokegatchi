@@ -7,6 +7,8 @@ import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/
 import { DEFAULT_STATE } from './game/balance.js?v=1';
 import { EventBus } from './game/EventBus.js?v=1';
 import { SimulationEngine } from './game/SimulationEngine.js?v=1';
+import { BagMachine } from './game/bag/BagMachine.js?v=1';
+import { BAG_GAME_EVENTS, BAG_UI_EVENTS } from './game/bag/events.js?v=1';
 
 // === GLOBALS ===
 const ANIMS = {
@@ -26,6 +28,8 @@ let _hudFlashTimer = null;
 
 const eventBus = new EventBus();
 const simulation = new SimulationEngine({ store, eventBus });
+const bagMachine = new BagMachine({ eventBus, store });
+window.__bagMachine = bagMachine;
 window.__eventBus = eventBus;
 window.__simulation = simulation;
 window.getActionLog = function(limit = 50) {
@@ -243,8 +247,26 @@ function init() {
     _pgRenderJournal();
   });
 
+  eventBus.subscribe(BAG_GAME_EVENTS.OVERFLOW_CREATED, (evt) => {
+    const n = Number(evt?.payload?.overflowCount || 0);
+    if (n > 0) toast(`🎒 Overflow: ${n}`);
+  });
+
   // Sync all HUD elements from initial store state
   syncAllHUD();
+  bagMachine.start();
+  window._onBagStateChange = function(bagState) {
+    const map = {
+      berries: 'bagCountBerries',
+      toys: 'bagCountToys',
+      potions: 'bagCountPotions',
+      candy: 'bagCountCandy',
+    };
+    Object.entries(map).forEach(([key, id]) => {
+      const badge = document.getElementById(id);
+      if (badge) badge.textContent = Number(bagState?.inventory?.[key] || 0);
+    });
+  };
   simulation.start();
 
   const currentTeam = localStorage.getItem('pg_team') || 'mystic';
@@ -542,7 +564,10 @@ window.openBag = function(forceOpen) {
   const chevron = bagSection.querySelector('.collapsible-chevron');
   if (chevron) chevron.textContent = bagSection.classList.contains('open') ? '▼' : '▶';
 
-  // Sync bag counts on open
+  if (shouldOpen) bagMachine.dispatch(BAG_UI_EVENTS.OPEN_REQUEST, {});
+  else bagMachine.dispatch(BAG_UI_EVENTS.CLOSE_REQUEST, {});
+
+  // Sync bag counts on open from bag machine state
   const bagItems = ['berries', 'toys', 'potions', 'candy'];
   const bagMap = {
     berries: 'bagCountBerries',
@@ -550,9 +575,10 @@ window.openBag = function(forceOpen) {
     potions: 'bagCountPotions',
     candy: 'bagCountCandy',
   };
+  const bagState = bagMachine.getState();
   bagItems.forEach(item => {
     const badge = document.getElementById(bagMap[item]);
-    if (badge) badge.textContent = store.get(item) || 0;
+    if (badge) badge.textContent = Number(bagState?.inventory?.[item] || store.get(item) || 0);
   });
 
   if (bagSection.classList.contains('open')) {
@@ -564,6 +590,14 @@ window.openBag = function(forceOpen) {
 
 window.useItem = function(itemName) {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
+
+  const preState = bagMachine.getState();
+  const priorError = preState?.ui?.error || null;
+
+  bagMachine.dispatch(BAG_UI_EVENTS.ITEM_USE_REQUEST, { itemName });
+  const bagState = bagMachine.getState();
+  if (bagState?.ui?.error && bagState.ui.error !== priorError) return toast(`⚠ ${bagState.ui.error}`, 2200);
+
   const count = store.get(itemName) || 0;
   if (count < 1) return toast('❌ No ' + itemName + ' left!', 2500);
 
@@ -580,7 +614,9 @@ window.useItem = function(itemName) {
     exprOverlay.showTempMood(4, 1.5); // excited special animation
   }
 
-  dispatchGameplay('use_item', { itemName, animation: anim });
+  const pendingIds = Object.keys(bagState?.pendingTx || {});
+  const txId = pendingIds[pendingIds.length - 1];
+  dispatchGameplay('use_item', { itemName, animation: anim, txId });
 };
 
 // === DEMO BOOST (generic dispatcher for HTML onclick) ===
@@ -1107,7 +1143,7 @@ window.closeJournal = function() {
   if (bd) bd.classList.remove('open');
 };
 window.clearJournal = function() {
-  store.state.journal = [];
+  store.set('journal', []);
   _pgRenderJournal();
 };
 window.switchJournalTab = function(tab) {
