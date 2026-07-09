@@ -1,9 +1,12 @@
 // js/main.js — Complete with HUD sync, Bag system, Demo Boost, stat-modifying actions, collapsible sections
 import * as THREE from 'three';
-import { store } from './core/Store.js?v=2';
+import { store } from './core/Store.js?v=3';
 import { SceneManager } from './scene/SceneManager.js?v=18';
 import { ExpressionOverlay } from './scene/ExpressionOverlay.js?v=2';
 import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js?v=2';
+import { DEFAULT_STATE } from './game/balance.js?v=1';
+import { EventBus } from './game/EventBus.js?v=1';
+import { SimulationEngine } from './game/SimulationEngine.js?v=1';
 
 // === GLOBALS ===
 const ANIMS = {
@@ -20,6 +23,18 @@ const ANIMS = {
 let sceneMan, exprOverlay;
 let currentSpecies = null;
 let _hudFlashTimer = null;
+
+const eventBus = new EventBus();
+const simulation = new SimulationEngine({ store, eventBus });
+window.__eventBus = eventBus;
+window.__simulation = simulation;
+window.getActionLog = function(limit = 50) {
+  return eventBus.getLog().slice(0, Math.max(1, Number(limit || 50)));
+};
+
+function dispatchGameplay(actionType, payload = {}) {
+  return simulation.dispatchAction(actionType, payload);
+}
 
 // Per-sprite visual centering/scale tweaks (only for PNG skin mode)
 const SPRITE_BG_POS = {
@@ -191,8 +206,47 @@ function init() {
   }
   loop();
 
+  eventBus.subscribe('gameplay.event', (evt) => {
+    const info = evt.payload || {};
+    const journal = info.journal;
+    if (journal) {
+      store.logEvent(journal.type, journal.label, journal.icon);
+      _pgRenderJournal();
+    }
+
+    const ui = info.ui || {};
+    if (ui.toast) toast(ui.toast);
+    if (info.animation && currentSpecies) {
+      playAnimation(info.animation);
+    }
+
+    if (ui.sceneFx === 'catch' && _pgScreenEffectsAllowed()) window.triggerCatchAnim();
+    if (ui.sceneFx === 'spin' && _pgScreenEffectsAllowed()) window.triggerSpinAnim();
+  });
+
+  eventBus.subscribe('gameplay.error', (evt) => {
+    const msg = evt?.payload?.message || 'Gameplay error';
+    toast(`⚠ ${msg}`, 2500);
+  });
+
+  eventBus.subscribe('unlock.awarded', (evt) => {
+    const u = evt.payload || {};
+    toast(`🔓 Unlocked: ${u.name || u.id}`);
+    store.logEvent('unlock', `Unlocked ${u.name || u.id}`, '🔓');
+    _pgRenderJournal();
+  });
+
+  eventBus.subscribe('gameplay.level_up', (evt) => {
+    const info = evt.payload || {};
+    toast(`⬆️ Level ${info.to}!`);
+    store.logEvent('level', `Level ${info.to}`, '⬆️');
+    _pgRenderJournal();
+  });
+
   // Sync all HUD elements from initial store state
   syncAllHUD();
+  simulation.start();
+
   const currentTeam = localStorage.getItem('pg_team') || 'mystic';
   setTeamTheme(currentTeam, true);
   setGeneratedBackgroundByTime();
@@ -391,10 +445,7 @@ window.feed = function() {
     _spawnGeneratedFx(_getActionFrames('feed'), { label: '🍽 Feed', size: 72, duration: 900, radius: 36, action: 'feed', heroSize: 136 });
     exprOverlay.showTempMood(0, 2); // happy
   }
-  store.addStat('hunger', 15);
-  store.addStat('happiness', -5);
-  store.logEvent('feed', 'Fed', '🍽');
-  toast('🍽 Feeding... +15 hunger, -5 happiness');
+  dispatchGameplay('feed', { animation: ANIMS.FEED });
 };
 
 window.petAction = function() {
@@ -406,10 +457,7 @@ window.petAction = function() {
     _spawnGeneratedFx(_getActionFrames('pet'), { label: '🫳 Pet', size: 68, duration: 980, radius: 44, action: 'pet', heroSize: 138 });
     exprOverlay.showTempMood(0, 1.5); // happy
   }
-  store.addStat('affection', 10);
-  store.addStat('happiness', 5);
-  store.logEvent('pet', 'Petted', '🫳');
-  toast('🫳 Petting... +10 affection, +5 happiness');
+  dispatchGameplay('pet', { animation: ANIMS.PET });
 };
 
 window.healPet = function() {
@@ -421,11 +469,7 @@ window.healPet = function() {
     _spawnGeneratedFx(_getActionFrames('heal'), { label: '💊 Heal', size: 74, duration: 1100, radius: 52, action: 'heal', heroSize: 142 });
     exprOverlay.showTempMood(4, 2); // excited
   }
-  store.addStat('happiness', 25);
-  const hungerToAdd = 100 - store.state.hunger;
-  store.addStat('hunger', hungerToAdd); // refill to 100
-  store.logEvent('heal', 'Healed', '💊');
-  toast('💊 Healing... +25 happiness, hunger restored!');
+  dispatchGameplay('heal', { animation: ANIMS.HEAL });
 };
 
 window.bounce = function() {
@@ -437,9 +481,7 @@ window.bounce = function() {
     _spawnGeneratedFx(_getActionFrames('bounce'), { label: '🌟 Bounce', size: 70, duration: 850, radius: 40, action: 'bounce', heroSize: 140 });
     exprOverlay.showTempMood(4, 1.5); // excited
   }
-  store.addStat('happiness', 10);
-  store.logEvent('bounce', 'Bounced', '⭐');
-  toast('🌟 Bounce! +10 happiness');
+  dispatchGameplay('bounce', { animation: ANIMS.BOUNCE });
 };
 
 window.emoteEat = function() {
@@ -525,40 +567,20 @@ window.useItem = function(itemName) {
   const count = store.get(itemName) || 0;
   if (count < 1) return toast('❌ No ' + itemName + ' left!', 2500);
 
-  switch (itemName) {
-    case 'berries':
-      store.addStat('hunger', 20);
-      store.addItem('berries', -1);
-      playAnimation(ANIMS.FEED);
-      store.logEvent('item', 'Used Berry', '🫐');
-      toast('🍇 Used a Berry! +20 hunger');
-      break;
-    case 'toys':
-      store.addStat('happiness', 15);
-      store.addItem('toys', -1);
-      playAnimation(ANIMS.BOUNCE);
-      store.logEvent('item', 'Used Toy', '🧸');
-      toast('🧸 Played with a Toy! +15 happiness');
-      break;
-    case 'potions':
-      store.addStat('happiness', 20);
-      store.addStat('affection', 15);
-      store.addItem('potions', -1);
-      playAnimation(ANIMS.HEAL);
-      store.logEvent('item', 'Used Potion', '💊');
-      toast('💖 Used a Potion! +20 happiness, +15 affection');
-      break;
-    case 'candy':
-      store.addStat('happiness', 10);
-      store.addItem('candy', -1);
-      playAnimation(ANIMS.FEED);
-      exprOverlay.showTempMood(4, 1.5); // excited special animation
-      store.logEvent('item', 'Used Candy', '🍬');
-      toast('🍬 Gave Candy! +10 happiness');
-      break;
-    default:
-      toast('⚠ Unknown item: ' + itemName, 2500);
+  const animMap = {
+    berries: ANIMS.FEED,
+    toys: ANIMS.BOUNCE,
+    potions: ANIMS.HEAL,
+    candy: ANIMS.FEED,
+  };
+
+  const anim = animMap[itemName];
+  if (anim) playAnimation(anim);
+  if (itemName === 'candy' && exprOverlay) {
+    exprOverlay.showTempMood(4, 1.5); // excited special animation
   }
+
+  dispatchGameplay('use_item', { itemName, animation: anim });
 };
 
 // === DEMO BOOST (generic dispatcher for HTML onclick) ===
@@ -621,21 +643,14 @@ window.demoBoostCaught = function() {
   if (_pgIsModePgp()) {
     return window.pgpSample('catch_success');
   }
-  store.addHud('pokemonCaught', 1);
-  store.logEvent('catch', 'Caught', '🟢');
-  window.triggerCatchAnim();
-  toast('⚡ Demo boost: +1 Pokémon caught');
+  dispatchGameplay('catch_success', { source: 'demo', animation: ANIMS.BOUNCE });
 };
 
 window.demoBoostSpin = function() {
   if (_pgIsModePgp()) {
     return window.pgpSample('spin_success');
   }
-  store.addHud('pokestopSpins', 1);
-  store.addItem('berries', 1);
-  store.logEvent('spin', 'Spun Stop', '💠');
-  window.triggerSpinAnim();
-  toast('⚡ Demo boost: +1 Pokéstop spin');
+  dispatchGameplay('spin_success', { source: 'demo', animation: ANIMS.BOUNCE });
 };
 
 window.demoAddBerry = function() {
@@ -1056,10 +1071,7 @@ window._pgResetHold = function(btn) {
     btn.textContent = `🗑 Hold... ${left}s`;
     if (elapsed >= 3) {
       clearInterval(_pgResetTimer); _pgResetTimer = null;
-      store.state.hunger=80; store.state.happiness=60; store.state.affection=50;
-      store.state.steps=0; store.state.pokemonCaught=0; store.state.pokestopSpins=0;
-      store.state.badges=0; store.state.berries=0; store.state.toys=0;
-      store.state.potions=0; store.state.candy=0; store.state.journal=[];
+      store.replaceState(DEFAULT_STATE);
       syncAllHUD();
       window.closeSettings();
       toast('🗑 Progress reset!', 2500);
@@ -1145,10 +1157,7 @@ window.startReset = function() {
     if (btn) btn.textContent = `Hold ${Math.max(0, 3 - elapsed).toFixed(1)}s to Reset Progress`;
     if (elapsed >= 3) {
       clearInterval(_legacyResetTimer); _legacyResetTimer = null;
-      store.state.hunger = 80; store.state.happiness = 60; store.state.affection = 50;
-      store.state.steps = 0; store.state.pokemonCaught = 0; store.state.pokestopSpins = 0;
-      store.state.badges = 0; store.state.berries = 0; store.state.toys = 0;
-      store.state.potions = 0; store.state.candy = 0; store.state.journal = [];
+      store.replaceState(DEFAULT_STATE);
       syncAllHUD();
       window.closeSettings();
       if (fill) fill.style.width = '0%';
@@ -1209,44 +1218,15 @@ function _pgApplyModeUI() {
 
 window.pgpSample = function(outcome) {
   const map = {
-    catch_success: { type: 'catch', ok: true,  icon: '✅', label: 'Catch Success' },
-    catch_fail:    { type: 'catch', ok: false, icon: '❌', label: 'Catch Failed' },
-    spin_success:  { type: 'spin',  ok: true,  icon: '💠', label: 'Spin Success' },
-    spin_fail:     { type: 'spin',  ok: false, icon: '⛔', label: 'Spin Failed' },
+    catch_success: 'catch_success',
+    catch_fail: 'catch_fail',
+    spin_success: 'spin_success',
+    spin_fail: 'spin_fail',
   };
-  const evt = map[outcome];
-  if (!evt) return;
+  const actionType = map[outcome];
+  if (!actionType) return;
 
-  if (evt.type === 'catch') {
-    if (evt.ok) {
-      store.addHud('pokemonCaught', 1);
-      store.logEvent('catch', evt.label, evt.icon);
-      if (_pgScreenEffectsAllowed()) window.triggerCatchAnim();
-      if (_pgVibrateAllowed()) toast('📳 Vibrate: catch success', 1000);
-      toast(_pgScreenEffectsAllowed() ? '✅ Catch success' : '✅ Catch success (sleep mode: no screen FX)');
-    } else {
-      store.logEvent('fled', evt.label, evt.icon);
-      if (_pgScreenEffectsAllowed()) _spawnGeneratedFx(GENERATED_VFX.catch_fail, { label: '❌ Missed', size: 80, duration: 950, radius: 48 });
-      if (_pgVibrateAllowed()) toast('📳 Vibrate: catch failed', 1000);
-      toast('❌ Catch failed');
-    }
-  }
-
-  if (evt.type === 'spin') {
-    if (evt.ok) {
-      store.addHud('pokestopSpins', 1);
-      store.addItem('berries', 1);
-      store.logEvent('spin', evt.label, evt.icon);
-      if (_pgScreenEffectsAllowed()) window.triggerSpinAnim();
-      if (_pgVibrateAllowed()) toast('📳 Vibrate: spin success', 1000);
-      toast(_pgScreenEffectsAllowed() ? '💠 Spin success' : '💠 Spin success (sleep mode: no screen FX)');
-    } else {
-      store.logEvent('spin', evt.label, evt.icon);
-      if (_pgScreenEffectsAllowed()) _spawnGeneratedFx(GENERATED_VFX.spin_fail, { label: '⛔ No Loot', size: 80, duration: 900, radius: 48 });
-      if (_pgVibrateAllowed()) toast('📳 Vibrate: spin failed', 1000);
-      toast('⛔ Spin failed');
-    }
-  }
+  dispatchGameplay(actionType, { source: 'pgp_sample', animation: actionType.includes('catch') ? ANIMS.BOUNCE : null });
   _pgRenderJournal();
 };
 
