@@ -85,11 +85,12 @@ window._onStoreChange = function(key, value) {
         valEl.classList.add('hud-flash');
         clearTimeout(valEl._flashT);
         valEl._flashT = setTimeout(() => valEl.classList.remove('hud-flash'), 500);
-        // Also update the stat bars
+        // Also update stat bars + quality styling
         const bar = document.getElementById('bar' + key.charAt(0).toUpperCase() + key.slice(1));
         const valSpan = document.getElementById('val' + key.charAt(0).toUpperCase() + key.slice(1));
         if (bar) bar.style.width = value + '%';
         if (valSpan) valSpan.textContent = value;
+        applyStatVisual(key, Number(value || 0));
       }
     }
   });
@@ -135,6 +136,34 @@ function syncAllHUD() {
     const badge = document.getElementById(bagMap[item]);
     if (badge) badge.textContent = store.get(item) || 0;
   });
+
+  ['hunger', 'happiness', 'affection'].forEach((k) => {
+    applyStatVisual(k, Number(store.get(k) || 0));
+  });
+}
+
+function applyStatVisual(key, value) {
+  const suffix = key.charAt(0).toUpperCase() + key.slice(1);
+  const bar = document.getElementById('bar' + suffix);
+  const val = document.getElementById('val' + suffix);
+  if (!bar || !val) return;
+
+  let grad = 'linear-gradient(90deg, #22c55e, #4ade80)';
+  let color = '#86efac';
+  if (value <= 30) {
+    grad = 'linear-gradient(90deg, #dc2626, #f87171)';
+    color = '#fca5a5';
+  } else if (value <= 60) {
+    grad = 'linear-gradient(90deg, #d97706, #facc15)';
+    color = '#fde68a';
+  }
+
+  bar.style.background = grad;
+  bar.classList.add('shimmer');
+  val.style.color = color;
+
+  const row = val.closest('.stat-row');
+  if (row) row.classList.toggle('low', value <= 30);
 }
 
 // === WRAPPER ===

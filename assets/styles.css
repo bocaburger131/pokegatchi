@@ -483,23 +483,33 @@ body[data-art="generated"] .hud-group {
 .stat-row .si { font-size: 0.75rem; width: 16px; text-align: center; flex-shrink: 0; }
 .stat-row .sn { font-size: 0.6rem; color: var(--text-dim); width: 44px; flex-shrink: 0; font-weight: 600; }
 .stat-bar-bg {
-  flex: 1; height: 6px;
-  background: rgba(255,255,255,0.05);
-  border-radius: 4px; overflow: hidden;
+  flex: 1; height: 12px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 6px; overflow: hidden;
   position: relative;
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: inset 0 1px 4px rgba(0,0,0,.45);
 }
 .stat-fill {
-  height: 100%; border-radius: 4px;
-  transition: width 0.5s ease;
+  height: 100%; border-radius: 6px;
+  transition: width 0.5s ease, background 0.35s ease;
   position: relative;
+  background-size: 200% 100%;
 }
 .stat-fill::after {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 50%;
-  background: rgba(255,255,255,0.15); border-radius: 4px 4px 0 0;
+  background: rgba(255,255,255,0.2); border-radius: 6px 6px 0 0;
+}
+.stat-fill.shimmer {
+  animation: statShimmer 2.1s linear infinite;
+}
+@keyframes statShimmer {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
 }
 .stat-row .sv {
-  font-size: 0.6rem; font-weight: 800;
-  min-width: 20px; text-align: right;
+  font-size: 0.7rem; font-weight: 900;
+  min-width: 24px; text-align: right;
 }
 .stat-row.low .sv { animation: statPulse 1s ease-in-out infinite; }
 
@@ -541,18 +551,18 @@ body[data-art="generated"] .hud-group {
 .action-row button {
   flex: 1; min-width: 60px;
   font-family: 'Nunito', sans-serif;
-  background: rgba(255,255,255,0.03);
+  background: linear-gradient(180deg, rgba(255,255,255,0.11), rgba(255,255,255,0.03));
   color: var(--text);
-  border: 1px solid rgba(255,255,255,0.06);
-  padding: 8px 6px; border-radius: var(--radius-xs);
+  border: 1px solid rgba(255,255,255,0.14);
+  padding: 9px 6px; border-radius: 10px;
   font-size: 0.7rem; font-weight: 700;
   cursor: pointer; transition: all 0.15s;
   position: relative; overflow: hidden;
   white-space: nowrap;
 }
-.action-row button .btn-icon { display: block; font-size: 1.1rem; margin-bottom: 1px; }
-.action-row button .btn-label { font-size: 0.6rem; opacity: 0.7; font-weight: 600; }
-.action-row button:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); transform: translateY(-1px); box-shadow: 0 0 12px var(--accent-glow); }
+.action-row button .btn-icon { display: block; font-size: 1.1rem; margin-bottom: 1px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.35)); }
+.action-row button .btn-label { font-size: 0.62rem; opacity: 0.9; font-weight: 700; letter-spacing: .01em; }
+.action-row button:hover { background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.06)); border-color: rgba(255,255,255,0.3); transform: translateY(-1px); box-shadow: 0 0 12px var(--accent-glow); }
 .action-row button:active { transform: translateY(0); box-shadow: none; }
 .action-row button:disabled { opacity: 0.25; cursor: not-allowed; transform: none !important; }
 
@@ -1008,12 +1018,12 @@ button,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   padding: 12px 8px;
-  min-height: 70px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: var(--radius-xs);
+  min-height: 82px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03));
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 12px;
   color: var(--text);
   cursor: pointer;
   font-family: 'Nunito', system-ui, sans-serif;
@@ -1021,10 +1031,10 @@ button,
 }
 
 .bag-item:hover {
-  background: var(--accent-dim);
-  border-color: var(--accent);
+  background: linear-gradient(180deg, rgba(255,255,255,0.14), var(--accent-dim));
+  border-color: rgba(255,255,255,.35);
   transform: translateY(-1px);
-  box-shadow: 0 0 12px var(--accent-glow);
+  box-shadow: 0 0 14px var(--accent-glow), 0 8px 20px rgba(0,0,0,.25);
 }
 
 .bag-item:active {
@@ -1032,32 +1042,35 @@ button,
 }
 
 .bag-item-icon {
-  font-size: 1.4rem;
+  font-size: 1.5rem;
   display: block;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.35));
 }
 
 .bag-item-name {
-  font-size: 0.65rem;
-  font-weight: 700;
-  opacity: 0.8;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  opacity: 0.95;
 }
 
 .bag-item .count-badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
-  border-radius: 10px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.6rem;
-  font-weight: 800;
+  top: -5px;
+  right: -5px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: linear-gradient(180deg, #fff, #dbe7ff);
+  color: #182036;
+  font-size: 0.62rem;
+  font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,.7);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
 }
 
 /* ─── DEMO BOOST ─── */
@@ -1359,6 +1372,48 @@ button,
 /* ─── TOP HUD REDESIGN ─── */
 .ui-layer { padding-bottom: 124px; }
 
+/* Premium UI polish pass — depth, gradient rings, icon system */
+.hud-header,
+.team-card-mini,
+.pet-card,
+.quick-menu,
+.stat-panel,
+.collapsible-section,
+.pg-sheet,
+.jtoday-card,
+.jmilestone {
+  position: relative;
+  overflow: hidden;
+}
+.hud-header::after,
+.team-card-mini::after,
+.pet-card::after,
+.quick-menu::after,
+.stat-panel::after,
+.collapsible-section::after,
+.pg-sheet::after,
+.jtoday-card::after,
+.jmilestone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(140deg, rgba(255,255,255,0.26), rgba(255,255,255,0.06) 38%, rgba(255,255,255,0.02) 62%, rgba(255,255,255,0.2));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.hud-group,
+.quick-menu-item,
+.action-row button,
+.demo-btn,
+.bag-item {
+  box-shadow: 0 8px 24px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.08);
+}
+
 .hud-header {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -1368,11 +1423,11 @@ button,
 }
 
 .team-card-mini {
-  background: rgba(17, 21, 38, 0.72);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: linear-gradient(180deg, rgba(17, 21, 38, 0.86), rgba(10,14,28,.78));
+  border: 1px solid rgba(255,255,255,0.18);
   border-radius: 14px;
   padding: 8px 10px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 10px 28px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.1);
 }
 .team-line-1, .team-line-2 {
   display: flex;
@@ -1424,9 +1479,9 @@ button,
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: rgba(17, 21, 38, 0.62);
-  border: 1px solid rgba(255,255,255,0.08);
-  padding: 5px 8px;
+  background: linear-gradient(180deg, rgba(17, 21, 38, 0.76), rgba(12,16,30,.72));
+  border: 1px solid rgba(255,255,255,0.16);
+  padding: 6px 9px;
   border-radius: 999px;
 }
 .hud-group .hud-lbl {
@@ -1497,11 +1552,11 @@ button,
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   width: 100%;
-  background: rgba(12, 19, 34, 0.92);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: linear-gradient(180deg, rgba(17,26,46,.95), rgba(11,16,31,.95));
+  border: 1px solid rgba(255,255,255,0.16);
   border-radius: 16px;
   padding: 10px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 18px 34px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.08);
   transform: translateY(14px) scale(.98);
   opacity: 0;
   pointer-events: none;
@@ -1513,17 +1568,23 @@ button,
   pointer-events: auto;
 }
 .quick-menu-item {
-  min-height: 64px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.05);
+  min-height: 72px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03));
   color: var(--text);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 5px;
   font-weight: 800;
+  transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.quick-menu-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,.34);
+  box-shadow: 0 10px 22px rgba(0,0,0,.28), 0 0 16px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.14);
 }
 .quick-menu-item .icon { font-size: 1.12rem; line-height: 1; }
 .quick-menu-item .label { font-size: .67rem; letter-spacing: .02em; }
@@ -1561,9 +1622,75 @@ button,
   border-bottom: 1.5px solid rgba(255,255,255,.62);
 }
 
-.quick-menu-item.bag.team-valor { border-color: rgba(255,68,68,.55); }
-.quick-menu-item.bag.team-mystic { border-color: rgba(68,136,255,.55); }
-.quick-menu-item.bag.team-instinct { border-color: rgba(255,215,0,.55); }
+/* Journal icon = compact red storybook */
+.book-icon {
+  width: 18px;
+  height: 20px;
+  border-radius: 4px 8px 8px 4px;
+  background: linear-gradient(160deg, #b1182d, #e33f53);
+  border: 1px solid rgba(255,255,255,.38);
+  position: relative;
+  display: inline-block;
+  box-shadow: inset -2px 0 0 rgba(255,255,255,.18);
+}
+.book-icon::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 1px;
+  bottom: 1px;
+  width: 2px;
+  background: rgba(255,255,255,.58);
+  border-radius: 2px;
+}
+.book-icon::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 4px;
+  top: 6px;
+  height: 1.5px;
+  background: rgba(255,255,255,.7);
+  box-shadow: 0 4px 0 rgba(255,255,255,.55), 0 8px 0 rgba(255,255,255,.4);
+}
+
+/* Bag icon = mini backpack (team color comes from parent color) */
+.bag-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: currentColor;
+  position: relative;
+  display: inline-block;
+  color: var(--accent);
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,.14), 0 0 0 1px rgba(255,255,255,.3);
+}
+.bag-icon::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: -5px;
+  height: 7px;
+  border: 2px solid currentColor;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  opacity: .95;
+}
+.bag-icon::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: 7px;
+  height: 4px;
+  border-radius: 3px;
+  background: rgba(255,255,255,.45);
+}
+
+.quick-menu-item.bag.team-valor { border-color: rgba(255,68,68,.55); color: #ff7a7a; }
+.quick-menu-item.bag.team-mystic { border-color: rgba(68,136,255,.55); color: #7eb0ff; }
+.quick-menu-item.bag.team-instinct { border-color: rgba(255,215,0,.55); color: #ffe16a; }
 
 .pokeball-launcher {
   width: 68px;
