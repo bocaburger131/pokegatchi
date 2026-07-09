@@ -275,31 +275,34 @@ window.updateNeedAlert = function() {
   }
 };
 
-window.toggleQuickMenu = function() {
+function setLauncherState(open) {
   const menu = document.getElementById('quickMenu');
   const launcher = document.getElementById('pokeballLauncher');
-  if (!menu || !launcher) return;
-  const open = menu.classList.toggle('open');
+  const balls = document.getElementById('unlockBalls');
+  if (!menu || !launcher || !balls) return;
+  menu.classList.toggle('open', open);
   launcher.classList.toggle('open', open);
+  balls.classList.toggle('minimized', open);
   menu.setAttribute('aria-hidden', open ? 'false' : 'true');
+}
+
+window.toggleQuickMenu = function() {
+  const menu = document.getElementById('quickMenu');
+  if (!menu) return;
+  const nextOpen = !menu.classList.contains('open');
+  setLauncherState(nextOpen);
 };
 
 window.openPokedexFromMenu = function() {
-  window.toggleQuickMenu();
+  setLauncherState(false);
   const picker = document.getElementById('pickerGrid');
   if (picker) picker.scrollIntoView({ behavior: 'smooth', block: 'center' });
   toast('📱 Pokédex opened');
 };
 
 window.openBagFromMenu = function() {
-  const menu = document.getElementById('quickMenu');
-  const launcher = document.getElementById('pokeballLauncher');
-  if (menu && menu.classList.contains('open')) {
-    menu.classList.remove('open');
-    menu.setAttribute('aria-hidden', 'true');
-  }
-  if (launcher) launcher.classList.remove('open');
-  window.openBag();
+  setLauncherState(false);
+  window.openBag(true);
 };
 
 // === ALL WINDOW EXPORTS (defined BEFORE init runs) ===
@@ -481,7 +484,7 @@ window.emoteHappy = function() {
 };
 
 // === BAG SYSTEM ===
-window.openBag = function() {
+window.openBag = function(forceOpen) {
   // Collapse demo section if open
   const demoSection = document.getElementById('demoSection');
   if (demoSection && demoSection.classList.contains('open')) {
@@ -492,7 +495,8 @@ window.openBag = function() {
 
   const bagSection = document.getElementById('bagSection');
   if (!bagSection) return;
-  bagSection.classList.toggle('open');
+  const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !bagSection.classList.contains('open');
+  bagSection.classList.toggle('open', shouldOpen);
   const chevron = bagSection.querySelector('.collapsible-chevron');
   if (chevron) chevron.textContent = bagSection.classList.contains('open') ? '▼' : '▶';
 
@@ -509,10 +513,11 @@ window.openBag = function() {
     if (badge) badge.textContent = store.get(item) || 0;
   });
 
-  // Animate
-  bagSection.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-  bagSection.style.transform = 'scale(1.02)';
-  setTimeout(() => { bagSection.style.transform = 'scale(1)'; }, 150);
+  if (bagSection.classList.contains('open')) {
+    bagSection.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+    bagSection.style.transform = 'scale(1.02)';
+    setTimeout(() => { bagSection.style.transform = 'scale(1)'; }, 150);
+  }
 };
 
 window.useItem = function(itemName) {
@@ -1076,6 +1081,7 @@ let _journalTab = 'log';
 window.openJournal = function() {
   _journalTab = 'log';
   _pgRenderJournal();
+  setLauncherState(false);
   const p = document.getElementById('journalPanel');
   const bd = document.getElementById('pgBackdrop');
   if (!p) return;
