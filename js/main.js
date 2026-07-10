@@ -389,7 +389,9 @@ window.selectSpecies = function(species) {
   // Update UI
   document.getElementById('petName').textContent = species.charAt(0).toUpperCase() + species.slice(1);
   document.getElementById('petSpecies').textContent = `Showing ${species}`;
-  document.getElementById('petNameDisplay').textContent = species.charAt(0).toUpperCase() + species.slice(1);
+  // petNameDisplay is an alias for petName (same element)
+  const petNameDisplay = document.getElementById('petName');
+  if (petNameDisplay) petNameDisplay.textContent = species.charAt(0).toUpperCase() + species.slice(1);
 
   // Highlight picker button
   document.querySelectorAll('.pick-btn').forEach(b => b.classList.remove('active'));
