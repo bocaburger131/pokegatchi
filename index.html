@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Pokégatchi</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2b3f7a">
+<link rel="apple-touch-icon" href="assets/sprites/generated/pikachu_skin_v1_alpha.png">
 <link rel="stylesheet" href="assets/styles.css?v=4">
 <script type="importmap">
 {
@@ -315,7 +318,39 @@
   </div>
 </div>
 
-<!-- Cache-buster v=19 -->
-<script type="module" src="js/main.js?v=35"></script>
+<!-- Cache-buster v=20 -->
+<script>
+(function setupPwaInstall() {
+  let deferredInstallPrompt = null;
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch((err) => {
+        console.warn('Service worker registration failed:', err);
+      });
+    });
+  }
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    window.__pgInstallReady = true;
+    if (window.toast) window.toast('⬇️ Install available in Settings', 2200);
+  });
+
+  window.promptInstall = async function promptInstall() {
+    if (!deferredInstallPrompt) {
+      if (window.toast) window.toast('ℹ️ Install prompt not available yet', 2200);
+      return false;
+    }
+    deferredInstallPrompt.prompt();
+    const choice = await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    window.__pgInstallReady = false;
+    return choice?.outcome === 'accepted';
+  };
+})();
+</script>
+<script type="module" src="js/main.js?v=36"></script>
 </body>
 </html>

@@ -1,0 +1,25 @@
+{
+  "name": "Pokégatchi",
+  "short_name": "Pokégatchi",
+  "description": "Pokégatchi PGP mode — spin/catch loops with cozy pet simulation.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#101322",
+  "theme_color": "#2b3f7a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "assets/sprites/generated/pikachu_skin_v1_alpha.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/sprites/generated/eevee_skin_v2_compact_alpha.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

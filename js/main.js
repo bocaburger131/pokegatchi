@@ -36,8 +36,43 @@ window.getActionLog = function(limit = 50) {
   return eventBus.getLog().slice(0, Math.max(1, Number(limit || 50)));
 };
 
+// Canonical PGP event contract (A1 freeze)
+const PGP_EVENT_SCHEMA_VERSION = 1;
+const PGP_ACTION_TO_OUTCOME = Object.freeze({
+  catch_success: 'catch_success',
+  catch_fail: 'catch_fail',
+  spin_success: 'spin_success',
+  spin_fail: 'spin_fail',
+});
+const PGP_OUTCOME_TO_ACTION = Object.freeze({
+  catch_success: 'catch_success',
+  catch_fail: 'catch_fail',
+  spin_success: 'spin_success',
+  spin_fail: 'spin_fail',
+});
+
+function _toPgpEventType(outcome) {
+  const [kind, result] = String(outcome).split('_');
+  return `pgp.${kind}.${result}`;
+}
+
+function _buildPgpEvent(actionType, payload = {}) {
+  const outcome = PGP_ACTION_TO_OUTCOME[actionType];
+  if (!outcome) return null;
+  return {
+    schemaVersion: PGP_EVENT_SCHEMA_VERSION,
+    source: String(payload.source || 'web_ui'),
+    actionType,
+    outcome,
+    eventType: _toPgpEventType(outcome),
+    eventTsMs: Date.now(),
+  };
+}
+
 function dispatchGameplay(actionType, payload = {}) {
-  return simulation.dispatchAction(actionType, payload);
+  const pgpEvent = _buildPgpEvent(actionType, payload);
+  const nextPayload = pgpEvent ? { ...payload, pgpEvent } : payload;
+  return simulation.dispatchAction(actionType, nextPayload);
 }
 
 // Per-sprite visual centering/scale tweaks (only for PNG skin mode)
@@ -222,6 +257,12 @@ function init() {
     if (ui.toast) toast(ui.toast);
     if (info.animation && currentSpecies) {
       playAnimation(info.animation);
+    }
+
+    const outcome = info?.pgpEvent?.outcome;
+    if (outcome) {
+      window.triggerPgpOutcomeAnim(outcome);
+      return;
     }
 
     if (ui.sceneFx === 'catch' && _pgScreenEffectsAllowed()) window.triggerCatchAnim();
@@ -738,12 +779,29 @@ window.toggleDebugOverlay = function() {
 // =====================================================================
 // === FEATURE 1: CATCH & SPIN CELEBRATION OVERLAYS ====================
 // =====================================================================
-const GENERATED_VFX = {
-  catch_success: ['assets/vfx/generated/catch_success_set_b_transparent.png','assets/vfx/generated/catch_success_set_a_alpha.png'],
-  catch_fail: ['assets/vfx/generated/catch_fail_set_b_transparent.png','assets/vfx/generated/catch_fail_set_a_alpha.png'],
-  spin_success: ['assets/vfx/generated/pokestop_spin_outcomes_set_b_transparent.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha.png'],
-  spin_fail: ['assets/vfx/generated/pokestop_spin_outcomes_set_b_transparent.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha.png'],
-};
+const PGP_VFX_BUCKETS = Object.freeze({
+  catch_success: [
+    'assets/vfx/pgp/catch/success/catch_success_set_b_transparent.png',
+    'assets/vfx/pgp/catch/success/catch_success_set_a_alpha.png',
+  ],
+  catch_fail: [
+    'assets/vfx/pgp/catch/fail/catch_fail_set_b_transparent.png',
+    'assets/vfx/pgp/catch/fail/catch_fail_set_a_alpha.png',
+  ],
+  spin_success: [
+    'assets/vfx/pgp/spin/success/pokestop_spin_outcomes_set_b_transparent.png',
+    'assets/vfx/pgp/spin/success/pokestop_spin_outcomes_set_a_alpha.png',
+  ],
+  spin_fail: [
+    'assets/vfx/pgp/spin/fail/pokestop_spin_outcomes_set_b_transparent.png',
+    'assets/vfx/pgp/spin/fail/pokestop_spin_outcomes_set_a_alpha.png',
+  ],
+});
+
+function _pickPgpVfxBucket(outcome) {
+  return PGP_VFX_BUCKETS[outcome] || PGP_VFX_BUCKETS.spin_fail;
+}
+
 
 const ACTION_FRAMESETS = {
   squirtle: {
@@ -905,9 +963,31 @@ function _spawnGeneratedFx(images, options = {}) {
   document.head.appendChild(s);
 })();
 
+window.triggerPgpOutcomeAnim = function(outcome) {
+  if (!_pgScreenEffectsAllowed()) return;
+  const key = PGP_ACTION_TO_OUTCOME[outcome] ? outcome : String(outcome || '');
+  if (!PGP_VFX_BUCKETS[key]) return;
+
+  if (key === 'catch_success') return window.triggerCatchAnim();
+  if (key === 'spin_success') return window.triggerSpinAnim();
+
+  if (key === 'catch_fail') {
+    _spawnGeneratedFx(_pickPgpVfxBucket('catch_fail'), {
+      label: '❌ Catch failed', size: 80, duration: 900, radius: 44, heroSize: 118, action: 'default'
+    });
+    return;
+  }
+
+  if (key === 'spin_fail') {
+    _spawnGeneratedFx(_pickPgpVfxBucket('spin_fail'), {
+      label: '⛔ Spin failed', size: 78, duration: 840, radius: 42, heroSize: 110, action: 'default'
+    });
+  }
+};
+
 window.triggerCatchAnim = function() {
   if (!_pgScreenEffectsAllowed()) return;
-  _spawnGeneratedFx(GENERATED_VFX.catch_success, { label: '✨ Caught!', size: 84, duration: 1200, radius: 56 });
+  _spawnGeneratedFx(_pickPgpVfxBucket('catch_success'), { label: '✨ Caught!', size: 84, duration: 1200, radius: 56 });
   const wrap = document.querySelector('.pet-canvas-wrap');
   if (!wrap) return;
   const rect = wrap.getBoundingClientRect();
@@ -957,7 +1037,7 @@ window.triggerCatchAnim = function() {
 
 window.triggerSpinAnim = function() {
   if (!_pgScreenEffectsAllowed()) return;
-  _spawnGeneratedFx(GENERATED_VFX.spin_success, { label: '💠 Spin!', size: 82, duration: 1000, radius: 52 });
+  _spawnGeneratedFx(_pickPgpVfxBucket('spin_success'), { label: '💠 Spin!', size: 82, duration: 1000, radius: 52 });
   const wrap = document.querySelector('.pet-canvas-wrap');
   if (!wrap) return;
   const rect = wrap.getBoundingClientRect();
@@ -1255,16 +1335,17 @@ function _pgApplyModeUI() {
 }
 
 window.pgpSample = function(outcome) {
-  const map = {
-    catch_success: 'catch_success',
-    catch_fail: 'catch_fail',
-    spin_success: 'spin_success',
-    spin_fail: 'spin_fail',
-  };
-  const actionType = map[outcome];
-  if (!actionType) return;
+  const actionType = PGP_OUTCOME_TO_ACTION[outcome];
+  if (!actionType) {
+    toast(`⚠ Unknown PGP outcome: ${outcome}`, 2500);
+    return;
+  }
 
-  dispatchGameplay(actionType, { source: 'pgp_sample', animation: actionType.includes('catch') ? ANIMS.BOUNCE : null });
+  dispatchGameplay(actionType, {
+    source: 'pgp_sample',
+    animation: actionType.includes('catch') ? ANIMS.BOUNCE : null,
+    requestedOutcome: outcome,
+  });
   _pgRenderJournal();
 };
 
@@ -1353,6 +1434,21 @@ function _pgRenderJournal() {
   body.innerHTML = html;
 }
 
+function _applyLaunchModeFromUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const mode = (params.get('mode') || '').toLowerCase();
+    if (mode === 'pgp') {
+      _pgSettingSet('pg_mode_pgp', true);
+    } else if (mode === 'pet' || mode === 'pokegatchi') {
+      _pgSettingSet('pg_mode_pgp', false);
+    }
+  } catch (_) {
+    // no-op
+  }
+}
+
 // Load default species (deferred — all window exports must be defined first)
+_applyLaunchModeFromUrl();
 window.selectSpecies(store.state.current || 'squirtle');
 _pgApplyModeUI();
