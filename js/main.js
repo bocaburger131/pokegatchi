@@ -1,6 +1,6 @@
 // js/main.js — Complete with HUD sync, Bag system, Demo Boost, stat-modifying actions, collapsible sections
 import * as THREE from 'three';
-import { store } from './core/Store.js?v=3';
+import { store } from './core/Store.js?v=4';
 import { SceneManager } from './scene/SceneManager.js?v=18';
 import { ExpressionOverlay } from './scene/ExpressionOverlay.js?v=2';
 import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js?v=2';

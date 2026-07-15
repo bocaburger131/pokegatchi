@@ -26,6 +26,16 @@ function clone(v) {
 
 const saveManager = new SaveManager();
 
+let _persistPending = false;
+function schedulePersist(store) {
+  if (_persistPending) return;
+  _persistPending = true;
+  queueMicrotask(() => {
+    _persistPending = false;
+    saveManager.save(store.state);
+  });
+}
+
 function loadInitialState() {
   try {
     return saveManager.load();
@@ -51,7 +61,7 @@ export const store = {
     }
 
     if (window._onStoreChange) window._onStoreChange(key, value);
-    this._persist();
+    schedulePersist(this);
     return value;
   },
 
@@ -64,7 +74,7 @@ export const store = {
     const next = Math.max(0, Math.min(100, current + Number(delta || 0)));
     this.state[name] = next;
     if (window._onStoreChange) window._onStoreChange(name, next);
-    this._persist();
+    schedulePersist(this);
     return next;
   },
 
@@ -77,7 +87,7 @@ export const store = {
     this.state.inventory[name] = next;
 
     if (window._onStoreChange) window._onStoreChange(name, next);
-    this._persist();
+    schedulePersist(this);
     return next;
   },
 
@@ -86,7 +96,7 @@ export const store = {
     const next = current + Number(delta || 0);
     this.state[name] = next;
     if (window._onStoreChange) window._onStoreChange(name, next);
-    this._persist();
+    schedulePersist(this);
     return next;
   },
 
@@ -94,7 +104,7 @@ export const store = {
     if (!Array.isArray(this.state.journal)) this.state.journal = [];
     this.state.journal.unshift({ ts: Date.now(), type, label, icon });
     if (this.state.journal.length > JOURNAL_LIMIT) this.state.journal.length = JOURNAL_LIMIT;
-    this._persist();
+    schedulePersist(this);
   },
 
   replaceState(nextState) {
@@ -102,7 +112,7 @@ export const store = {
     if (window._onStoreChange) {
       Object.entries(this.state).forEach(([key, value]) => window._onStoreChange(key, value));
     }
-    this._persist();
+    schedulePersist(this);
   },
 
   snapshot() {
