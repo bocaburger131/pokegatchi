@@ -8,6 +8,23 @@ android {
     namespace = "com.shift4funding.tamagotchi"
     compileSdk = 35
 
+    // ── Product flavors: dev vs prod ────────────────────────────────
+    //  dev:  ALLOW_TEMP_REFERENCE_GIFS = true  (debug placeholders)
+    //  prod: ALLOW_TEMP_REFERENCE_GIFS = false (release-safe)
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            buildConfigField("boolean", "ALLOW_TEMP_REFERENCE_GIFS", "true")
+        }
+        create("prod") {
+            dimension = "environment"
+            buildConfigField("boolean", "ALLOW_TEMP_REFERENCE_GIFS", "false")
+        }
+    }
+
     defaultConfig {
         applicationId = "com.shift4funding.tamagotchi"
         minSdk = 30
@@ -17,6 +34,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            // debug-specific overrides if needed
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
@@ -34,6 +54,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true  // ← enables BuildConfig generation
     }
 }
 
