@@ -115,7 +115,7 @@
           <button onclick="window.pgpSample('catch_fail')"><span class="btn-icon"><img src="art/final/ui/icons/ui_icon_icon_catch_fail_32.png?v=2" width="28" height="28" alt="Catch Fail" class="btn-icon-img"></span><span class="btn-label">Catch Fail</span></button>
         </div>
         <div class="action-row" style="margin-top:6px;">
-          <button onclick="window.pgpSample('spin_success')" class="primary"><span class="btn-icon">💠</span><span class="btn-label">Spin Success</span></button>
+          <button onclick="window.pgpSample('spin_success')" class="primary"><span class="btn-icon"><img src="art/final/ui/icons/ui_icon_icon_spin_success_32.png?v=2" width="28" height="28" alt="Spin Success" class="btn-icon-img"></span><span class="btn-label">Spin Success</span></button>
           <button onclick="window.pgpSample('spin_fail')"><span class="btn-icon">⛔</span><span class="btn-label">Spin Fail</span></button>
         </div>
       </div>
@@ -123,7 +123,7 @@
       <div>
         <div class="action-group-label">Inventory</div>
         <div class="action-row">
-          <button onclick="window.openBag()" class="primary"><span class="btn-icon">🎒</span><span class="btn-label">Open Bag</span></button>
+          <button onclick="window.openBag()" class="primary"><span class="btn-icon"><img src="art/final/ui/icons/ui_icon_icon_bag_idle_48.png?v=2" width="28" height="28" alt="Bag" class="btn-icon-img"></span><span class="btn-label">Open Bag</span></button>
         </div>
       </div>
     </div>
@@ -230,22 +230,23 @@
 
     <div class="quick-menu" id="quickMenu" aria-hidden="true">
       <button class="quick-menu-item pokedex" onclick="window.openPokedexFromMenu()">
-        <span class="icon dex-icon" aria-hidden="true"></span>
+        <span class="icon dex-icon" aria-hidden="true"><img src="art/final/ui/icons/ui_icon_icon_settings_idle_48.png?v=2" width="32" height="32" alt="Pokédex" class="menu-icon-img"></span>
         <span class="label">Pokédex</span>
       </button>
       <button class="quick-menu-item journal" onclick="window.openJournal()">
-        <span class="icon book-icon" aria-hidden="true"></span>
+        <span class="icon book-icon" aria-hidden="true"><img src="art/final/ui/icons/ui_icon_icon_journal_idle_48.png?v=2" width="32" height="32" alt="Journal" class="menu-icon-img"></span>
         <span class="label">Journal</span>
       </button>
       <button class="quick-menu-item bag" id="quickBagBtn" onclick="window.openBagFromMenu()">
-        <span class="icon bag-icon" aria-hidden="true"></span>
+        <span class="icon bag-icon" aria-hidden="true"><img src="art/final/ui/icons/ui_icon_icon_bag_idle_48.png?v=2" width="32" height="32" alt="Bag" class="menu-icon-img"></span>
         <span class="label">Bag</span>
       </button>
     </div>
 
     <button class="pokeball-launcher" id="pokeballLauncher" onclick="window.toggleQuickMenu()" aria-label="Open quick menu">
-      <span class="pokeball-core"></span>
-    </button>
+            <img src="art/final/ui/hud/pokegatchi_ui_launcher_idle_72x72.png?v=2" width="72" height="72" alt="Menu" class="launcher-img">
+            <span class="pokeball-core"></span>
+          </button>
   </div>
 
   <div class="footer">Pokégatchi · <kbd>D</kbd> debug</div>
@@ -358,6 +359,6 @@
   };
 })();
 </script>
-<script type="module" src="js/main.js?v=40"></script>
+<script type="module" src="js/main.js?v=41"></script>
 </body>
 </html>
