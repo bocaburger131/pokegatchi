@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Pokégatchi</title>
-<link rel="stylesheet" href="assets/styles.css?v=4">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2b3f7a">
+<link rel="apple-touch-icon" href="assets/sprites/generated/pikachu_skin_v1_alpha.png">
+<link rel="stylesheet" href="assets/styles.css?v=5">
 <script type="importmap">
 {
   "imports": {
@@ -14,7 +17,7 @@
 }
 </script>
 </head>
-<body>
+<body data-team="mystic" data-art="generated">
 
 <!-- ─── SCENE ─── -->
 <div class="scene-wrap" id="sceneWrap">
@@ -23,9 +26,9 @@
   <div class="scene-path"></div>
   <div class="scene-mountain" style="left:5%;border-bottom-color:rgba(50,40,70,0.2);"></div>
   <div class="scene-mountain" style="right:10%;border-left-width:100px;border-right-width:100px;border-bottom-width:70px;border-bottom-color:rgba(60,50,80,0.15);"></div>
-  <div class="cameo-pkmn cameo-left" style="background-image:url('assets/sprites/eevee.png');"></div>
-  <div class="cameo-pkmn cameo-right" style="background-image:url('assets/sprites/pikachu.png');"></div>
-  <div class="cameo-pkmn cameo-center-right" style="background-image:url('assets/sprites/bulbasaur.png');"></div>
+  <div class="cameo-pkmn cameo-left" style="background-image:url('assets/sprites/generated/eevee_skin_v2_compact_alpha.png');"></div>
+  <div class="cameo-pkmn cameo-right" style="background-image:url('assets/sprites/generated/pikachu_skin_v1_alpha.png');"></div>
+  <div class="cameo-pkmn cameo-center-right" style="background-image:url('assets/sprites/generated/squirtle_skin_v1_alpha.png');"></div>
   <div class="scene-cloud" style="width:80px;height:30px;top:15%;left:-10%;--dur:80s;"></div>
   <div class="scene-cloud" style="width:100px;height:25px;top:25%;left:-20%;--dur:110s;opacity:0.7;"></div>
 </div>
@@ -33,33 +36,33 @@
 <!-- ─── UI ─── -->
 <div class="ui-layer">
 
-  <!-- ─── TOP BAR ─── -->
-  <div class="top-bar">
-    <span class="logo">✦ PG</span>
-    <span class="top-icon-btn" onclick="window.toggleDebugOverlay()" id="debugToggle" title="Debug overlay">🔍</span>
-    <span class="top-icon-btn" onclick="window.openJournal()" title="Activity Journal">📓</span>
-    <a class="top-icon-btn" href="pgp.html" title="Open PGP Home" style="text-decoration:none;">🛰️</a>
-    <span class="top-icon-btn" onclick="window.openSettings()" title="Settings">⚙️</span>
-    <span class="pet-name" id="petNameDisplay">Squirtle</span>
-    <span class="spacer">
-      <!-- HUD COUNTERS -->
-      <span class="hud-group" data-store-key="steps">
-        <span class="hud-icon">👟</span>
-        <span class="hud-val" id="hudSteps">0</span>
-      </span>
-      <span class="hud-group" data-store-key="pokemonCaught">
-        <span class="hud-icon">⚡</span>
-        <span class="hud-val" id="hudCaught">12</span>
-      </span>
-      <span class="hud-group" data-store-key="pokestopSpins">
-        <span class="hud-icon">💠</span>
-        <span class="hud-val" id="hudSpins">7</span>
-      </span>
-      <span class="hud-group" data-store-key="badges">
-        <span class="hud-icon">🏅</span>
-        <span class="hud-val" id="hudBadges">3</span>
-      </span>
-    </span>
+  <!-- ─── TOP HUD ─── -->
+  <div class="hud-header">
+    <div class="team-card-mini" id="teamCardMini">
+      <div class="team-line-1">
+        <span class="team-dot" id="teamDot">🔵</span>
+        <span id="teamNameTxt">Mystic</span>
+        <span class="team-user" id="teamUserTxt">SHIFT4FUNDING</span>
+        <span class="hud-level-badge" id="hudLevelBadge" style="background:var(--accent);color:#fff;font-size:0.62rem;font-weight:900;padding:1px 7px;border-radius:999px;margin-left:auto;letter-spacing:0.5px;">Lv.1</span>
+      </div>
+      <div class="team-line-2">
+        <span>🔥 Streak <b id="streakVal">15</b></span>
+        <span class="team-pick-mini">
+          <button onclick="window.setTeamTheme('valor')" title="Valor">🔴</button>
+          <button onclick="window.setTeamTheme('mystic')" title="Mystic">🔵</button>
+          <button onclick="window.setTeamTheme('instinct')" title="Instinct">🟡</button>
+        </span>
+      </div>
+    </div>
+    <button class="hud-gear" onclick="window.openSettings()" title="Settings"><img src="art/final/ui/hud/pokegatchi_ui_gear_idle_42x42.png?v=2" width="42" height="42" alt="Settings" class="hud-gear-img"></button>
+  </div>
+
+  <div class="hud-stats-row">
+    <span class="hud-group" data-store-key="steps"><span class="hud-icon"><img src="art/final/ui/icons/ui_icon_icon_energy_24.png?v=2" width="20" height="20" alt="Steps" class="hud-stat-img"></span><span class="hud-val" id="hudSteps">0</span><span class="hud-lbl">Steps</span></span>
+    <span class="hud-group" data-store-key="pokestopSpins"><span class="hud-icon"><img src="art/final/ui/icons/ui_icon_icon_spin_success_32.png?v=2" width="20" height="20" alt="Spins" class="hud-stat-img"></span><span class="hud-val" id="hudSpins">7</span><span class="hud-lbl">Spins</span></span>
+    <span class="hud-group" data-store-key="pokemonCaught"><span class="hud-icon"><img src="art/final/ui/icons/ui_icon_icon_catch_success_32.png?v=2" width="20" height="20" alt="Catches" class="hud-stat-img"></span><span class="hud-val" id="hudCaught">12</span><span class="hud-lbl">Catches</span></span>
+    <span class="hud-group" data-store-key="badges"><span class="hud-icon"><img src="art/final/ui/icons/ui_icon_icon_xp_star_24.png?v=2" width="20" height="20" alt="XP" class="hud-stat-img"></span><span class="hud-val" id="hudBadges">3</span><span class="hud-lbl">Achievements</span></span>
+    <span class="hud-alert" id="hudNeedAlert" title="Needs attention"><img src="art/final/ui/hud/pokegatchi_ui_alert_dot_12x12.png?v=2" width="12" height="12" alt="Alert" class="hud-alert-img"></span>
   </div>
 
   <!-- ─── PET CARD ─── -->
@@ -91,9 +94,9 @@
       <div id="pokegatchiActions">
         <div class="action-group-label">Pokégatchi Interactions</div>
         <div class="action-row" id="petActionsRow">
-          <button onclick="window.feed()"><span class="btn-icon">🫐</span><span class="btn-label">Feed</span></button>
-          <button onclick="window.petAction()"><span class="btn-icon">🫳</span><span class="btn-label">Pet</span></button>
-          <button onclick="window.healPet()"><span class="btn-icon">💊</span><span class="btn-label">Heal</span></button>
+          <button onclick="window.feed()"><span class="btn-icon"><img src="art/final/ui/icons/ui_icon_icon_food_32.png?v=2" width="28" height="28" alt="Feed" class="btn-icon-img"></span><span class="btn-label">Feed</span></button>
+          <button onclick="window.petAction()"><span class="btn-icon"><img src="art/final/ui/icons/ui_icon_icon_toy_32.png?v=2" width="28" height="28" alt="Pet" class="btn-icon-img"></span><span class="btn-label">Pet</span></button>
+          <button onclick="window.healPet()"><span class="btn-icon"><img src="art/final/ui/icons/ui_icon_icon_bath_32.png?v=2" width="28" height="28" alt="Heal" class="btn-icon-img"></span><span class="btn-label">Heal</span></button>
           <button onclick="window.bounce()" class="primary"><span class="btn-icon">🌟</span><span class="btn-label">Bounce</span></button>
         </div>
         <div class="action-row" id="emoteActionsRow" style="margin-top:6px;">
@@ -108,11 +111,11 @@
       <div id="pgpActions" style="display:none;">
         <div class="action-group-label">PGP Samples (Spin/Catch)</div>
         <div class="action-row">
-          <button onclick="window.pgpSample('catch_success')" class="primary"><span class="btn-icon">✅</span><span class="btn-label">Catch Success</span></button>
-          <button onclick="window.pgpSample('catch_fail')"><span class="btn-icon">❌</span><span class="btn-label">Catch Fail</span></button>
+          <button onclick="window.pgpSample('catch_success')" class="primary"><span class="btn-icon"><img src="art/final/ui/icons/ui_icon_icon_catch_success_32.png?v=2" width="28" height="28" alt="Catch Success" class="btn-icon-img"></span><span class="btn-label">Catch Success</span></button>
+          <button onclick="window.pgpSample('catch_fail')"><span class="btn-icon"><img src="art/final/ui/icons/ui_icon_icon_catch_fail_32.png?v=2" width="28" height="28" alt="Catch Fail" class="btn-icon-img"></span><span class="btn-label">Catch Fail</span></button>
         </div>
         <div class="action-row" style="margin-top:6px;">
-          <button onclick="window.pgpSample('spin_success')" class="primary"><span class="btn-icon">💠</span><span class="btn-label">Spin Success</span></button>
+          <button onclick="window.pgpSample('spin_success')" class="primary"><span class="btn-icon"><img src="art/final/ui/icons/ui_icon_icon_spin_success_32.png?v=2" width="28" height="28" alt="Spin Success" class="btn-icon-img"></span><span class="btn-label">Spin Success</span></button>
           <button onclick="window.pgpSample('spin_fail')"><span class="btn-icon">⛔</span><span class="btn-label">Spin Fail</span></button>
         </div>
       </div>
@@ -120,7 +123,7 @@
       <div>
         <div class="action-group-label">Inventory</div>
         <div class="action-row">
-          <button onclick="window.openBag()" class="primary"><span class="btn-icon">🎒</span><span class="btn-label">Open Bag</span></button>
+          <button onclick="window.openBag()" class="primary"><span class="btn-icon"><img src="art/final/ui/icons/ui_icon_icon_bag_idle_48.png?v=2" width="28" height="28" alt="Bag" class="btn-icon-img"></span><span class="btn-label">Open Bag</span></button>
         </div>
       </div>
     </div>
@@ -145,6 +148,12 @@
       <span class="sn">Affect</span>
       <div class="stat-bar-bg"><div class="stat-fill" id="barAffection" style="width:50%;background:var(--accent);"></div></div>
       <span class="sv" id="valAffection" data-store-key="affection">50</span>
+    </div>
+    <div class="stat-row">
+      <span class="si">🛁</span>
+      <span class="sn">Hygiene</span>
+      <div class="stat-bar-bg"><div class="stat-fill" id="barDirtiness" style="width:10%;background:var(--accent);"></div></div>
+      <span class="sv" id="valDirtiness" data-store-key="dirtiness">10</span>
     </div>
   </div>
 
@@ -206,6 +215,38 @@
         <button class="demo-btn" onclick="window.demoBoost('potion', 1)">+Potion</button>
       </div>
     </div>
+  </div>
+
+  <!-- ─── BOTTOM LAUNCHER NAV ─── -->
+  <div class="bottom-launcher-wrap">
+    <div class="unlock-balls" id="unlockBalls">
+      <span class="unlock-ball"></span>
+      <span class="unlock-ball"></span>
+      <span class="unlock-ball"></span>
+      <span class="unlock-ball"></span>
+      <span class="unlock-ball"></span>
+      <span class="unlock-ball"></span>
+    </div>
+
+    <div class="quick-menu" id="quickMenu" aria-hidden="true">
+      <button class="quick-menu-item pokedex" onclick="window.openPokedexFromMenu()">
+        <span class="icon dex-icon" aria-hidden="true"><img src="art/final/ui/icons/ui_icon_icon_settings_idle_48.png?v=2" width="32" height="32" alt="Pokédex" class="menu-icon-img"></span>
+        <span class="label">Pokédex</span>
+      </button>
+      <button class="quick-menu-item journal" onclick="window.openJournal()">
+        <span class="icon book-icon" aria-hidden="true"><img src="art/final/ui/icons/ui_icon_icon_journal_idle_48.png?v=2" width="32" height="32" alt="Journal" class="menu-icon-img"></span>
+        <span class="label">Journal</span>
+      </button>
+      <button class="quick-menu-item bag" id="quickBagBtn" onclick="window.openBagFromMenu()">
+        <span class="icon bag-icon" aria-hidden="true"><img src="art/final/ui/icons/ui_icon_icon_bag_idle_48.png?v=2" width="32" height="32" alt="Bag" class="menu-icon-img"></span>
+        <span class="label">Bag</span>
+      </button>
+    </div>
+
+    <button class="pokeball-launcher" id="pokeballLauncher" onclick="window.toggleQuickMenu()" aria-label="Open quick menu">
+            <img src="art/final/ui/hud/pokegatchi_ui_launcher_idle_72x72.png?v=2" width="72" height="72" alt="Menu" class="launcher-img">
+            <span class="pokeball-core"></span>
+          </button>
   </div>
 
   <div class="footer">Pokégatchi · <kbd>D</kbd> debug</div>
@@ -285,7 +326,39 @@
   </div>
 </div>
 
-<!-- Cache-buster v=13 -->
-<script type="module" src="js/main.js?v=28"></script>
+<!-- Cache-buster v=20 -->
+<script>
+(function setupPwaInstall() {
+  let deferredInstallPrompt = null;
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch((err) => {
+        console.warn('Service worker registration failed:', err);
+      });
+    });
+  }
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    window.__pgInstallReady = true;
+    if (window.toast) window.toast('⬇️ Install available in Settings', 2200);
+  });
+
+  window.promptInstall = async function promptInstall() {
+    if (!deferredInstallPrompt) {
+      if (window.toast) window.toast('ℹ️ Install prompt not available yet', 2200);
+      return false;
+    }
+    deferredInstallPrompt.prompt();
+    const choice = await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    window.__pgInstallReady = false;
+    return choice?.outcome === 'accepted';
+  };
+})();
+</script>
+<script type="module" src="js/main.js?v=42"></script>
 </body>
 </html>

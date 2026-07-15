@@ -1,9 +1,14 @@
 // js/main.js — Complete with HUD sync, Bag system, Demo Boost, stat-modifying actions, collapsible sections
 import * as THREE from 'three';
-import { store } from './core/Store.js?v=2';
+import { store } from './core/Store.js?v=4';
 import { SceneManager } from './scene/SceneManager.js?v=18';
 import { ExpressionOverlay } from './scene/ExpressionOverlay.js?v=2';
 import { V2_MODELS, POKEMON_IDS, SPECIES_TO_POKEMON3D, FACE_DATA } from './data/Pokedex.js?v=2';
+import { DEFAULT_STATE } from './game/balance.js?v=1';
+import { EventBus } from './game/EventBus.js?v=1';
+import { SimulationEngine } from './game/SimulationEngine.js?v=1';
+import { BagMachine } from './game/bag/BagMachine.js?v=1';
+import { BAG_GAME_EVENTS, BAG_UI_EVENTS } from './game/bag/events.js?v=1';
 
 // === GLOBALS ===
 const ANIMS = {
@@ -20,6 +25,56 @@ const ANIMS = {
 let sceneMan, exprOverlay;
 let currentSpecies = null;
 let _hudFlashTimer = null;
+let _journalTab = 'log';
+
+const eventBus = new EventBus();
+const simulation = new SimulationEngine({ store, eventBus });
+const bagMachine = new BagMachine({ eventBus, store });
+window.__bagMachine = bagMachine;
+window.__eventBus = eventBus;
+window.__simulation = simulation;
+window.getActionLog = function(limit = 50) {
+  return eventBus.getLog().slice(0, Math.max(1, Number(limit || 50)));
+};
+
+// Canonical PGP event contract (A1 freeze)
+const PGP_EVENT_SCHEMA_VERSION = 1;
+const PGP_ACTION_TO_OUTCOME = Object.freeze({
+  catch_success: 'catch_success',
+  catch_fail: 'catch_fail',
+  spin_success: 'spin_success',
+  spin_fail: 'spin_fail',
+});
+const PGP_OUTCOME_TO_ACTION = Object.freeze({
+  catch_success: 'catch_success',
+  catch_fail: 'catch_fail',
+  spin_success: 'spin_success',
+  spin_fail: 'spin_fail',
+});
+
+function _toPgpEventType(outcome) {
+  const [kind, result] = String(outcome).split('_');
+  return `pgp.${kind}.${result}`;
+}
+
+function _buildPgpEvent(actionType, payload = {}) {
+  const outcome = PGP_ACTION_TO_OUTCOME[actionType];
+  if (!outcome) return null;
+  return {
+    schemaVersion: PGP_EVENT_SCHEMA_VERSION,
+    source: String(payload.source || 'web_ui'),
+    actionType,
+    outcome,
+    eventType: _toPgpEventType(outcome),
+    eventTsMs: Date.now(),
+  };
+}
+
+function dispatchGameplay(actionType, payload = {}) {
+  const pgpEvent = _buildPgpEvent(actionType, payload);
+  const nextPayload = pgpEvent ? { ...payload, pgpEvent } : payload;
+  return simulation.dispatchAction(actionType, nextPayload);
+}
 
 // Per-sprite visual centering/scale tweaks (only for PNG skin mode)
 const SPRITE_BG_POS = {
@@ -32,6 +87,13 @@ const SPRITE_BG_SIZE = {
   psyduck: '92%',
   squirtle: '92%',
 };
+
+const GENERATED_BG_ROTATION = [
+  'assets/backgrounds/cats-soup/magical-forest.png',
+  'assets/backgrounds/cats-soup/sunlit-forest.png',
+  'assets/backgrounds/cats-soup/day-forest.png',
+  'assets/backgrounds/cats-soup/enchanted-night.png',
+];
 
 // === TOAST ===
 function toast(msg, dur) {
@@ -58,6 +120,10 @@ function toast(msg, dur) {
     .hud-flash {
       animation: hudFlash 0.45s ease-out;
     }
+    .unlock-ball.filled {
+      background: radial-gradient(circle at 30% 30%, #fff, var(--accent));
+      box-shadow: 0 0 8px var(--accent);
+    }
   `;
   document.head.appendChild(style);
 })();
@@ -70,22 +136,27 @@ window._onStoreChange = function(key, value) {
     if (k === key) {
       const valEl = el.querySelector('.hud-val') || el;
       valEl.textContent = value;
-      // Flash for stat keys (hunger, happiness, affection)
-      if (['hunger', 'happiness', 'affection'].includes(key)) {
+      // Flash for stat keys (hunger, happiness, affection, dirtiness)
+      if (['hunger', 'happiness', 'affection', 'dirtiness'].includes(key)) {
         valEl.classList.remove('hud-flash');
         // Force reflow
         void valEl.offsetWidth;
         valEl.classList.add('hud-flash');
         clearTimeout(valEl._flashT);
         valEl._flashT = setTimeout(() => valEl.classList.remove('hud-flash'), 500);
-        // Also update the stat bars
+        // Also update stat bars + quality styling
         const bar = document.getElementById('bar' + key.charAt(0).toUpperCase() + key.slice(1));
         const valSpan = document.getElementById('val' + key.charAt(0).toUpperCase() + key.slice(1));
         if (bar) bar.style.width = value + '%';
         if (valSpan) valSpan.textContent = value;
+        applyStatVisual(key, Number(value || 0));
       }
     }
   });
+  if (window.updateNeedAlert) window.updateNeedAlert();
+  if (window.updateTeamStreak) window.updateTeamStreak();
+  if (key === 'level') syncLevelBadge();
+  if (key === 'unlocks') renderUnlockBalls();
 
   // Also update bag count badges
   const bagMap = {
@@ -112,6 +183,8 @@ function syncAllHUD() {
       valEl.textContent = val;
     }
   });
+  if (window.updateNeedAlert) window.updateNeedAlert();
+  if (window.updateTeamStreak) window.updateTeamStreak();
   // Sync bag count badges
   const bagItems = ['berries', 'toys', 'potions', 'candy'];
   const bagMap = {
@@ -124,6 +197,56 @@ function syncAllHUD() {
     const badge = document.getElementById(bagMap[item]);
     if (badge) badge.textContent = store.get(item) || 0;
   });
+
+  ['hunger', 'happiness', 'affection', 'dirtiness'].forEach((k) => {
+    applyStatVisual(k, Number(store.get(k) || 0));
+  });
+  syncLevelBadge();
+  renderUnlockBalls();
+}
+
+function syncLevelBadge() {
+  const badge = document.getElementById('hudLevelBadge');
+  if (!badge) return;
+  const level = Number(store.get('level') || 1);
+  badge.textContent = `Lv.${level}`;
+}
+
+function renderUnlockBalls() {
+  const container = document.getElementById('unlockBalls');
+  if (!container) return;
+  const balls = container.querySelectorAll('.unlock-ball');
+  const unlocks = store.get('unlocks') || [];
+  const count = Math.min(unlocks.length, balls.length);
+  balls.forEach((ball, i) => {
+    ball.classList.toggle('filled', i < count);
+  });
+}
+
+function applyStatVisual(key, value) {
+  const suffix = key.charAt(0).toUpperCase() + key.slice(1);
+  const bar = document.getElementById('bar' + suffix);
+  const val = document.getElementById('val' + suffix);
+  if (!bar || !val) return;
+
+  const isDirtiness = key === 'dirtiness';
+  let grad = 'linear-gradient(90deg, #22c55e, #4ade80)';
+  let color = '#86efac';
+  if (isDirtiness) {
+    // dirtiness is inverted: high = bad, low = good
+    if (value > 60)      { grad = 'linear-gradient(90deg, #dc2626, #f87171)'; color = '#fca5a5'; }
+    else if (value > 30) { grad = 'linear-gradient(90deg, #d97706, #facc15)'; color = '#fde68a'; }
+  } else {
+    if (value <= 30)      { grad = 'linear-gradient(90deg, #dc2626, #f87171)'; color = '#fca5a5'; }
+    else if (value <= 60) { grad = 'linear-gradient(90deg, #d97706, #facc15)'; color = '#fde68a'; }
+  }
+
+  bar.style.background = grad;
+  bar.classList.add('shimmer');
+  val.style.color = color;
+
+  const row = val.closest('.stat-row');
+  if (row) row.classList.toggle('low', (isDirtiness ? value > 60 : value <= 30));
 }
 
 // === WRAPPER ===
@@ -151,10 +274,186 @@ function init() {
   }
   loop();
 
+  eventBus.subscribe('gameplay.event', (evt) => {
+    const info = evt.payload || {};
+    const journal = info.journal;
+    if (journal) {
+      store.logEvent(journal.type, journal.label, journal.icon);
+      _pgRenderJournal();
+    }
+
+    const ui = info.ui || {};
+    if (ui.toast) toast(ui.toast);
+    if (info.animation && currentSpecies) {
+      playAnimation(info.animation);
+    }
+
+    const outcome = info?.pgpEvent?.outcome;
+    if (outcome) {
+      window.triggerPgpOutcomeAnim(outcome);
+      return;
+    }
+
+    if (ui.sceneFx === 'catch' && _pgScreenEffectsAllowed()) window.triggerCatchAnim();
+    if (ui.sceneFx === 'spin' && _pgScreenEffectsAllowed()) window.triggerSpinAnim();
+  });
+
+  eventBus.subscribe('gameplay.error', (evt) => {
+    const msg = evt?.payload?.message || 'Gameplay error';
+    toast(`⚠ ${msg}`, 2500);
+  });
+
+  eventBus.subscribe('unlock.awarded', (evt) => {
+    const u = evt.payload || {};
+    toast(`🔓 Unlocked: ${u.name || u.id}`);
+    store.logEvent('unlock', `Unlocked ${u.name || u.id}`, '🔓');
+    _pgRenderJournal();
+  });
+
+  eventBus.subscribe('gameplay.level_up', (evt) => {
+    const info = evt.payload || {};
+    toast(`⬆️ Level ${info.to}!`);
+    store.logEvent('level', `Level ${info.to}`, '⬆️');
+    _pgRenderJournal();
+  });
+
+  eventBus.subscribe(BAG_GAME_EVENTS.OVERFLOW_CREATED, (evt) => {
+    const n = Number(evt?.payload?.overflowCount || 0);
+    if (n > 0) toast(`🎒 Overflow: ${n}`);
+  });
+
   // Sync all HUD elements from initial store state
   syncAllHUD();
+  bagMachine.start();
+  window._onBagStateChange = function(bagState) {
+    const map = {
+      berries: 'bagCountBerries',
+      toys: 'bagCountToys',
+      potions: 'bagCountPotions',
+      candy: 'bagCountCandy',
+    };
+    Object.entries(map).forEach(([key, id]) => {
+      const badge = document.getElementById(id);
+      if (badge) badge.textContent = Number(bagState?.inventory?.[key] || 0);
+    });
+  };
+  simulation.start();
+
+  const currentTeam = localStorage.getItem('pg_team') || 'mystic';
+  setTeamTheme(currentTeam, true);
+  setGeneratedBackgroundByTime();
   // NOTE: default species loaded below after all window exports are defined
 }
+
+function setGeneratedBackgroundByTime() {
+  const sky = document.getElementById('skyLayer');
+  if (!sky) return;
+  const hr = new Date().getHours();
+  let idx = 0;
+  if (hr >= 6 && hr < 11) idx = 1;        // sunlit
+  else if (hr >= 11 && hr < 17) idx = 2;  // day
+  else if (hr >= 17 && hr < 21) idx = 0;  // magical dusk
+  else idx = 3;                           // enchanted night
+  const bg = GENERATED_BG_ROTATION[idx];
+  sky.style.backgroundImage = `linear-gradient(180deg, rgba(20,16,42,0.16) 0%, rgba(20,16,42,0.28) 58%, rgba(20,16,42,0.34) 100%), url('${bg}')`;
+  sky.style.backgroundSize = 'cover';
+  sky.style.backgroundPosition = 'center center';
+}
+window.setGeneratedBackgroundByTime = setGeneratedBackgroundByTime;
+
+function teamMeta(team) {
+  const map = {
+    valor: { name: 'Valor', dot: '🔴' },
+    mystic: { name: 'Mystic', dot: '🔵' },
+    instinct: { name: 'Instinct', dot: '🟡' },
+  };
+  return map[team] || map.mystic;
+}
+
+window.updateTeamStreak = function() {
+  const streakEl = document.getElementById('streakVal');
+  if (!streakEl) return;
+  const catches = store.state.pokemonCaught || 0;
+  const spins = store.state.pokestopSpins || 0;
+  streakEl.textContent = Math.max(1, Math.floor((catches + spins) / 4));
+};
+
+function setTeamTheme(team, silent) {
+  const t = ['valor','mystic','instinct'].includes(team) ? team : 'mystic';
+  document.body.setAttribute('data-team', t);
+  localStorage.setItem('pg_team', t);
+
+  const meta = teamMeta(t);
+  const dot = document.getElementById('teamDot');
+  const name = document.getElementById('teamNameTxt');
+  const bag = document.getElementById('quickBagBtn');
+  const balls = document.querySelectorAll('.unlock-ball');
+  if (dot) dot.textContent = meta.dot;
+  if (name) name.textContent = meta.name;
+  if (bag) {
+    bag.classList.remove('team-valor','team-mystic','team-instinct');
+    bag.classList.add(`team-${t}`);
+  }
+  balls.forEach(b => {
+    b.classList.remove('team-valor','team-mystic','team-instinct');
+    b.classList.add(`team-${t}`);
+  });
+  if (!silent) toast(`🎨 Team set to ${meta.name}`);
+}
+window.setTeamTheme = setTeamTheme;
+
+window.updateNeedAlert = function() {
+  const el = document.getElementById('hudNeedAlert');
+  if (!el) return;
+  const hungry = (store.state.hunger || 0) < 40;
+  const sad   = (store.state.happiness || 0) < 40;
+  const dirty = (store.state.dirtiness || 0) > 60;
+  const need = hungry || sad || dirty;
+
+  if (need) {
+    el.classList.add('active');
+    if (hungry)        { el.textContent = '🍽️'; el.title = 'Hungry'; }
+    else if (sad)      { el.textContent = '😢'; el.title = 'Sad'; }
+    else if (dirty)    { el.textContent = '🛁'; el.title = 'Dirty'; }
+    if (_pgVibrateAllowed && _pgVibrateAllowed() && navigator.vibrate) {
+      try { navigator.vibrate([80, 50, 80]); } catch(_) {}
+    }
+  } else {
+    el.classList.remove('active');
+    el.textContent = '✅';
+    el.title = 'All good';
+  }
+};
+
+function setLauncherState(open) {
+  const menu = document.getElementById('quickMenu');
+  const launcher = document.getElementById('pokeballLauncher');
+  const balls = document.getElementById('unlockBalls');
+  if (!menu || !launcher || !balls) return;
+  menu.classList.toggle('open', open);
+  launcher.classList.toggle('open', open);
+  balls.classList.toggle('minimized', open);
+  menu.setAttribute('aria-hidden', open ? 'false' : 'true');
+}
+
+window.toggleQuickMenu = function() {
+  const menu = document.getElementById('quickMenu');
+  if (!menu) return;
+  const nextOpen = !menu.classList.contains('open');
+  setLauncherState(nextOpen);
+};
+
+window.openPokedexFromMenu = function() {
+  setLauncherState(false);
+  const picker = document.getElementById('pickerGrid');
+  if (picker) picker.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  toast('📱 Pokédex opened');
+};
+
+window.openBagFromMenu = function() {
+  setLauncherState(false);
+  window.openBag(true);
+};
 
 // === ALL WINDOW EXPORTS (defined BEFORE init runs) ===
 window.selectSpecies = function(species) {
@@ -164,7 +463,9 @@ window.selectSpecies = function(species) {
   // Update UI
   document.getElementById('petName').textContent = species.charAt(0).toUpperCase() + species.slice(1);
   document.getElementById('petSpecies').textContent = `Showing ${species}`;
-  document.getElementById('petNameDisplay').textContent = species.charAt(0).toUpperCase() + species.slice(1);
+  // petNameDisplay is an alias for petName (same element)
+  const petNameDisplay = document.getElementById('petName');
+  if (petNameDisplay) petNameDisplay.textContent = species.charAt(0).toUpperCase() + species.slice(1);
 
   // Highlight picker button
   document.querySelectorAll('.pick-btn').forEach(b => b.classList.remove('active'));
@@ -242,10 +543,7 @@ window.feed = function() {
     _spawnGeneratedFx(_getActionFrames('feed'), { label: '🍽 Feed', size: 72, duration: 900, radius: 36, action: 'feed', heroSize: 136 });
     exprOverlay.showTempMood(0, 2); // happy
   }
-  store.addStat('hunger', 15);
-  store.addStat('happiness', -5);
-  store.logEvent('feed', 'Fed', '🍽');
-  toast('🍽 Feeding... +15 hunger, -5 happiness');
+  dispatchGameplay('feed', { animation: ANIMS.FEED });
 };
 
 window.petAction = function() {
@@ -257,10 +555,7 @@ window.petAction = function() {
     _spawnGeneratedFx(_getActionFrames('pet'), { label: '🫳 Pet', size: 68, duration: 980, radius: 44, action: 'pet', heroSize: 138 });
     exprOverlay.showTempMood(0, 1.5); // happy
   }
-  store.addStat('affection', 10);
-  store.addStat('happiness', 5);
-  store.logEvent('pet', 'Petted', '🫳');
-  toast('🫳 Petting... +10 affection, +5 happiness');
+  dispatchGameplay('pet', { animation: ANIMS.PET });
 };
 
 window.healPet = function() {
@@ -272,11 +567,19 @@ window.healPet = function() {
     _spawnGeneratedFx(_getActionFrames('heal'), { label: '💊 Heal', size: 74, duration: 1100, radius: 52, action: 'heal', heroSize: 142 });
     exprOverlay.showTempMood(4, 2); // excited
   }
-  store.addStat('happiness', 25);
-  const hungerToAdd = 100 - store.state.hunger;
-  store.addStat('hunger', hungerToAdd); // refill to 100
-  store.logEvent('heal', 'Healed', '💊');
-  toast('💊 Healing... +25 happiness, hunger restored!');
+  dispatchGameplay('heal', { animation: ANIMS.HEAL });
+};
+
+window.cleanPet = function() {
+  if (!currentSpecies) return toast('Pick a Pokémon first!');
+  playAnimation(ANIMS.BOUNCE);
+  const wrap = document.getElementById('petWrap');
+  if (wrap) { wrap.classList.add('sparkle'); setTimeout(() => wrap.classList.remove('sparkle'), 650); }
+  if (currentSpecies !== 'pikachu') {
+    _spawnGeneratedFx(_getActionFrames('heal'), { label: '🛁 Bath', size: 74, duration: 1000, radius: 48, action: 'heal', heroSize: 140 });
+    exprOverlay.showTempMood(4, 1.8); // excited
+  }
+  dispatchGameplay('clean', { animation: ANIMS.HEAL });
 };
 
 window.bounce = function() {
@@ -288,9 +591,7 @@ window.bounce = function() {
     _spawnGeneratedFx(_getActionFrames('bounce'), { label: '🌟 Bounce', size: 70, duration: 850, radius: 40, action: 'bounce', heroSize: 140 });
     exprOverlay.showTempMood(4, 1.5); // excited
   }
-  store.addStat('happiness', 10);
-  store.logEvent('bounce', 'Bounced', '⭐');
-  toast('🌟 Bounce! +10 happiness');
+  dispatchGameplay('bounce', { animation: ANIMS.BOUNCE });
 };
 
 window.emoteEat = function() {
@@ -335,7 +636,7 @@ window.emoteHappy = function() {
 };
 
 // === BAG SYSTEM ===
-window.openBag = function() {
+window.openBag = function(forceOpen) {
   // Collapse demo section if open
   const demoSection = document.getElementById('demoSection');
   if (demoSection && demoSection.classList.contains('open')) {
@@ -346,11 +647,15 @@ window.openBag = function() {
 
   const bagSection = document.getElementById('bagSection');
   if (!bagSection) return;
-  bagSection.classList.toggle('open');
+  const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !bagSection.classList.contains('open');
+  bagSection.classList.toggle('open', shouldOpen);
   const chevron = bagSection.querySelector('.collapsible-chevron');
   if (chevron) chevron.textContent = bagSection.classList.contains('open') ? '▼' : '▶';
 
-  // Sync bag counts on open
+  if (shouldOpen) bagMachine.dispatch(BAG_UI_EVENTS.OPEN_REQUEST, {});
+  else bagMachine.dispatch(BAG_UI_EVENTS.CLOSE_REQUEST, {});
+
+  // Sync bag counts on open from bag machine state
   const bagItems = ['berries', 'toys', 'potions', 'candy'];
   const bagMap = {
     berries: 'bagCountBerries',
@@ -358,56 +663,48 @@ window.openBag = function() {
     potions: 'bagCountPotions',
     candy: 'bagCountCandy',
   };
+  const bagState = bagMachine.getState();
   bagItems.forEach(item => {
     const badge = document.getElementById(bagMap[item]);
-    if (badge) badge.textContent = store.get(item) || 0;
+    if (badge) badge.textContent = Number(bagState?.inventory?.[item] || store.get(item) || 0);
   });
 
-  // Animate
-  bagSection.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-  bagSection.style.transform = 'scale(1.02)';
-  setTimeout(() => { bagSection.style.transform = 'scale(1)'; }, 150);
+  if (bagSection.classList.contains('open')) {
+    bagSection.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+    bagSection.style.transform = 'scale(1.02)';
+    setTimeout(() => { bagSection.style.transform = 'scale(1)'; }, 150);
+  }
 };
 
 window.useItem = function(itemName) {
   if (!currentSpecies) return toast('Pick a Pokémon first!');
+
+  const preState = bagMachine.getState();
+  const priorError = preState?.ui?.error || null;
+
+  bagMachine.dispatch(BAG_UI_EVENTS.ITEM_USE_REQUEST, { itemName });
+  const bagState = bagMachine.getState();
+  if (bagState?.ui?.error && bagState.ui.error !== priorError) return toast(`⚠ ${bagState.ui.error}`, 2200);
+
   const count = store.get(itemName) || 0;
   if (count < 1) return toast('❌ No ' + itemName + ' left!', 2500);
 
-  switch (itemName) {
-    case 'berries':
-      store.addStat('hunger', 20);
-      store.addItem('berries', -1);
-      playAnimation(ANIMS.FEED);
-      store.logEvent('item', 'Used Berry', '🫐');
-      toast('🍇 Used a Berry! +20 hunger');
-      break;
-    case 'toys':
-      store.addStat('happiness', 15);
-      store.addItem('toys', -1);
-      playAnimation(ANIMS.BOUNCE);
-      store.logEvent('item', 'Used Toy', '🧸');
-      toast('🧸 Played with a Toy! +15 happiness');
-      break;
-    case 'potions':
-      store.addStat('happiness', 20);
-      store.addStat('affection', 15);
-      store.addItem('potions', -1);
-      playAnimation(ANIMS.HEAL);
-      store.logEvent('item', 'Used Potion', '💊');
-      toast('💖 Used a Potion! +20 happiness, +15 affection');
-      break;
-    case 'candy':
-      store.addStat('happiness', 10);
-      store.addItem('candy', -1);
-      playAnimation(ANIMS.FEED);
-      exprOverlay.showTempMood(4, 1.5); // excited special animation
-      store.logEvent('item', 'Used Candy', '🍬');
-      toast('🍬 Gave Candy! +10 happiness');
-      break;
-    default:
-      toast('⚠ Unknown item: ' + itemName, 2500);
+  const animMap = {
+    berries: ANIMS.FEED,
+    toys: ANIMS.BOUNCE,
+    potions: ANIMS.HEAL,
+    candy: ANIMS.FEED,
+  };
+
+  const anim = animMap[itemName];
+  if (anim) playAnimation(anim);
+  if (itemName === 'candy' && exprOverlay) {
+    exprOverlay.showTempMood(4, 1.5); // excited special animation
   }
+
+  const pendingIds = Object.keys(bagState?.pendingTx || {});
+  const txId = pendingIds[pendingIds.length - 1];
+  dispatchGameplay('use_item', { itemName, animation: anim, txId });
 };
 
 // === DEMO BOOST (generic dispatcher for HTML onclick) ===
@@ -470,21 +767,14 @@ window.demoBoostCaught = function() {
   if (_pgIsModePgp()) {
     return window.pgpSample('catch_success');
   }
-  store.addHud('pokemonCaught', 1);
-  store.logEvent('catch', 'Caught', '🟢');
-  window.triggerCatchAnim();
-  toast('⚡ Demo boost: +1 Pokémon caught');
+  dispatchGameplay('catch_success', { source: 'demo', animation: ANIMS.BOUNCE });
 };
 
 window.demoBoostSpin = function() {
   if (_pgIsModePgp()) {
     return window.pgpSample('spin_success');
   }
-  store.addHud('pokestopSpins', 1);
-  store.addItem('berries', 1);
-  store.logEvent('spin', 'Spun Stop', '💠');
-  window.triggerSpinAnim();
-  toast('⚡ Demo boost: +1 Pokéstop spin');
+  dispatchGameplay('spin_success', { source: 'demo', animation: ANIMS.BOUNCE });
 };
 
 window.demoAddBerry = function() {
@@ -524,20 +814,59 @@ window.toggleDebugOverlay = function() {
   if (!exprOverlay) return;
   const on = exprOverlay.toggleDebug();
   const btn = document.getElementById('debugToggle');
-  btn.textContent = on ? '🔍 ON' : '🔍';
-  btn.style.background = on ? 'var(--accent)' : 'var(--accent-dim)';
+  if (btn) {
+    btn.textContent = on ? '🔍 ON' : '🔍';
+    btn.style.background = on ? 'var(--accent)' : 'var(--accent-dim)';
+  }
   toast(on ? '🔍 Debug ON' : '🔍 Debug OFF');
 };
 
 // =====================================================================
 // === FEATURE 1: CATCH & SPIN CELEBRATION OVERLAYS ====================
 // =====================================================================
-const GENERATED_VFX = {
-  catch_success: ['assets/vfx/generated/catch_success_set_b_transparent.png','assets/vfx/generated/catch_success_set_a_alpha.png'],
-  catch_fail: ['assets/vfx/generated/catch_fail_set_b_transparent.png','assets/vfx/generated/catch_fail_set_a_alpha.png'],
-  spin_success: ['assets/vfx/generated/pokestop_spin_outcomes_set_b_transparent.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha.png'],
-  spin_fail: ['assets/vfx/generated/pokestop_spin_outcomes_set_b_transparent.png','assets/vfx/generated/pokestop_spin_outcomes_set_a_alpha.png'],
-};
+const PGP_VFX_BUCKETS = Object.freeze({
+  catch_success: [
+    'assets/vfx/pgp/catch/success/catch_success_v2_01.png?v=3',
+    'assets/vfx/pgp/catch/success/catch_success_v2_02.png?v=3',
+    'assets/vfx/pgp/catch/success/catch_success_v2_03.png?v=3',
+    'assets/vfx/pgp/catch/success/catch_success_set_b_transparent.png',
+    'assets/vfx/pgp/catch/success/catch_success_set_a_alpha.png',
+  ],
+  catch_fail: [
+    'assets/vfx/pgp/catch/fail/catch_fail_v2_01.png?v=3',
+    'assets/vfx/pgp/catch/fail/catch_fail_v2_02.png?v=3',
+    'assets/vfx/pgp/catch/fail/catch_fail_v2_03.png?v=3',
+    'assets/vfx/pgp/catch/fail/catch_fail_set_b_transparent.png',
+    'assets/vfx/pgp/catch/fail/catch_fail_set_a_alpha.png',
+  ],
+  spin_success: [
+    'assets/vfx/pgp/spin/success/spin_success_v2_01.png?v=3',
+    'assets/vfx/pgp/spin/success/spin_success_v2_02.png?v=3',
+    'assets/vfx/pgp/spin/success/spin_success_v2_03.png?v=3',
+    'assets/vfx/pgp/spin/success/pokestop_spin_outcomes_set_b_transparent.png',
+    'assets/vfx/pgp/spin/success/pokestop_spin_outcomes_set_a_alpha.png',
+  ],
+  spin_fail: [
+    'assets/vfx/pgp/spin/fail/spin_fail_v2_01.png?v=3',
+    'assets/vfx/pgp/spin/fail/spin_fail_v2_02.png?v=3',
+    'assets/vfx/pgp/spin/fail/spin_fail_v2_03.png?v=3',
+    'assets/vfx/pgp/spin/fail/pokestop_spin_outcomes_set_b_transparent.png',
+    'assets/vfx/pgp/spin/fail/pokestop_spin_outcomes_set_a_alpha.png',
+  ],
+  connect: [
+    'assets/vfx/pgp/connect/connect_01.png?v=3',
+    'assets/vfx/pgp/connect/connect_02.png?v=3',
+  ],
+  disconnect: [
+    'assets/vfx/pgp/disconnect/disconnect_01.png?v=3',
+    'assets/vfx/pgp/disconnect/disconnect_02.png?v=3',
+  ],
+});
+
+function _pickPgpVfxBucket(outcome) {
+  return PGP_VFX_BUCKETS[outcome] || PGP_VFX_BUCKETS.spin_fail;
+}
+
 
 const ACTION_FRAMESETS = {
   squirtle: {
@@ -699,9 +1028,45 @@ function _spawnGeneratedFx(images, options = {}) {
   document.head.appendChild(s);
 })();
 
+window.triggerPgpOutcomeAnim = function(outcome) {
+  if (!_pgScreenEffectsAllowed()) return;
+  const key = PGP_ACTION_TO_OUTCOME[outcome] ? outcome : String(outcome || '');
+  if (!PGP_VFX_BUCKETS[key]) return;
+
+  if (key === 'catch_success') return window.triggerCatchAnim();
+  if (key === 'spin_success') return window.triggerSpinAnim();
+
+  if (key === 'catch_fail') {
+    _spawnGeneratedFx(_pickPgpVfxBucket('catch_fail'), {
+      label: '❌ Catch failed', size: 80, duration: 900, radius: 44, heroSize: 118, action: 'default'
+    });
+    return;
+  }
+
+  if (key === 'spin_fail') {
+    _spawnGeneratedFx(_pickPgpVfxBucket('spin_fail'), {
+      label: '⛔ Spin failed', size: 78, duration: 840, radius: 42, heroSize: 110, action: 'default'
+    });
+    return;
+  }
+
+  if (key === 'connect') {
+    _spawnGeneratedFx(_pickPgpVfxBucket('connect'), {
+      label: '🔗 Connected', size: 72, duration: 1000, radius: 40, heroSize: 100, action: 'default'
+    });
+    return;
+  }
+
+  if (key === 'disconnect') {
+    _spawnGeneratedFx(_pickPgpVfxBucket('disconnect'), {
+      label: '🔌 Disconnected', size: 72, duration: 1000, radius: 40, heroSize: 100, action: 'default'
+    });
+  }
+};
+
 window.triggerCatchAnim = function() {
   if (!_pgScreenEffectsAllowed()) return;
-  _spawnGeneratedFx(GENERATED_VFX.catch_success, { label: '✨ Caught!', size: 84, duration: 1200, radius: 56 });
+  _spawnGeneratedFx(_pickPgpVfxBucket('catch_success'), { label: '✨ Caught!', size: 84, duration: 1200, radius: 56 });
   const wrap = document.querySelector('.pet-canvas-wrap');
   if (!wrap) return;
   const rect = wrap.getBoundingClientRect();
@@ -751,7 +1116,7 @@ window.triggerCatchAnim = function() {
 
 window.triggerSpinAnim = function() {
   if (!_pgScreenEffectsAllowed()) return;
-  _spawnGeneratedFx(GENERATED_VFX.spin_success, { label: '💠 Spin!', size: 82, duration: 1000, radius: 52 });
+  _spawnGeneratedFx(_pickPgpVfxBucket('spin_success'), { label: '💠 Spin!', size: 82, duration: 1000, radius: 52 });
   const wrap = document.querySelector('.pet-canvas-wrap');
   if (!wrap) return;
   const rect = wrap.getBoundingClientRect();
@@ -903,10 +1268,7 @@ window._pgResetHold = function(btn) {
     btn.textContent = `🗑 Hold... ${left}s`;
     if (elapsed >= 3) {
       clearInterval(_pgResetTimer); _pgResetTimer = null;
-      store.state.hunger=80; store.state.happiness=60; store.state.affection=50;
-      store.state.steps=0; store.state.pokemonCaught=0; store.state.pokestopSpins=0;
-      store.state.badges=0; store.state.berries=0; store.state.toys=0;
-      store.state.potions=0; store.state.candy=0; store.state.journal=[];
+      store.replaceState(DEFAULT_STATE);
       syncAllHUD();
       window.closeSettings();
       toast('🗑 Progress reset!', 2500);
@@ -919,15 +1281,12 @@ window._pgResetCancel = function() {
   if (btn) btn.textContent = '🗑 Reset Progress (hold 3s)';
 };
 
-// =====================================================================
-// === FEATURE 3: ACTIVITY JOURNAL PANEL ===============================
-// =====================================================================
-
-let _journalTab = 'log';
+// _journalTab is now declared at module top (before init()) to avoid TDZ
 
 window.openJournal = function() {
   _journalTab = 'log';
   _pgRenderJournal();
+  setLauncherState(false);
   const p = document.getElementById('journalPanel');
   const bd = document.getElementById('pgBackdrop');
   if (!p) return;
@@ -941,7 +1300,7 @@ window.closeJournal = function() {
   if (bd) bd.classList.remove('open');
 };
 window.clearJournal = function() {
-  store.state.journal = [];
+  store.set('journal', []);
   _pgRenderJournal();
 };
 window.switchJournalTab = function(tab) {
@@ -991,10 +1350,7 @@ window.startReset = function() {
     if (btn) btn.textContent = `Hold ${Math.max(0, 3 - elapsed).toFixed(1)}s to Reset Progress`;
     if (elapsed >= 3) {
       clearInterval(_legacyResetTimer); _legacyResetTimer = null;
-      store.state.hunger = 80; store.state.happiness = 60; store.state.affection = 50;
-      store.state.steps = 0; store.state.pokemonCaught = 0; store.state.pokestopSpins = 0;
-      store.state.badges = 0; store.state.berries = 0; store.state.toys = 0;
-      store.state.potions = 0; store.state.candy = 0; store.state.journal = [];
+      store.replaceState(DEFAULT_STATE);
       syncAllHUD();
       window.closeSettings();
       if (fill) fill.style.width = '0%';
@@ -1054,45 +1410,17 @@ function _pgApplyModeUI() {
 }
 
 window.pgpSample = function(outcome) {
-  const map = {
-    catch_success: { type: 'catch', ok: true,  icon: '✅', label: 'Catch Success' },
-    catch_fail:    { type: 'catch', ok: false, icon: '❌', label: 'Catch Failed' },
-    spin_success:  { type: 'spin',  ok: true,  icon: '💠', label: 'Spin Success' },
-    spin_fail:     { type: 'spin',  ok: false, icon: '⛔', label: 'Spin Failed' },
-  };
-  const evt = map[outcome];
-  if (!evt) return;
-
-  if (evt.type === 'catch') {
-    if (evt.ok) {
-      store.addHud('pokemonCaught', 1);
-      store.logEvent('catch', evt.label, evt.icon);
-      if (_pgScreenEffectsAllowed()) window.triggerCatchAnim();
-      if (_pgVibrateAllowed()) toast('📳 Vibrate: catch success', 1000);
-      toast(_pgScreenEffectsAllowed() ? '✅ Catch success' : '✅ Catch success (sleep mode: no screen FX)');
-    } else {
-      store.logEvent('fled', evt.label, evt.icon);
-      if (_pgScreenEffectsAllowed()) _spawnGeneratedFx(GENERATED_VFX.catch_fail, { label: '❌ Missed', size: 80, duration: 950, radius: 48 });
-      if (_pgVibrateAllowed()) toast('📳 Vibrate: catch failed', 1000);
-      toast('❌ Catch failed');
-    }
+  const actionType = PGP_OUTCOME_TO_ACTION[outcome];
+  if (!actionType) {
+    toast(`⚠ Unknown PGP outcome: ${outcome}`, 2500);
+    return;
   }
 
-  if (evt.type === 'spin') {
-    if (evt.ok) {
-      store.addHud('pokestopSpins', 1);
-      store.addItem('berries', 1);
-      store.logEvent('spin', evt.label, evt.icon);
-      if (_pgScreenEffectsAllowed()) window.triggerSpinAnim();
-      if (_pgVibrateAllowed()) toast('📳 Vibrate: spin success', 1000);
-      toast(_pgScreenEffectsAllowed() ? '💠 Spin success' : '💠 Spin success (sleep mode: no screen FX)');
-    } else {
-      store.logEvent('spin', evt.label, evt.icon);
-      if (_pgScreenEffectsAllowed()) _spawnGeneratedFx(GENERATED_VFX.spin_fail, { label: '⛔ No Loot', size: 80, duration: 900, radius: 48 });
-      if (_pgVibrateAllowed()) toast('📳 Vibrate: spin failed', 1000);
-      toast('⛔ Spin failed');
-    }
-  }
+  dispatchGameplay(actionType, {
+    source: 'pgp_sample',
+    animation: actionType.includes('catch') ? ANIMS.BOUNCE : null,
+    requestedOutcome: outcome,
+  });
   _pgRenderJournal();
 };
 
@@ -1181,6 +1509,21 @@ function _pgRenderJournal() {
   body.innerHTML = html;
 }
 
+function _applyLaunchModeFromUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const mode = (params.get('mode') || '').toLowerCase();
+    if (mode === 'pgp') {
+      _pgSettingSet('pg_mode_pgp', true);
+    } else if (mode === 'pet' || mode === 'pokegatchi') {
+      _pgSettingSet('pg_mode_pgp', false);
+    }
+  } catch (_) {
+    // no-op
+  }
+}
+
 // Load default species (deferred — all window exports must be defined first)
+_applyLaunchModeFromUrl();
 window.selectSpecies(store.state.current || 'squirtle');
 _pgApplyModeUI();
