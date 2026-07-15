@@ -25,6 +25,7 @@ const ANIMS = {
 let sceneMan, exprOverlay;
 let currentSpecies = null;
 let _hudFlashTimer = null;
+let _journalTab = 'log';
 
 const eventBus = new EventBus();
 const simulation = new SimulationEngine({ store, eventBus });
@@ -119,6 +120,10 @@ function toast(msg, dur) {
     .hud-flash {
       animation: hudFlash 0.45s ease-out;
     }
+    .unlock-ball.filled {
+      background: radial-gradient(circle at 30% 30%, #fff, var(--accent));
+      box-shadow: 0 0 8px var(--accent);
+    }
   `;
   document.head.appendChild(style);
 })();
@@ -131,8 +136,8 @@ window._onStoreChange = function(key, value) {
     if (k === key) {
       const valEl = el.querySelector('.hud-val') || el;
       valEl.textContent = value;
-      // Flash for stat keys (hunger, happiness, affection)
-      if (['hunger', 'happiness', 'affection'].includes(key)) {
+      // Flash for stat keys (hunger, happiness, affection, dirtiness)
+      if (['hunger', 'happiness', 'affection', 'dirtiness'].includes(key)) {
         valEl.classList.remove('hud-flash');
         // Force reflow
         void valEl.offsetWidth;
@@ -150,6 +155,8 @@ window._onStoreChange = function(key, value) {
   });
   if (window.updateNeedAlert) window.updateNeedAlert();
   if (window.updateTeamStreak) window.updateTeamStreak();
+  if (key === 'level') syncLevelBadge();
+  if (key === 'unlocks') renderUnlockBalls();
 
   // Also update bag count badges
   const bagMap = {
@@ -191,8 +198,28 @@ function syncAllHUD() {
     if (badge) badge.textContent = store.get(item) || 0;
   });
 
-  ['hunger', 'happiness', 'affection'].forEach((k) => {
+  ['hunger', 'happiness', 'affection', 'dirtiness'].forEach((k) => {
     applyStatVisual(k, Number(store.get(k) || 0));
+  });
+  syncLevelBadge();
+  renderUnlockBalls();
+}
+
+function syncLevelBadge() {
+  const badge = document.getElementById('hudLevelBadge');
+  if (!badge) return;
+  const level = Number(store.get('level') || 1);
+  badge.textContent = `Lv.${level}`;
+}
+
+function renderUnlockBalls() {
+  const container = document.getElementById('unlockBalls');
+  if (!container) return;
+  const balls = container.querySelectorAll('.unlock-ball');
+  const unlocks = store.get('unlocks') || [];
+  const count = Math.min(unlocks.length, balls.length);
+  balls.forEach((ball, i) => {
+    ball.classList.toggle('filled', i < count);
   });
 }
 
@@ -202,14 +229,16 @@ function applyStatVisual(key, value) {
   const val = document.getElementById('val' + suffix);
   if (!bar || !val) return;
 
+  const isDirtiness = key === 'dirtiness';
   let grad = 'linear-gradient(90deg, #22c55e, #4ade80)';
   let color = '#86efac';
-  if (value <= 30) {
-    grad = 'linear-gradient(90deg, #dc2626, #f87171)';
-    color = '#fca5a5';
-  } else if (value <= 60) {
-    grad = 'linear-gradient(90deg, #d97706, #facc15)';
-    color = '#fde68a';
+  if (isDirtiness) {
+    // dirtiness is inverted: high = bad, low = good
+    if (value > 60)      { grad = 'linear-gradient(90deg, #dc2626, #f87171)'; color = '#fca5a5'; }
+    else if (value > 30) { grad = 'linear-gradient(90deg, #d97706, #facc15)'; color = '#fde68a'; }
+  } else {
+    if (value <= 30)      { grad = 'linear-gradient(90deg, #dc2626, #f87171)'; color = '#fca5a5'; }
+    else if (value <= 60) { grad = 'linear-gradient(90deg, #d97706, #facc15)'; color = '#fde68a'; }
   }
 
   bar.style.background = grad;
@@ -217,7 +246,7 @@ function applyStatVisual(key, value) {
   val.style.color = color;
 
   const row = val.closest('.stat-row');
-  if (row) row.classList.toggle('low', value <= 30);
+  if (row) row.classList.toggle('low', (isDirtiness ? value > 60 : value <= 30));
 }
 
 // === WRAPPER ===
@@ -377,16 +406,20 @@ window.updateNeedAlert = function() {
   const el = document.getElementById('hudNeedAlert');
   if (!el) return;
   const hungry = (store.state.hunger || 0) < 40;
-  const bored = (store.state.happiness || 0) < 40;
-  const need = hungry || bored;
-  el.classList.toggle('active', need);
+  const sad   = (store.state.happiness || 0) < 40;
+  const dirty = (store.state.dirtiness || 0) > 60;
+  const need = hungry || sad || dirty;
+
   if (need) {
-    el.textContent = hungry ? '🍽️' : '🧸';
-    el.title = hungry ? 'Hungry' : 'Bored';
+    el.classList.add('active');
+    if (hungry)        { el.textContent = '🍽️'; el.title = 'Hungry'; }
+    else if (sad)      { el.textContent = '😢'; el.title = 'Sad'; }
+    else if (dirty)    { el.textContent = '🛁'; el.title = 'Dirty'; }
     if (_pgVibrateAllowed && _pgVibrateAllowed() && navigator.vibrate) {
       try { navigator.vibrate([80, 50, 80]); } catch(_) {}
     }
   } else {
+    el.classList.remove('active');
     el.textContent = '✅';
     el.title = 'All good';
   }
@@ -535,6 +568,18 @@ window.healPet = function() {
     exprOverlay.showTempMood(4, 2); // excited
   }
   dispatchGameplay('heal', { animation: ANIMS.HEAL });
+};
+
+window.cleanPet = function() {
+  if (!currentSpecies) return toast('Pick a Pokémon first!');
+  playAnimation(ANIMS.BOUNCE);
+  const wrap = document.getElementById('petWrap');
+  if (wrap) { wrap.classList.add('sparkle'); setTimeout(() => wrap.classList.remove('sparkle'), 650); }
+  if (currentSpecies !== 'pikachu') {
+    _spawnGeneratedFx(_getActionFrames('heal'), { label: '🛁 Bath', size: 74, duration: 1000, radius: 48, action: 'heal', heroSize: 140 });
+    exprOverlay.showTempMood(4, 1.8); // excited
+  }
+  dispatchGameplay('clean', { animation: ANIMS.HEAL });
 };
 
 window.bounce = function() {
@@ -1202,11 +1247,7 @@ window._pgResetCancel = function() {
   if (btn) btn.textContent = '🗑 Reset Progress (hold 3s)';
 };
 
-// =====================================================================
-// === FEATURE 3: ACTIVITY JOURNAL PANEL ===============================
-// =====================================================================
-
-let _journalTab = 'log';
+// _journalTab is now declared at module top (before init()) to avoid TDZ
 
 window.openJournal = function() {
   _journalTab = 'log';
