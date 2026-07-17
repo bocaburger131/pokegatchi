@@ -136,8 +136,8 @@ window._onStoreChange = function(key, value) {
     if (k === key) {
       const valEl = el.querySelector('.hud-val') || el;
       valEl.textContent = value;
-      // Flash for stat keys (hunger, happiness, affection, dirtiness)
-      if (['hunger', 'happiness', 'affection', 'dirtiness'].includes(key)) {
+      // Flash for stat keys (hunger, happiness, affection)
+      if (['hunger', 'happiness', 'affection'].includes(key)) {
         valEl.classList.remove('hud-flash');
         // Force reflow
         void valEl.offsetWidth;
@@ -198,7 +198,7 @@ function syncAllHUD() {
     if (badge) badge.textContent = store.get(item) || 0;
   });
 
-  ['hunger', 'happiness', 'affection', 'dirtiness'].forEach((k) => {
+  ['hunger', 'happiness', 'affection'].forEach((k) => {
     applyStatVisual(k, Number(store.get(k) || 0));
   });
   syncLevelBadge();
@@ -407,14 +407,12 @@ window.updateNeedAlert = function() {
   if (!el) return;
   const hungry = (store.state.hunger || 0) < 40;
   const sad   = (store.state.happiness || 0) < 40;
-  const dirty = (store.state.dirtiness || 0) > 60;
-  const need = hungry || sad || dirty;
+  const need = hungry || sad;
 
   if (need) {
     el.classList.add('active');
     if (hungry)        { el.textContent = '🍽️'; el.title = 'Hungry'; }
     else if (sad)      { el.textContent = '😢'; el.title = 'Sad'; }
-    else if (dirty)    { el.textContent = '🛁'; el.title = 'Dirty'; }
     if (_pgVibrateAllowed && _pgVibrateAllowed() && navigator.vibrate) {
       try { navigator.vibrate([80, 50, 80]); } catch(_) {}
     }
@@ -580,6 +578,40 @@ window.cleanPet = function() {
     exprOverlay.showTempMood(4, 1.8); // excited
   }
   dispatchGameplay('clean', { animation: ANIMS.HEAL });
+};
+
+// ─── HYGIENE TASK ───
+// Tracks whether the hygiene daily task has been completed this session
+let _hygieneTaskDone = false;
+
+window.completeHygieneTask = function() {
+  if (_hygieneTaskDone) return;
+  if (!currentSpecies) return toast('Pick a Pokémon first!');
+
+  _hygieneTaskDone = true;
+
+  // Run the clean animation
+  playAnimation(ANIMS.BOUNCE);
+  const wrap = document.getElementById('petWrap');
+  if (wrap) { wrap.classList.add('sparkle'); setTimeout(() => wrap.classList.remove('sparkle'), 650); }
+  if (currentSpecies !== 'pikachu') {
+    _spawnGeneratedFx(_getActionFrames('heal'), { label: '🛁 Sparkling Clean!', size: 80, duration: 1200, radius: 56, action: 'heal', heroSize: 150 });
+    exprOverlay.showTempMood(4, 2.5); // excited
+  }
+
+  // Rewards: hygiene + happiness boost
+  dispatchGameplay('clean', { animation: ANIMS.HEAL });
+  dispatchGameplay('pet', { animation: ANIMS.PET }); // extra happiness reward
+
+  toast('🛁 Bath complete! +Health +Happiness');
+
+  // Update the task card UI to done state
+  const card = document.getElementById('hygieneTask');
+  const btn = document.getElementById('hygieneTaskBtn');
+  const btnLabel = document.getElementById('hygieneTaskBtnLabel');
+  if (card) card.classList.add('done');
+  if (btn) { btn.classList.add('done-state'); btn.disabled = true; }
+  if (btnLabel) btnLabel.textContent = '✓ Done';
 };
 
 window.bounce = function() {

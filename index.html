@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2b3f7a">
 <link rel="apple-touch-icon" href="assets/sprites/generated/pikachu_skin_v1_alpha.png">
-<link rel="stylesheet" href="assets/styles.css?v=5">
+<link rel="stylesheet" href="assets/styles.css?v=6">
 <script type="importmap">
 {
   "imports": {
@@ -61,7 +61,7 @@
     <span class="hud-group" data-store-key="steps"><span class="hud-icon"><img src="art/final/ui/icons/ui_icon_icon_energy_24.png?v=2" width="20" height="20" alt="Steps" class="hud-stat-img"></span><span class="hud-val" id="hudSteps">0</span><span class="hud-lbl">Steps</span></span>
     <span class="hud-group" data-store-key="pokestopSpins"><span class="hud-icon"><img src="art/final/ui/icons/ui_icon_icon_spin_success_32.png?v=2" width="20" height="20" alt="Spins" class="hud-stat-img"></span><span class="hud-val" id="hudSpins">7</span><span class="hud-lbl">Spins</span></span>
     <span class="hud-group" data-store-key="pokemonCaught"><span class="hud-icon"><img src="art/final/ui/icons/ui_icon_icon_catch_success_32.png?v=2" width="20" height="20" alt="Catches" class="hud-stat-img"></span><span class="hud-val" id="hudCaught">12</span><span class="hud-lbl">Catches</span></span>
-    <span class="hud-group" data-store-key="badges"><span class="hud-icon"><img src="art/final/ui/icons/ui_icon_icon_xp_star_24.png?v=2" width="20" height="20" alt="XP" class="hud-stat-img"></span><span class="hud-val" id="hudBadges">3</span><span class="hud-lbl">Achievements</span></span>
+    <span class="hud-group" data-store-key="badges"><span class="hud-icon"><img src="art/final/ui/icons/ui_icon_icon_xp_star_24.png?v=2" width="20" height="20" alt="XP" class="hud-stat-img"></span><span class="hud-val" id="hudBadges">3</span><span class="hud-lbl">XP</span></span>
     <span class="hud-alert" id="hudNeedAlert" title="Needs attention"><img src="art/final/ui/hud/pokegatchi_ui_alert_dot_12x12.png?v=2" width="12" height="12" alt="Alert" class="hud-alert-img"></span>
   </div>
 
@@ -132,29 +132,38 @@
   <!-- ─── STAT INDICATORS ─── -->
   <div class="stats-grid" id="statsGrid">
     <div class="stat-row">
-      <span class="si">🍽</span>
+      <span class="si"><img src="art/final/ui/icons/ui_icon_icon_hunger_24.png?v=2" width="16" height="16" alt="Hunger" class="stat-icon-img"></span>
       <span class="sn">Hunger</span>
       <div class="stat-bar-bg"><div class="stat-fill" id="barHunger" style="width:80%;background:var(--accent);"></div></div>
       <span class="sv" id="valHunger" data-store-key="hunger">80</span>
     </div>
     <div class="stat-row">
-      <span class="si">😊</span>
+      <span class="si"><img src="art/final/ui/icons/ui_icon_icon_happy_24.png?v=2" width="16" height="16" alt="Happy" class="stat-icon-img"></span>
       <span class="sn">Happy</span>
       <div class="stat-bar-bg"><div class="stat-fill" id="barHappiness" style="width:60%;background:var(--accent);"></div></div>
       <span class="sv" id="valHappiness" data-store-key="happiness">60</span>
     </div>
     <div class="stat-row">
-      <span class="si">💕</span>
-      <span class="sn">Affect</span>
+      <span class="si"><img src="art/final/ui/icons/ui_icon_icon_boredom_24.png?v=2" width="16" height="16" alt="Affection" class="stat-icon-img"></span>
+      <span class="sn">Affection</span>
       <div class="stat-bar-bg"><div class="stat-fill" id="barAffection" style="width:50%;background:var(--accent);"></div></div>
       <span class="sv" id="valAffection" data-store-key="affection">50</span>
     </div>
-    <div class="stat-row">
-      <span class="si">🛁</span>
-      <span class="sn">Hygiene</span>
-      <div class="stat-bar-bg"><div class="stat-fill" id="barDirtiness" style="width:10%;background:var(--accent);"></div></div>
-      <span class="sv" id="valDirtiness" data-store-key="dirtiness">10</span>
+  </div>
+
+  <!-- ─── HYGIENE TASK CARD ─── -->
+  <div class="hygiene-task-card" id="hygieneTask">
+    <div class="hygiene-task-left">
+      <img src="art/final/ui/icons/ui_icon_icon_hygiene_24.png?v=2" width="28" height="28" alt="Hygiene" class="hygiene-icon-img">
+      <div class="hygiene-task-info">
+        <div class="hygiene-task-title">Daily Bath</div>
+        <div class="hygiene-task-desc">Rewards Health &amp; Happiness</div>
+      </div>
     </div>
+    <button class="hygiene-task-btn" id="hygieneTaskBtn" onclick="window.completeHygieneTask()">
+      <img src="art/final/ui/hud/pokegatchi_ui_confirm_idle_44x44.png?v=2" width="18" height="18" alt="" class="hygiene-btn-icon">
+      <span id="hygieneTaskBtnLabel">Give Bath</span>
+    </button>
   </div>
 
   <!-- ─── BAG SECTION (collapsible) ─── -->
@@ -359,6 +368,6 @@
   };
 })();
 </script>
-<script type="module" src="js/main.js?v=42"></script>
+<script type="module" src="js/main.js?v=43"></script>
 </body>
 </html>
