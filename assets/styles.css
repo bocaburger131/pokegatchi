@@ -439,7 +439,12 @@ body {
 
 /* ─── STATS GRID ─── */
 .stats-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px;
+  background: var(--card-bg); backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--card-border);
+  padding: 10px 12px;
   margin-bottom: 6px;
 }
 .stat-panel {
@@ -456,13 +461,14 @@ body {
   margin-bottom: 8px;
 }
 .stat-row {
-  display: flex; align-items: center; gap: 6px;
-  padding: 3px 0; position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 2px 0; position: relative; text-align: center;
 }
-.stat-row .si { font-size: 0.75rem; width: 16px; text-align: center; flex-shrink: 0; }
-.stat-row .sn { font-size: 0.6rem; color: var(--text-dim); width: 44px; flex-shrink: 0; font-weight: 600; }
+.stat-icon-img { display: block; width: 18px; height: 18px; object-fit: contain; }
+.stat-row .si { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stat-row .sn { font-size: 0.55rem; color: var(--text-dim); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; }
 .stat-bar-bg {
-  flex: 1; height: 6px;
+  width: 100%; height: 5px;
   background: rgba(255,255,255,0.05);
   border-radius: 4px; overflow: hidden;
   position: relative;
@@ -478,11 +484,68 @@ body {
 }
 .stat-row .sv {
   font-size: 0.6rem; font-weight: 800;
-  min-width: 20px; text-align: right;
+  min-width: 20px; text-align: center;
 }
 .stat-row.low .sv { animation: statPulse 1s ease-in-out infinite; }
 
 @keyframes statPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ─── HYGIENE TASK CARD ─── */
+.hygiene-task-card {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--card-bg); backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--card-border);
+  padding: 10px 14px;
+  margin-bottom: 6px;
+  gap: 10px;
+  transition: border-color 0.3s;
+}
+.hygiene-task-card.done {
+  border-color: #22c55e;
+  background: rgba(34,197,94,0.06);
+}
+.hygiene-task-left {
+  display: flex; align-items: center; gap: 10px;
+}
+.hygiene-icon-img {
+  width: 28px; height: 28px; object-fit: contain; flex-shrink: 0;
+  filter: drop-shadow(0 0 6px var(--accent-glow));
+}
+.hygiene-task-info { display: flex; flex-direction: column; gap: 1px; }
+.hygiene-task-title {
+  font-size: 0.75rem; font-weight: 800; color: var(--text);
+}
+.hygiene-task-desc {
+  font-size: 0.6rem; color: var(--text-dim); font-weight: 600;
+}
+.hygiene-task-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 12px;
+  border-radius: var(--radius-xs);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  font-size: 0.68rem; font-weight: 800;
+  font-family: 'Nunito', sans-serif;
+  cursor: pointer; white-space: nowrap;
+  transition: all 0.2s;
+  min-height: 36px;
+}
+.hygiene-task-btn:hover {
+  background: var(--accent-glow);
+  box-shadow: 0 0 12px var(--accent-glow);
+  transform: translateY(-1px);
+}
+.hygiene-task-btn:active { transform: scale(0.97); }
+.hygiene-task-btn.done-state {
+  background: rgba(34,197,94,0.1);
+  border-color: #22c55e;
+  color: #86efac;
+  cursor: default;
+}
+.hygiene-btn-icon { width: 16px; height: 16px; object-fit: contain; }
 
 /* ─── MOOD GRID ─── */
 .mood-grid {
