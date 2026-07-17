@@ -1,0 +1,49 @@
+Hi George,
+
+Here is the detailed, step-by-step guide for installing the current version of the Pokégatchi app onto your Wear OS watch.
+
+---
+
+## **How to Install Pokégatchi on Your Wear OS Watch**
+
+### **What You Need on Your PC**
+*   **Android Studio:** The official software for building Android apps. If you don't have it, download it here: https://developer.android.com/studio
+*   **ADB (Android Debug Bridge):** This is usually included with Android Studio. It's the command-line tool we use to talk to the watch.
+*   **Your Watch's Charging Cable:** For the initial ADB connection, a direct USB connection is the most reliable method.
+
+### **Part 1: Enable Developer Mode on Your Watch**
+1.  On your watch, open the main **Settings** app (the gear icon ⚙️).
+2.  Scroll down and tap on **System**.
+3.  Inside System, tap on **About**.
+4.  Find the entry labeled **Build number**.
+5.  **Tap on "Build number" 7 times in a row, quickly.** You will see a small message counting you down. When it's done, it will say, "You are now a developer!"
+6.  Go back to the main Settings menu. A new option, **Developer options**, will now be available. Tap on it.
+7.  Inside Developer options, turn on both **ADB debugging** and **Debug over Wi-Fi**.
+
+### **Part 2: Get the Code on Your PC**
+1.  Open a terminal on your PC (like Git Bash or Command Prompt).
+2.  Navigate to the folder where you keep your projects, for example: `cd C:\Users\George\Documents\GitHub`
+3.  If you haven't already, clone the project from GitHub: `git clone https://github.com/bocaburger131/pokegatchi.git`
+4.  Navigate into the project folder: `cd pokegatchi`
+5.  Pull the very latest changes: `git pull`
+
+### **Part 3: Connect Your PC to Your Watch**
+1.  Connect your watch to your PC using its USB charging cable.
+2.  On your watch screen, a prompt will appear asking "Allow debugging?". Check the box that says **"Always allow from this computer"** and then tap **"Allow"**.
+3.  In the terminal on your PC, run this command to verify the connection: `adb devices`
+4.  You should see your watch listed with "device" next to its name. This means you are connected.
+
+### **Part 4: Build and Install the App with Android Studio**
+1.  Open **Android Studio**.
+2.  From the welcome screen, choose **"Open"** (or File > Open).
+3.  Navigate to your project folder (e.g., `C:\Users\George\Documents\GitHub\pokegatchi`) and select the **`wearos-app`** folder inside it. Click "OK".
+4.  The first time you open it, Android Studio will need a few minutes to set up the project (this is called "Gradle Sync"). Wait for all progress bars at the bottom to finish.
+5.  At the top of the Android Studio window, you will see a dropdown menu that shows available devices. Your watch should be selected there.
+6.  Click the green "Play" button (▶) to build and install the app on your watch.
+
+That's it! The process will take a minute or two. Once it's done, the "Pokégatchi" app will appear in your watch's app list, ready to run.
+
+Let me know if you hit any issues at any of these steps.
+
+Best,
+Hermes

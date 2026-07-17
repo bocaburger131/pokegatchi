@@ -1,0 +1,32 @@
+Subject: Pokégatchi Godot Mobile Test Pack — Quick Start
+
+Hi Team,
+
+Here’s the latest Pokégatchi Godot mobile testing package and instructions.
+
+What’s included:
+- Android export quickstart (Godot 4.2.x)
+- Mobile tester install guide
+- Current Godot lane sample behavior and validation checklist
+
+Current status:
+- Task 8 (BLE transport adapter path): complete
+- Task 9 (expression/action mapping): complete
+- Task 10 (tester delivery package): complete
+- Task 11 (mobile export readiness scaffold): complete
+
+Quick test goals (2–3 minutes):
+1) Launch app on Android
+2) Switch team (Valor/Mystic/Instinct)
+3) Switch character (6 roster options)
+4) Trigger actions (Feed/Pet/Heal/Catch/Spin)
+5) Open Bag/Pokédex/Journal
+6) Confirm no crash and smooth interaction
+
+If anything fails, please send:
+- exact error text
+- screenshot/video
+- Android model + OS version
+
+Thanks,
+SHIFT4FUNDING

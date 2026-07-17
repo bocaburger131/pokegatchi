@@ -48,3 +48,4 @@ lib/
 wearos-app/app/src/main/assets/temp_gifs/
 wearos-app/app/src/devDebug/assets/
 **/temp_gifs/*.gif
+godot-lane/addons/ziva_agent/zivacode/
