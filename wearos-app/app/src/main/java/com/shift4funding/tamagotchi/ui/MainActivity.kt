@@ -15,7 +15,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import com.shift4funding.tamagotchi.ble.BleGattServerService
 import com.shift4funding.tamagotchi.tamagotchi.*
+import com.shift4funding.tamagotchi.pgp.NotificationEnrichmentAdapter
 import com.shift4funding.tamagotchi.ui.components.PgpModeToggle
+import com.shift4funding.tamagotchi.ui.components.RecentResultsPanel
 import com.shift4funding.tamagotchi.ui.components.TriggerAnimationOverlay
 import com.shift4funding.tamagotchi.ui.screens.MainScreen
 import com.shift4funding.tamagotchi.util.SeedGenerator
@@ -30,9 +32,17 @@ class MainActivity : ComponentActivity() {
             startForegroundService(intent)
         }
 
+        // Start notification enrichment adapter (listens to existing broadcasts)
+        NotificationEnrichmentAdapter.getInstance(this).start()
+
         setContent {
             TamaGoApp()
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        NotificationEnrichmentAdapter.getInstance(this).stop()
     }
 }
 
@@ -100,6 +110,12 @@ fun TamaGoApp() {
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 8.dp, end = 8.dp)
+        )
+
+        // Recent results panel — bottom of screen
+        RecentResultsPanel(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
         )
     }
 }
