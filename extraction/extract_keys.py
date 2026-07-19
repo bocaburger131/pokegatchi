@@ -17,7 +17,7 @@ Usage:
     # Restore original firmware
     python3 extract_keys.py restore XX:XX:XX:XX:XX:XX --fw original.bin
 
-Author: @whisperer for Shift4Funding
+Author: @whisperer for BocaBurger131
 Based on: CoderJesus SUOTA exploit, Yohanes pgpemu, Spezifisch pgpemu fork
 """
 

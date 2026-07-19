@@ -12,5 +12,5 @@ dependencyResolution {
     }
 }
 
-rootProject.name = "Shift4Funding"
+rootProject.name = "BocaBurger131"
 include(":app")

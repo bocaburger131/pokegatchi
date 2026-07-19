@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.shift4funding.tamagotchi"
+    namespace = "com.bocaburger131.tamagotchi"
     compileSdk = 35
 
     // ── Product flavors: dev vs prod ────────────────────────────────
@@ -26,7 +26,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.shift4funding.tamagotchi"
+        applicationId = "com.bocaburger131.tamagotchi"
         minSdk = 30
         targetSdk = 35
         versionCode = 1
