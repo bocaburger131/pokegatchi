@@ -1,9 +1,9 @@
-# SHIFT4FUNDING — Sprint 0 Research Brief
+# BOCABURGER131 — Sprint 0 Research Brief
 
 > **Author:** @researcher
 > **Team:** See full roster below
 > **Status:** Sprint 0 — Foundational Design
-> **Goal:** Define the game systems, data sources, personalization model, and build roadmap for the SHIFT4FUNDING companion pet (Wear OS app + Hardware device).
+> **Goal:** Define the game systems, data sources, personalization model, and build roadmap for the BOCABURGER131 companion pet (Wear OS app + Hardware device).
 
 ---
 

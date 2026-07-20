@@ -1,4 +1,4 @@
-# Shift4Funding — TamaGo
+# BocaBurger131 — TamaGo
 
 A Pokemon Go companion Tamagotchi for Wear OS and custom hardware.
 
@@ -12,7 +12,7 @@ A Pokemon Go companion Tamagotchi for Wear OS and custom hardware.
 ## Project Structure
 
 ```
-Shift4Funding/
+BocaBurger131/
 ├── Sprint-0_Research-Brief.md   # Full game design doc
 ├── wearos-app/                  # Galaxy Watch app
 │   └── app/src/main/java/.../
